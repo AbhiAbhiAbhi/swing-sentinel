@@ -1,0 +1,9 @@
+pandas
+yfinance
+requests
+beautifulsoup4
+lxml
+anthropic
+flask
+python-dateutil
+pytz

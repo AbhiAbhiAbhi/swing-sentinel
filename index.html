@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crown & Court</title>
+  <style>
+    :root {
+      --felt: #145a48;
+      --felt-dark: #0b342e;
+      --rail: #26312e;
+      --ink: #17201d;
+      --paper: #fff8e8;
+      --paper-2: #f0dfbd;
+      --gold: #f6c65b;
+      --red: #bc3341;
+      --blue: #237a9b;
+      --green: #2f8f68;
+      --shadow: rgba(2, 10, 9, 0.34);
+      --line: rgba(255, 255, 255, 0.24);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      font-family: Inter, "Segoe UI", system-ui, sans-serif;
+      color: var(--paper);
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.06) 25%, transparent 25%) 0 0 / 28px 28px,
+        linear-gradient(225deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%) 0 0 / 28px 28px,
+        radial-gradient(circle at 50% 28%, #21785f, var(--felt) 48%, var(--felt-dark));
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .table {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 16px;
+      padding: 18px clamp(12px, 3vw, 36px) 22px;
+      border: clamp(10px, 2vw, 20px) solid var(--rail);
+      box-shadow: inset 0 0 70px rgba(0, 0, 0, 0.38);
+    }
+
+    .topbar,
+    .statusbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .mark {
+      width: 46px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border: 2px solid rgba(255, 255, 255, 0.64);
+      border-radius: 50%;
+      background: radial-gradient(circle, #ffe5a3, var(--gold));
+      color: #684111;
+      font-size: 25px;
+      font-weight: 900;
+      box-shadow: 0 8px 22px var(--shadow);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 5vw, 54px);
+      line-height: 0.95;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      margin: 5px 0 0;
+      color: rgba(255, 248, 232, 0.76);
+      font-size: 14px;
+    }
+
+    .scoreboard {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(82px, 1fr));
+      gap: 8px;
+      width: min(420px, 100%);
+    }
+
+    .score {
+      min-height: 58px;
+      padding: 9px 11px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(7, 27, 23, 0.54);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.16);
+    }
+
+    .score span {
+      display: block;
+      color: rgba(255, 248, 232, 0.66);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .score strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .arena {
+      display: grid;
+      grid-template-columns: minmax(130px, 180px) 1fr minmax(130px, 180px);
+      align-items: center;
+      gap: clamp(12px, 3vw, 30px);
+      min-height: 390px;
+    }
+
+    .deck-zone,
+    .discard-zone {
+      display: grid;
+      justify-items: center;
+      gap: 12px;
+    }
+
+    .zone-label {
+      color: rgba(255, 248, 232, 0.68);
+      font-size: 13px;
+      text-transform: uppercase;
+    }
+
+    .deck {
+      width: min(34vw, 130px);
+      max-width: 130px;
+      min-width: 92px;
+      aspect-ratio: 5 / 7;
+      position: relative;
+    }
+
+    .deck::before,
+    .deck::after,
+    .deck-card {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 8px;
+      border: 2px solid rgba(255, 255, 255, 0.72);
+      background:
+        linear-gradient(45deg, rgba(255, 255, 255, 0.12) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.12) 75%) 0 0 / 18px 18px,
+        linear-gradient(45deg, transparent 25%, rgba(0, 0, 0, 0.1) 25%, rgba(0, 0, 0, 0.1) 75%, transparent 75%) 9px 9px / 18px 18px,
+        linear-gradient(155deg, #255c9e, #993b65);
+      box-shadow: 0 16px 26px var(--shadow);
+    }
+
+    .deck::before {
+      transform: translate(7px, -7px) rotate(2deg);
+      opacity: 0.58;
+    }
+
+    .deck::after {
+      transform: translate(13px, -13px) rotate(4deg);
+      opacity: 0.38;
+    }
+
+    .deck-card {
+      display: grid;
+      place-items: center;
+      color: rgba(255, 255, 255, 0.85);
+      font-size: clamp(30px, 8vw, 54px);
+      font-weight: 900;
+      z-index: 2;
+    }
+
+    .center-stage {
+      display: grid;
+      gap: 20px;
+      justify-items: center;
+      align-self: stretch;
+      align-content: center;
+    }
+
+    .played {
+      width: min(100%, 560px);
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      justify-items: center;
+      gap: clamp(8px, 2vw, 22px);
+    }
+
+    .versus {
+      width: 52px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      background: rgba(6, 31, 28, 0.66);
+      color: var(--gold);
+      font-weight: 900;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .slot {
+      width: min(29vw, 154px);
+      min-width: 96px;
+      aspect-ratio: 5 / 7;
+      display: grid;
+      place-items: center;
+      border: 2px dashed rgba(255, 248, 232, 0.38);
+      border-radius: 10px;
+      color: rgba(255, 248, 232, 0.5);
+    }
+
+    .prompt {
+      width: min(620px, 100%);
+      min-height: 60px;
+      display: grid;
+      place-items: center;
+      padding: 12px 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(4, 22, 19, 0.56);
+      text-align: center;
+      font-size: clamp(16px, 2.4vw, 22px);
+      font-weight: 760;
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.18);
+    }
+
+    .hand-wrap {
+      display: grid;
+      gap: 12px;
+    }
+
+    .hand-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      color: rgba(255, 248, 232, 0.72);
+      font-size: 13px;
+      text-transform: uppercase;
+    }
+
+    .hand {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(74px, 1fr));
+      gap: clamp(8px, 1.6vw, 15px);
+      align-items: end;
+    }
+
+    .card,
+    .mini-card {
+      border: 0;
+      border-radius: 10px;
+      background: var(--paper);
+      color: var(--ink);
+      box-shadow: 0 14px 24px var(--shadow);
+    }
+
+    .card {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 5 / 7;
+      padding: 9px;
+      cursor: pointer;
+      transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border: 2px solid rgba(23, 32, 29, 0.18);
+      border-radius: 7px;
+      pointer-events: none;
+    }
+
+    .card:hover,
+    .card:focus-visible {
+      outline: none;
+      transform: translateY(-12px);
+      box-shadow: 0 24px 32px rgba(2, 10, 9, 0.42);
+    }
+
+    .card:disabled {
+      cursor: default;
+      filter: saturate(0.6) brightness(0.85);
+      transform: none;
+    }
+
+    .card.red,
+    .mini-card.red {
+      color: var(--red);
+    }
+
+    .corner {
+      position: absolute;
+      display: grid;
+      justify-items: center;
+      line-height: 1;
+      font-weight: 900;
+      z-index: 2;
+    }
+
+    .corner.top {
+      top: 10px;
+      left: 11px;
+    }
+
+    .corner.bottom {
+      right: 11px;
+      bottom: 10px;
+      transform: rotate(180deg);
+    }
+
+    .rank {
+      font-size: clamp(18px, 2.8vw, 30px);
+    }
+
+    .suit {
+      font-size: clamp(16px, 2.4vw, 26px);
+    }
+
+    .pip {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: clamp(36px, 8vw, 74px);
+      opacity: 0.96;
+    }
+
+    .power {
+      position: absolute;
+      left: 50%;
+      bottom: 12px;
+      transform: translateX(-50%);
+      width: calc(100% - 28px);
+      padding: 4px 6px;
+      border-radius: 999px;
+      background: rgba(246, 198, 91, 0.24);
+      color: #6e4d14;
+      font-size: 11px;
+      font-weight: 850;
+      text-transform: uppercase;
+      z-index: 2;
+    }
+
+    .mini-card {
+      width: min(29vw, 154px);
+      min-width: 96px;
+      aspect-ratio: 5 / 7;
+      position: relative;
+      display: grid;
+      place-items: center;
+      animation: deal 210ms ease-out;
+    }
+
+    .mini-card .rank {
+      font-size: clamp(28px, 6vw, 44px);
+    }
+
+    .mini-card .pip {
+      font-size: clamp(48px, 9vw, 82px);
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .action {
+      min-height: 42px;
+      padding: 0 16px;
+      border: 1px solid rgba(255, 255, 255, 0.34);
+      border-radius: 8px;
+      background: #f2c35a;
+      color: #38240a;
+      font-weight: 850;
+      cursor: pointer;
+      box-shadow: 0 10px 22px var(--shadow);
+    }
+
+    .action.secondary {
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--paper);
+    }
+
+    .action:disabled {
+      opacity: 0.52;
+      cursor: default;
+    }
+
+    .discard-stack {
+      width: min(34vw, 130px);
+      min-width: 92px;
+      aspect-ratio: 5 / 7;
+      display: grid;
+      place-items: center;
+      border: 2px dashed rgba(255, 248, 232, 0.38);
+      border-radius: 10px;
+      color: rgba(255, 248, 232, 0.54);
+      font-weight: 800;
+    }
+
+    @keyframes deal {
+      from {
+        opacity: 0;
+        transform: translateY(22px) scale(0.94);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @media (max-width: 820px) {
+      .topbar,
+      .statusbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .scoreboard {
+        width: 100%;
+      }
+
+      .arena {
+        grid-template-columns: 1fr;
+        min-height: 0;
+      }
+
+      .deck-zone,
+      .discard-zone {
+        display: none;
+      }
+
+      .played {
+        grid-template-columns: 1fr auto 1fr;
+      }
+
+      .hand {
+        grid-template-columns: repeat(3, minmax(72px, 1fr));
+      }
+
+      .controls {
+        justify-content: stretch;
+      }
+
+      .action {
+        flex: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="table">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">C</div>
+        <div>
+          <h1>Crown & Court</h1>
+          <p class="subtitle">Win rounds by playing the strongest card. Trump suit changes every hand.</p>
+        </div>
+      </div>
+      <section class="scoreboard" aria-label="Scoreboard">
+        <div class="score">
+          <span>You</span>
+          <strong id="player-score">0</strong>
+        </div>
+        <div class="score">
+          <span>Round</span>
+          <strong id="round">1</strong>
+        </div>
+        <div class="score">
+          <span>Rival</span>
+          <strong id="rival-score">0</strong>
+        </div>
+      </section>
+    </header>
+
+    <section class="arena" aria-label="Card table">
+      <div class="deck-zone">
+        <div class="zone-label">Draw Pile</div>
+        <div class="deck" aria-label="Draw pile">
+          <div class="deck-card" id="deck-count">40</div>
+        </div>
+      </div>
+
+      <div class="center-stage">
+        <div class="played">
+          <div id="rival-slot" class="slot">Rival</div>
+          <div class="versus">VS</div>
+          <div id="player-slot" class="slot">You</div>
+        </div>
+        <div id="prompt" class="prompt">Choose a card to begin the duel.</div>
+      </div>
+
+      <div class="discard-zone">
+        <div class="zone-label">Spoils</div>
+        <div class="discard-stack" id="spoils">0</div>
+      </div>
+    </section>
+
+    <footer class="hand-wrap">
+      <div class="hand-head">
+        <span id="trump-label">Trump: Hearts</span>
+        <span id="hand-count">6 cards</span>
+      </div>
+      <div id="hand" class="hand" aria-label="Your hand"></div>
+      <div class="statusbar">
+        <div class="subtitle">First to 5 round wins takes the match. Trump cards beat non-trump cards.</div>
+        <div class="controls">
+          <button class="action secondary" id="new-hand" type="button">New Hand</button>
+          <button class="action" id="new-game" type="button">New Game</button>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    const suits = [
+      { name: "Hearts", symbol: "♥", red: true },
+      { name: "Diamonds", symbol: "♦", red: true },
+      { name: "Clubs", symbol: "♣", red: false },
+      { name: "Spades", symbol: "♠", red: false }
+    ];
+    const ranks = [
+      { label: "2", value: 2 },
+      { label: "3", value: 3 },
+      { label: "4", value: 4 },
+      { label: "5", value: 5 },
+      { label: "6", value: 6 },
+      { label: "7", value: 7 },
+      { label: "8", value: 8 },
+      { label: "9", value: 9 },
+      { label: "10", value: 10 },
+      { label: "J", value: 11 },
+      { label: "Q", value: 12 },
+      { label: "K", value: 13 },
+      { label: "A", value: 14 }
+    ];
+
+    const handEl = document.getElementById("hand");
+    const playerSlot = document.getElementById("player-slot");
+    const rivalSlot = document.getElementById("rival-slot");
+    const promptEl = document.getElementById("prompt");
+    const playerScoreEl = document.getElementById("player-score");
+    const rivalScoreEl = document.getElementById("rival-score");
+    const roundEl = document.getElementById("round");
+    const trumpLabel = document.getElementById("trump-label");
+    const handCount = document.getElementById("hand-count");
+    const deckCount = document.getElementById("deck-count");
+    const spoilsEl = document.getElementById("spoils");
+    const newHandButton = document.getElementById("new-hand");
+    const newGameButton = document.getElementById("new-game");
+
+    const state = {
+      deck: [],
+      playerHand: [],
+      rivalHand: [],
+      playerScore: 0,
+      rivalScore: 0,
+      round: 1,
+      spoils: 0,
+      trump: suits[0],
+      locked: false,
+      gameOver: false
+    };
+
+    function createDeck() {
+      return suits.flatMap((suit) =>
+        ranks.map((rank) => ({
+          id: `${rank.label}-${suit.name}`,
+          suit,
+          rank,
+          strength: rank.value
+        }))
+      );
+    }
+
+    function shuffle(cards) {
+      const next = [...cards];
+      for (let i = next.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [next[i], next[j]] = [next[j], next[i]];
+      }
+      return next;
+    }
+
+    function cardPower(card) {
+      return card.strength + (card.suit.name === state.trump.name ? 20 : 0);
+    }
+
+    function dealHand(keepScore = true) {
+      const scores = keepScore ? [state.playerScore, state.rivalScore, state.round] : [0, 0, 1];
+      state.deck = shuffle(createDeck());
+      state.playerHand = state.deck.splice(0, 6);
+      state.rivalHand = state.deck.splice(0, 6);
+      state.trump = state.deck.splice(0, 1)[0].suit;
+      state.playerScore = scores[0];
+      state.rivalScore = scores[1];
+      state.round = scores[2];
+      state.spoils = 0;
+      state.locked = false;
+      state.gameOver = false;
+      playerSlot.className = "slot";
+      rivalSlot.className = "slot";
+      playerSlot.textContent = "You";
+      rivalSlot.textContent = "Rival";
+      promptEl.textContent = "Choose a card to begin the duel.";
+      render();
+    }
+
+    function renderCard(card, small = false) {
+      const el = document.createElement(small ? "div" : "button");
+      el.className = `${small ? "mini-card" : "card"}${card.suit.red ? " red" : ""}`;
+      if (!small) {
+        el.type = "button";
+        el.setAttribute("aria-label", `${card.rank.label} of ${card.suit.name}`);
+      }
+      el.innerHTML = `
+        <span class="corner top"><span class="rank">${card.rank.label}</span><span class="suit">${card.suit.symbol}</span></span>
+        <span class="pip">${card.suit.symbol}</span>
+        <span class="corner bottom"><span class="rank">${card.rank.label}</span><span class="suit">${card.suit.symbol}</span></span>
+        ${card.suit.name === state.trump.name ? '<span class="power">Trump</span>' : ""}
+      `;
+      return el;
+    }
+
+    function render() {
+      handEl.innerHTML = "";
+      state.playerHand.forEach((card, index) => {
+        const el = renderCard(card);
+        el.disabled = state.locked || state.gameOver;
+        el.addEventListener("click", () => playCard(index));
+        handEl.appendChild(el);
+      });
+
+      playerScoreEl.textContent = state.playerScore;
+      rivalScoreEl.textContent = state.rivalScore;
+      roundEl.textContent = state.round;
+      trumpLabel.textContent = `Trump: ${state.trump.name} ${state.trump.symbol}`;
+      handCount.textContent = `${state.playerHand.length} card${state.playerHand.length === 1 ? "" : "s"}`;
+      deckCount.textContent = state.deck.length;
+      spoilsEl.textContent = state.spoils;
+      newHandButton.disabled = state.locked;
+    }
+
+    function chooseRivalCard(playerCard) {
+      const sorted = [...state.rivalHand].sort((a, b) => cardPower(a) - cardPower(b));
+      const playerPower = cardPower(playerCard);
+      return sorted.find((card) => cardPower(card) > playerPower) || sorted[0];
+    }
+
+    function placeCard(slot, card, label) {
+      slot.textContent = "";
+      slot.className = "";
+      const cardEl = renderCard(card, true);
+      cardEl.setAttribute("aria-label", label);
+      slot.appendChild(cardEl);
+    }
+
+    function playCard(playerIndex) {
+      if (state.locked || state.gameOver) return;
+      state.locked = true;
+
+      const playerCard = state.playerHand.splice(playerIndex, 1)[0];
+      const rivalCard = chooseRivalCard(playerCard);
+      const rivalIndex = state.rivalHand.findIndex((card) => card.id === rivalCard.id);
+      state.rivalHand.splice(rivalIndex, 1);
+
+      placeCard(playerSlot, playerCard, `You played ${playerCard.rank.label} of ${playerCard.suit.name}`);
+      placeCard(rivalSlot, rivalCard, `Rival played ${rivalCard.rank.label} of ${rivalCard.suit.name}`);
+
+      const playerPower = cardPower(playerCard);
+      const rivalPower = cardPower(rivalCard);
+      state.spoils += 2;
+
+      let result;
+      if (playerPower > rivalPower) {
+        state.playerScore += 1;
+        result = `You win the round with ${playerCard.rank.label} of ${playerCard.suit.name}.`;
+      } else if (rivalPower > playerPower) {
+        state.rivalScore += 1;
+        result = `Rival wins with ${rivalCard.rank.label} of ${rivalCard.suit.name}.`;
+      } else {
+        result = "Standoff. No one scores this round.";
+      }
+
+      state.round += 1;
+      render();
+
+      const winner = getMatchWinner();
+      if (winner) {
+        state.gameOver = true;
+        promptEl.textContent = winner === "player" ? "Match won. The crown is yours." : "Match lost. The rival claims the court.";
+        render();
+        return;
+      }
+
+      promptEl.textContent = result;
+      if (state.playerHand.length === 0) {
+        setTimeout(() => {
+          promptEl.textContent = "Hand complete. Dealing a fresh court.";
+          dealHand(true);
+        }, 1100);
+        return;
+      }
+
+      setTimeout(() => {
+        state.locked = false;
+        playerSlot.className = "slot";
+        rivalSlot.className = "slot";
+        playerSlot.textContent = "You";
+        rivalSlot.textContent = "Rival";
+        promptEl.textContent = "Choose your next card.";
+        render();
+      }, 950);
+    }
+
+    function getMatchWinner() {
+      if (state.playerScore >= 5) return "player";
+      if (state.rivalScore >= 5) return "rival";
+      return "";
+    }
+
+    newHandButton.addEventListener("click", () => dealHand(true));
+    newGameButton.addEventListener("click", () => dealHand(false));
+
+    dealHand(false);
+  </script>
+</body>
+</html>

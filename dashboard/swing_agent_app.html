@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swing Sentinel</title>
+<style>
+:root {
+  --bg:        #0d1117;
+  --surface:   #161b22;
+  --card:      #1c2128;
+  --border:    #30363d;
+  --border-hi: #484f58;
+  --text:      #e6edf3;
+  --muted:     #8b949e;
+  --green:     #3fb950;
+  --green-bg:  rgba(63,185,80,.12);
+  --red:       #f85149;
+  --red-bg:    rgba(248,81,73,.12);
+  --yellow:    #d29922;
+  --yellow-bg: rgba(210,153,34,.12);
+  --blue:      #58a6ff;
+  --blue-bg:   rgba(88,166,255,.12);
+  --purple:    #bc8cff;
+  --orange:    #ffa657;
+  --radius:    10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;min-height:100vh}
+
+/* ── Toast ─────────────────────────────────────────────── */
+#toastArea{position:fixed;top:16px;right:16px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:13px;display:flex;align-items:center;gap:8px;min-width:240px;max-width:340px;animation:slideIn .25s ease;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+.toast.success{border-color:var(--green);color:var(--green)}
+.toast.error  {border-color:var(--red);  color:var(--red)}
+.toast.info   {border-color:var(--blue); color:var(--blue)}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes fadeOut{to{opacity:0;transform:translateX(20px)}}
+
+/* ── Header ────────────────────────────────────────────── */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:12px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;letter-spacing:-.3px;white-space:nowrap}
+.logo-mark{width:30px;height:30px;background:linear-gradient(135deg,#3fb950,#58a6ff);border-radius:7px;display:grid;place-items:center;font-size:15px;flex-shrink:0}
+.header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+/* scan button */
+#scanBtn{display:flex;align-items:center;gap:7px;background:var(--green);color:#0d1117;border:none;border-radius:7px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s,background .15s;white-space:nowrap}
+#scanBtn:hover{opacity:.88}
+#scanBtn:disabled{opacity:.5;cursor:not-allowed}
+#scanBtn .spinner{width:14px;height:14px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;display:none}
+#scanBtn.loading .btn-icon{display:none}
+#scanBtn.loading .spinner{display:block}
+#scanBtn.loading .btn-text{content:'Scanning…'}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.status-dot.live{background:var(--green);box-shadow:0 0 6px var(--green)}
+.last-upd{color:var(--muted);font-size:12px;white-space:nowrap}
+
+/* ── Page ───────────────────────────────────────────────── */
+.page{padding:20px 24px;max-width:1400px;margin:0 auto}
+
+/* ── Market row ─────────────────────────────────────────── */
+.market-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:18px}
+.mcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;transition:border-color .2s}
+.mcard:hover{border-color:var(--border-hi)}
+.mcard .lbl{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+.mcard .val{font-size:20px;font-weight:700;line-height:1}
+.mcard .sub{font-size:11px;margin-top:4px;color:var(--muted)}
+.up{color:var(--green)}.down{color:var(--red)}.neutral{color:var(--yellow)}
+
+/* ── Section head ───────────────────────────────────────── */
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin:22px 0 10px}
+.sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--muted)}
+.pill{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:2px 10px;border-radius:20px;font-size:11px}
+
+/* ── Actions ────────────────────────────────────────────── */
+.actions-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:10px;margin-bottom:4px}
+.acard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 15px;display:flex;gap:11px;align-items:flex-start}
+.pbadge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;white-space:nowrap;flex-shrink:0}
+.p1{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
+.p2{background:var(--blue-bg); color:var(--blue); border:1px solid var(--blue)}
+.p3{background:rgba(188,140,255,.12);color:var(--purple);border:1px solid var(--purple)}
+.atext{font-size:13px;line-height:1.5}
+
+/* ── Stock grid ─────────────────────────────────────────── */
+.stocks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:14px}
+
+.scard{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:border-color .2s,transform .15s}
+.scard:hover{border-color:var(--blue);transform:translateY(-2px)}
+
+.scard-head{padding:13px 15px 10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+.sym{font-size:17px;font-weight:700}
+.cname{font-size:11px;color:var(--muted);margin-top:2px;max-width:165px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.px-block{text-align:right}
+.px{font-size:16px;font-weight:700}
+.chg{font-size:12px;font-weight:600;margin-top:2px}
+
+.plan{padding:11px 15px}
+.prow{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border)}
+.prow:last-child{border:none}
+.plbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.pval{font-size:13px;font-weight:600}
+.entry-chip{background:var(--blue-bg);border:1px solid rgba(88,166,255,.35);color:var(--blue);padding:2px 8px;border-radius:5px;font-size:12px;font-weight:700}
+.sl-v{color:var(--red)}
+.t1-v{color:var(--yellow)}
+.t2-v{color:var(--green)}
+
+.rr-chip{font-size:12px;font-weight:700;padding:3px 10px;border-radius:6px}
+.rr-good{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
+.rr-ok  {background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
+.rr-weak{background:var(--red-bg);   color:var(--red);   border:1px solid var(--red)}
+
+.tags{padding:9px 15px;background:var(--surface);display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--border)}
+.tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;letter-spacing:.3px}
+.t-setup {background:rgba(188,140,255,.1);color:var(--purple)}
+.t-rsi   {background:var(--yellow-bg);   color:var(--yellow)}
+.t-vol   {background:var(--green-bg);    color:var(--green)}
+
+/* ── Positions ──────────────────────────────────────────── */
+.pos-table{width:100%;border-collapse:collapse;font-size:13px}
+.pos-table th{text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.7px;padding:8px 12px;border-bottom:1px solid var(--border);font-weight:600}
+.pos-table td{padding:10px 12px;border-bottom:1px solid var(--border)}
+.pos-table tr:last-child td{border:none}
+.pos-table tr:hover td{background:rgba(255,255,255,.02)}
+.pos-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+
+/* ── Skeleton ───────────────────────────────────────────── */
+.skeleton{background:linear-gradient(90deg,var(--surface) 25%,var(--card) 50%,var(--surface) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:6px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── Empty state ────────────────────────────────────────── */
+.empty{text-align:center;padding:50px 20px;color:var(--muted)}
+.empty-icon{font-size:40px;margin-bottom:10px}
+.empty-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:5px}
+.empty-sub{font-size:13px}
+.empty code{background:var(--card);padding:2px 6px;border-radius:4px;font-size:12px}
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media(max-width:600px){
+  header{padding:10px 14px}
+  .page{padding:12px 12px}
+  .market-row{grid-template-columns:1fr 1fr}
+  .stocks-grid{grid-template-columns:1fr}
+  #scanBtn span.last-upd{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="toastArea"></div>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">🎯</div>
+    Swing Sentinel
+  </div>
+  <div class="header-right">
+    <div class="status-dot" id="statusDot"></div>
+    <span class="last-upd" id="lastUpd">Not loaded</span>
+    <button id="scanBtn" onclick="runScan()">
+      <div class="spinner"></div>
+      <span class="btn-icon">⚡</span>
+      <span class="btn-text">Scan Now</span>
+    </button>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- Market -->
+  <div class="market-row">
+    <div class="mcard">
+      <div class="lbl">Nifty 50</div>
+      <div class="val" id="niftyVal">—</div>
+      <div class="sub" id="niftySub">—</div>
+    </div>
+    <div class="mcard">
+      <div class="lbl">Sentiment</div>
+      <div class="val" id="sentVal" style="font-size:15px">—</div>
+      <div class="sub">FII + price action</div>
+    </div>
+    <div class="mcard">
+      <div class="lbl">FII Flow Today</div>
+      <div class="val" id="fiiVal">—</div>
+      <div class="sub">₹ Crores</div>
+    </div>
+    <div class="mcard">
+      <div class="lbl">Stocks Matched</div>
+      <div class="val" id="matchVal" style="color:var(--blue)">—</div>
+      <div class="sub" id="scanSrc">Chartink screener</div>
+    </div>
+    <div class="mcard">
+      <div class="lbl">Best R:R Today</div>
+      <div class="val up" id="bestRR">—</div>
+      <div class="sub" id="bestRRSym">—</div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="sec-head">
+    <span class="sec-title">🎯 Priority Actions</span>
+    <span class="pill" id="actionPill">0 actions</span>
+  </div>
+  <div class="actions-grid" id="actionsGrid">
+    <div class="empty"><div class="empty-sub">Hit <b>Scan Now</b> to load today's actions.</div></div>
+  </div>
+
+  <!-- Stocks -->
+  <div class="sec-head">
+    <span class="sec-title">📊 Trade Setups</span>
+    <span class="pill" id="stockPill">0 stocks</span>
+  </div>
+  <div class="stocks-grid" id="stocksGrid">
+    <div class="empty">
+      <div class="empty-icon">📭</div>
+      <div class="empty-title">No setups yet</div>
+      <div class="empty-sub">Click <b>Scan Now</b> or run <code>python server.py</code></div>
+    </div>
+  </div>
+
+  <!-- Positions -->
+  <div class="sec-head">
+    <span class="sec-title">💼 Open Positions</span>
+    <span class="pill" id="posPill">0 positions</span>
+  </div>
+  <div id="posWrap">
+    <div class="empty" style="padding:30px 20px">
+      <div class="empty-sub">No open positions in <code>data/positions.csv</code></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   Static fallback data — replaced by scanner when running
+   via GitHub Actions (offline/static hosting mode)
+   ══════════════════════════════════════════════════════════ */
+const STATIC_STOCKS = [];
+const STATIC_BRIEF  = {"date":"","time":"","market":{"nifty":{"level":0,"change_pct":0},"fii_dii":{"fii_today":0},"sentiment":"—"},"actions":[],"stocks":[],"total_scanned":0};
+
+/* ── API helpers ──────────────────────────────────────────── */
+const BASE = window.location.origin.includes("localhost") || window.location.origin.includes("127.0")
+  ? window.location.origin   // Flask server
+  : null;                    // static / GitHub Pages mode
+
+async function apiFetch(path, opts = {}) {
+  if (!BASE) throw new Error("No server");
+  const r = await fetch(BASE + path, { ...opts, headers: { "Content-Type": "application/json", ...(opts.headers||{}) } });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+/* ── Toast ───────────────────────────────────────────────── */
+function toast(msg, type = "info", ms = 3500) {
+  const area = document.getElementById("toastArea");
+  const el   = document.createElement("div");
+  el.className = `toast ${type}`;
+  const icon = type === "success" ? "✓" : type === "error" ? "✕" : "ℹ";
+  el.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+  area.appendChild(el);
+  setTimeout(() => {
+    el.style.animation = "fadeOut .3s ease forwards";
+    setTimeout(() => el.remove(), 300);
+  }, ms);
+}
+
+/* ── Formatters ──────────────────────────────────────────── */
+function fmt(n, d = 2) {
+  if (n == null || isNaN(n)) return "—";
+  return (+n).toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+function rrNum(rr) {
+  try { return parseFloat(String(rr).split(":").pop()) || 0; } catch { return 0; }
+}
+function rrClass(rr) {
+  const n = rrNum(rr);
+  return n >= 2 ? "rr-good" : n >= 1.5 ? "rr-ok" : "rr-weak";
+}
+function upside(t, p) {
+  if (!t || !p) return "";
+  return ` <span style="font-size:11px;opacity:.7">(+${((t-p)/p*100).toFixed(1)}%)</span>`;
+}
+function pnlClass(v) { return +v >= 0 ? "up" : "down"; }
+
+/* ── Render market ───────────────────────────────────────── */
+function renderMarket(data) {
+  const nifty = data.nifty || data.market?.nifty || {};
+  const fii   = data.fii_dii || data.market?.fii_dii || {};
+  const sent  = data.sentiment || data.market?.sentiment || "—";
+
+  const chg = nifty.change_pct || 0;
+  const nv  = document.getElementById("niftyVal");
+  nv.textContent  = nifty.level ? fmt(nifty.level, 0) : "—";
+  nv.className    = `val ${chg >= 0 ? "up" : "down"}`;
+  document.getElementById("niftySub").innerHTML =
+    nifty.level ? `<span class="${chg>=0?'up':'down'}">${chg>=0?"▲":"▼"} ${Math.abs(chg).toFixed(2)}%</span>` : "—";
+
+  document.getElementById("sentVal").textContent = sent;
+
+  const fi = fii.fii_today || 0;
+  const fv = document.getElementById("fiiVal");
+  fv.textContent = fi !== 0 ? `${fi>=0?"+":""}${fmt(fi,0)}` : "—";
+  fv.className   = `val ${fi>=0?"up":fi<0?"down":""}`;
+}
+
+function renderSummary(data) {
+  const stocks = data.stocks || [];
+  document.getElementById("matchVal").textContent  = data.total_scanned ?? stocks.length ?? "—";
+  document.getElementById("scanSrc").textContent   = data.source || "Chartink screener";
+
+  if (stocks.length) {
+    const best = stocks.reduce((b, s) => rrNum(s.rr) > rrNum(b.rr) ? s : b, stocks[0]);
+    document.getElementById("bestRR").textContent    = `1:${rrNum(best.rr).toFixed(1)}`;
+    document.getElementById("bestRRSym").textContent = best.symbol;
+  }
+  const date = data.date || ""; const time = data.time || "";
+  if (date) {
+    document.getElementById("lastUpd").textContent = `${date} ${time}`;
+    const dot = document.getElementById("statusDot");
+    dot.className = "status-dot live";
+  }
+}
+
+/* ── Render actions ──────────────────────────────────────── */
+function renderActions(actions) {
+  const grid  = document.getElementById("actionsGrid");
+  const pill  = document.getElementById("actionPill");
+  pill.textContent = `${actions.length} action${actions.length!==1?"s":""}`;
+  if (!actions.length) {
+    grid.innerHTML = `<div class="empty"><div class="empty-sub">No actions generated.</div></div>`;
+    return;
+  }
+  const cls = ["p1","p2","p3"];
+  grid.innerHTML = actions.map((a,i) => `
+    <div class="acard">
+      <span class="pbadge ${cls[i]||'p3'}">${a.priority}</span>
+      <span class="atext">${a.action}</span>
+    </div>`).join("");
+}
+
+/* ── Skeleton ────────────────────────────────────────────── */
+function showSkeletons(n = 4) {
+  const grid = document.getElementById("stocksGrid");
+  grid.innerHTML = Array(n).fill(0).map(() => `
+    <div class="scard" style="pointer-events:none">
+      <div class="scard-head">
+        <div><div class="skeleton" style="width:80px;height:18px;margin-bottom:6px"></div><div class="skeleton" style="width:120px;height:11px"></div></div>
+        <div style="text-align:right"><div class="skeleton" style="width:70px;height:16px;margin-bottom:6px"></div><div class="skeleton" style="width:50px;height:11px;margin-left:auto"></div></div>
+      </div>
+      <div class="plan">${Array(5).fill(0).map(()=>`<div class="prow"><div class="skeleton" style="width:60px;height:11px"></div><div class="skeleton" style="width:90px;height:13px"></div></div>`).join("")}</div>
+      <div class="tags"><div class="skeleton" style="width:70px;height:18px"></div><div class="skeleton" style="width:50px;height:18px"></div></div>
+    </div>`).join("");
+}
+
+/* ── Render stocks ───────────────────────────────────────── */
+function renderStocks(stocks) {
+  const grid = document.getElementById("stocksGrid");
+  const pill = document.getElementById("stockPill");
+  pill.textContent = `${stocks.length} stock${stocks.length!==1?"s":""}`;
+
+  if (!stocks.length) {
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">No setups today</div><div class="empty-sub">Market may be closed or conditions not met</div></div>`;
+    return;
+  }
+
+  grid.innerHTML = stocks.map(s => {
+    const chgCls = s.change_pct >= 0 ? "up" : "down";
+    const rsi    = parseFloat(s.rsi) || 0;
+    const rsiCol = rsi > 60 ? "var(--yellow)" : "var(--green)";
+    const vol    = s.vol_ratio ? `Vol ${(+s.vol_ratio).toFixed(1)}×` : "";
+    return `
+    <div class="scard">
+      <div class="scard-head">
+        <div>
+          <div class="sym">${s.symbol}</div>
+          <div class="cname">${s.name||s.symbol}</div>
+        </div>
+        <div class="px-block">
+          <div class="px ${chgCls}">₹${fmt(s.price)}</div>
+          <div class="chg ${chgCls}">${s.change_pct>=0?"▲":"▼"} ${Math.abs(s.change_pct||0).toFixed(2)}%</div>
+        </div>
+      </div>
+      <div class="plan">
+        <div class="prow"><span class="plbl">Entry Zone</span><span class="entry-chip">₹${fmt(s.entry_min,0)} – ₹${fmt(s.entry_max,0)}</span></div>
+        <div class="prow"><span class="plbl">Stop Loss</span><span class="pval sl-v">₹${fmt(s.sl,0)}</span></div>
+        <div class="prow"><span class="plbl">Target 1</span><span class="pval t1-v">₹${fmt(s.target_1,0)}${upside(s.target_1,s.price)}</span></div>
+        <div class="prow"><span class="plbl">Target 2</span><span class="pval t2-v">₹${fmt(s.target_2,0)}${upside(s.target_2,s.price)}</span></div>
+        <div class="prow"><span class="plbl">Risk / Reward</span><span class="rr-chip ${rrClass(s.rr)}">R:R ${String(s.rr).includes(":")?s.rr:"1:"+rrNum(s.rr).toFixed(1)}</span></div>
+      </div>
+      <div class="tags">
+        ${s.setup?`<span class="tag t-setup">${s.setup.replace(/_/g," ")}</span>`:""}
+        ${rsi?`<span class="tag t-rsi" style="color:${rsiCol}">RSI ${rsi.toFixed(0)}</span>`:""}
+        ${vol?`<span class="tag t-vol">${vol}</span>`:""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+/* ── Render positions ────────────────────────────────────── */
+function renderPositions(positions) {
+  const wrap = document.getElementById("posWrap");
+  const pill = document.getElementById("posPill");
+  pill.textContent = `${positions.length} position${positions.length!==1?"s":""}`;
+
+  if (!positions.length) {
+    wrap.innerHTML = `<div class="empty" style="padding:24px 20px"><div class="empty-sub">No open positions in <code>data/positions.csv</code></div></div>`;
+    return;
+  }
+
+  const rows = positions.map(p => {
+    const pnl  = p.pnl || 0;
+    const pPct = p.pnl_pct || 0;
+    const cls  = pnlClass(pnl);
+    return `<tr>
+      <td><b>${p.Symbol||"—"}</b></td>
+      <td>₹${fmt(p.Entry_Price)}</td>
+      <td>₹${fmt(p.current_price)}</td>
+      <td>${p.Quantity||"—"}</td>
+      <td class="${cls}">₹${fmt(pnl)}</td>
+      <td class="${cls}">${pPct>=0?"+":""}${fmt(pPct)}%</td>
+      <td>₹${fmt(p.Target_1||p.target_1,0)}</td>
+      <td><span style="color:var(--red)">₹${fmt(p.Current_SL||p.sl,0)}</span></td>
+    </tr>`;
+  }).join("");
+
+  wrap.innerHTML = `
+    <div class="pos-wrap">
+      <table class="pos-table">
+        <thead><tr><th>Symbol</th><th>Entry</th><th>LTP</th><th>Qty</th><th>P&L</th><th>%</th><th>Target</th><th>SL</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+/* ── Full render from data object ────────────────────────── */
+function renderAll(data) {
+  const stocks = data.stocks || data.entry_ready || [];
+  renderMarket(data.market || data.market_context && {nifty: data.market_context.nifty, fii_dii: data.market_context.fii_dii, sentiment: data.market_context.sentiment} || data);
+  renderSummary(data);
+  renderActions(data.actions || []);
+  renderStocks(stocks);
+}
+
+/* ── Scan Now ────────────────────────────────────────────── */
+async function runScan() {
+  if (!BASE) { toast("No server running. Start with: python server.py", "error", 5000); return; }
+
+  const btn = document.getElementById("scanBtn");
+  btn.disabled = true;
+  btn.classList.add("loading");
+  btn.querySelector(".btn-text").textContent = "Scanning…";
+  showSkeletons(6);
+  toast("Chartink scan started — this takes ~30–60 seconds…", "info", 8000);
+
+  try {
+    const data = await apiFetch("/api/scan", { method: "POST" });
+    renderAll(data);
+    if (data.status === "no_results") {
+      toast(`No matches today — ${data.message}`, "info", 6000);
+    } else {
+      toast(`Scan complete — ${(data.stocks||[]).length} setups found`, "success");
+    }
+    loadPositions();
+  } catch (err) {
+    toast(`Scan failed: ${err.message}`, "error", 6000);
+    renderStocks([]);
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove("loading");
+    btn.querySelector(".btn-text").textContent = "Scan Now";
+  }
+}
+
+/* ── Load positions separately ───────────────────────────── */
+async function loadPositions() {
+  if (!BASE) return;
+  try {
+    const d = await apiFetch("/api/positions");
+    renderPositions(d.positions || []);
+  } catch { renderPositions([]); }
+}
+
+/* ── Load market ticker ──────────────────────────────────── */
+async function loadMarket() {
+  if (!BASE) return;
+  try {
+    const d = await apiFetch("/api/market");
+    renderMarket(d);
+  } catch { /* silent */ }
+}
+
+/* ── Init ────────────────────────────────────────────────── */
+async function init() {
+  // Try static fallback first (fast, works on GitHub Pages)
+  if (STATIC_STOCKS.length || STATIC_BRIEF.date) {
+    renderAll({ ...STATIC_BRIEF, stocks: STATIC_STOCKS });
+  }
+
+  // If server available, try today's saved brief
+  if (BASE) {
+    try {
+      const r = await apiFetch("/api/brief/latest");
+      if (r.found && r.data) {
+        renderAll(r.data);
+        toast("Loaded today's saved scan", "success", 2500);
+      }
+    } catch { /* no brief yet — that's fine */ }
+
+    loadMarket();
+    loadPositions();
+
+    // Refresh market data every 5 minutes
+    setInterval(loadMarket, 5 * 60 * 1000);
+  } else {
+    // Static / GitHub Pages mode
+    if (!STATIC_STOCKS.length) {
+      document.getElementById("statusDot").style.background = "var(--yellow)";
+      document.getElementById("lastUpd").textContent = "Static mode — run server for live data";
+    }
+  }
+}
+
+init();
+</script>
+</body>
+</html>
