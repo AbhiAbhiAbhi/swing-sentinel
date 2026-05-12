@@ -86,9 +86,15 @@ def api_scan():
             _persist(result)
             return jsonify(result)
 
+        # Sort by volume (descending) and take top 30 to keep yfinance calls fast
+        chartink_stocks.sort(key=lambda x: x.get("volume", 0), reverse=True)
+        chartink_stocks = chartink_stocks[:30]
+        logger.info("[scan] Processing top %d stocks via yfinance…", len(chartink_stocks))
+
         scan_results = []
-        for stock in chartink_stocks:
+        for i, stock in enumerate(chartink_stocks, 1):
             symbol = stock["symbol"]
+            logger.info("[scan] %d/%d  %s", i, len(chartink_stocks), symbol)
             try:
                 tech = fetch_stock_technicals(symbol)
                 if not tech:

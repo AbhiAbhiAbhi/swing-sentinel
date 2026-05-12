@@ -453,7 +453,7 @@ async function runScan() {
   btn.classList.add("loading");
   btn.querySelector(".btn-text").textContent = "Scanning…";
   showSkeletons(6);
-  toast("Chartink scan started — this takes ~30–60 seconds…", "info", 8000);
+  toast("Chartink scan started — fetching top 30 stocks, ~20–40 seconds…", "info", 10000);
 
   try {
     const data = await apiFetch("/api/scan", { method: "POST" });
