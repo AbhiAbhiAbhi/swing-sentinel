@@ -25,6 +25,11 @@ def fetch_stock_technicals(symbol: str) -> Dict:
         if df.empty:
             return {}
 
+        # Drop rows where Close is NaN (happens when today's bar is partially populated)
+        df = df.dropna(subset=["Close"])
+        if df.empty:
+            return {}
+
         close  = df['Close']
         volume = df['Volume']
         price  = float(close.iloc[-1])

@@ -2,147 +2,165 @@
 Chartink Fetcher Module
 Scans NSE stocks via Chartink screener API using technical indicator conditions
 """
-import requests
 import logging
-from typing import List, Dict
+import re
+from typing import Dict, List
+from urllib.parse import unquote
+
+import requests
 
 logger = logging.getLogger(__name__)
 
 CHARTINK_SCREENER_URL = "https://chartink.com/screener/"
-CHARTINK_PROCESS_URL = "https://chartink.com/screener/process"
+CHARTINK_PROCESS_URL  = "https://chartink.com/screener/process"
 
-SESSION_HEADERS = {
+# Mimic a real browser session — required by Chartink
+BASE_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
+        "Chrome/124.0.0.0 Safari/537.36"
     ),
-    "Accept": "application/json, text/javascript, */*; q=0.01",
     "Accept-Language": "en-US,en;q=0.9",
-    "X-Requested-With": "XMLHttpRequest",
+    "Accept-Encoding": "gzip, deflate",  # exclude br — requests can't decode brotli
 }
 
 
 def build_scan_clause() -> str:
     """
-    Returns Chartink DSL conditions matching the 35-point framework technical criteria:
-      - Price above EMA 20, EMA 20 > EMA 50, Price above EMA 200 (uptrend structure)
-      - RSI(14) between 45 and 65 (momentum, not overbought)
-      - MACD line above signal line (bullish crossover)
-      - MACD histogram > 0 (green histogram)
-      - ADX(14) > 20 (trend is strong enough)
-      - Volume > 5 lakh shares (liquid)
-      - Turnover > ₹5 Cr (close * volume > 50,000,000)
-      - Within 15% of 52-week high (price near highs, not beaten down)
+    Chartink DSL for swing trade candidates — 7 core conditions:
+      - Price above EMA20, EMA20 > EMA50, Price above EMA200  (uptrend structure)
+      - RSI(14) between 40 and 70                              (momentum, not extreme)
+      - MACD line above signal line                            (bullish crossover)
+      - ADX(14) > 20                                           (trend is strong)
+      - Volume > 5 lakh                                        (liquid stock)
     """
     return (
         "( {cash} ( "
         "latest close > latest ema(close,20) and "
         "latest ema(close,20) > latest ema(close,50) and "
         "latest close > latest ema(close,200) and "
-        "latest rsi(14) > 45 and latest rsi(14) < 65 and "
+        "latest rsi(14) > 40 and latest rsi(14) < 70 and "
         "latest macd line(26,12,9) > latest macd signal(26,12,9) and "
-        "latest macd histogram(26,12,9) > 0 and "
         "latest adx(14) > 20 and "
-        "latest volume > 500000 and "
-        "latest close * latest volume > 50000000 and "
-        "latest close >= 0.85 * latest max(high,52) "
+        "latest volume > 500000 "
         ") )"
     )
 
 
-def get_csrf_token(session: requests.Session) -> str:
+def _make_session() -> tuple:
     """
-    Fetch Chartink screener page and extract CSRF token from cookies.
-    Chartink sets a XSRF-TOKEN cookie on GET which must be sent as
-    X-CSRF-TOKEN header on subsequent POST requests.
+    Open a session on Chartink, return (session, csrf_token).
+
+    Chartink uses Laravel which sets an XSRF-TOKEN cookie (URL-encoded).
+    For AJAX POST requests it expects that value (URL-decoded) in the
+    X-XSRF-TOKEN header AND keeps the laravel_session cookie intact.
     """
-    resp = session.get(CHARTINK_SCREENER_URL, headers=SESSION_HEADERS, timeout=15)
+    session = requests.Session()
+
+    # Step 1 — GET the screener page to receive cookies
+    get_headers = {
+        **BASE_HEADERS,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    }
+    resp = session.get(CHARTINK_SCREENER_URL, headers=get_headers, timeout=20)
     resp.raise_for_status()
 
-    # Chartink sets XSRF-TOKEN cookie
-    csrf = session.cookies.get("XSRF-TOKEN")
-    if not csrf:
-        # Fallback: look for csrf-token meta tag in HTML
-        import re
-        match = re.search(r'meta name="csrf-token" content="([^"]+)"', resp.text)
-        if match:
-            csrf = match.group(1)
+    # Step 2 — Extract CSRF token: try cookie first, then meta tag
+    raw_token = session.cookies.get("XSRF-TOKEN") or session.cookies.get("xsrf-token")
+    if not raw_token:
+        m = re.search(r'meta\s+name=["\']csrf-token["\']\s+content=["\']([^"\']+)["\']', resp.text)
+        if m:
+            raw_token = m.group(1)
 
-    if not csrf:
-        raise RuntimeError("Could not extract CSRF token from Chartink")
+    if not raw_token:
+        raise RuntimeError(
+            "Could not find CSRF token. Chartink may have changed its auth flow."
+        )
 
-    # URL-decode the token (cookies often URL-encode the value)
-    from urllib.parse import unquote
-    return unquote(csrf)
+    # Laravel URL-encodes the cookie value — decode it
+    csrf_token = unquote(raw_token)
+    logger.debug("[Chartink] CSRF token: %s…", csrf_token[:20])
+    return session, csrf_token
 
 
 def fetch_chartink_stocks() -> List[Dict]:
     """
     Run the Chartink screener scan and return matching stocks.
 
-    Returns:
-        List of dicts, each with at minimum:
-          { 'symbol': 'RELIANCE', 'name': 'Reliance Industries', 'close': 1345.2, ... }
-        Returns empty list on error or if market is closed / no matches.
+    Returns a list of dicts:
+      [{ 'symbol': 'RELIANCE', 'name': '...', 'close': 1345.2,
+         'volume': 1200000, 'change_pct': 0.34 }, ...]
+
+    Returns [] on any error or if no stocks match.
     """
-    session = requests.Session()
-
     try:
-        logger.info("[Chartink] Fetching CSRF token...")
-        csrf_token = get_csrf_token(session)
-        logger.info("[Chartink] CSRF token obtained")
-
-        scan_clause = build_scan_clause()
+        logger.info("[Chartink] Opening session…")
+        session, csrf_token = _make_session()
 
         post_headers = {
-            **SESSION_HEADERS,
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Referer": CHARTINK_SCREENER_URL,
-            "X-CSRF-TOKEN": csrf_token,
+            **BASE_HEADERS,
+            "Accept":           "application/json, text/javascript, */*; q=0.01",
+            "Content-Type":     "application/x-www-form-urlencoded; charset=UTF-8",
+            "Referer":          CHARTINK_SCREENER_URL,
+            "Origin":           "https://chartink.com",
+            "X-Requested-With": "XMLHttpRequest",
+            # Laravel validates via X-XSRF-TOKEN (decoded cookie value)
+            "X-XSRF-TOKEN":     csrf_token,
         }
 
-        payload = {"scan_clause": scan_clause}
-
-        logger.info("[Chartink] Running screener scan...")
+        logger.info("[Chartink] POSTing scan…")
         resp = session.post(
             CHARTINK_PROCESS_URL,
             headers=post_headers,
-            data=payload,
+            data={"scan_clause": build_scan_clause()},
             timeout=30,
         )
-        resp.raise_for_status()
 
-        result = resp.json()
+        logger.info("[Chartink] Response: HTTP %s, %d bytes", resp.status_code, len(resp.content))
+
+        if resp.status_code != 200:
+            logger.error("[Chartink] HTTP %s — body: %s", resp.status_code, resp.text[:300])
+            resp.raise_for_status()
+
+        if not resp.text.strip():
+            logger.error("[Chartink] Empty response body")
+            return []
+
+        try:
+            result = resp.json()
+        except Exception as json_exc:
+            logger.error("[Chartink] JSON parse failed: %s — body: %s", json_exc, resp.text[:300])
+            return []
 
     except requests.exceptions.RequestException as exc:
-        logger.error("[Chartink] Network error: %s", exc)
+        logger.error("[Chartink] Request error: %s", exc)
         return []
     except Exception as exc:
         logger.error("[Chartink] Unexpected error: %s", exc)
         return []
 
-    raw_stocks = result.get("data", [])
-
-    if not raw_stocks:
-        logger.warning("[Chartink] Scan returned 0 stocks — market may be closed or no matches today")
+    raw = result.get("data", [])
+    if not raw:
+        logger.warning(
+            "[Chartink] 0 stocks returned — market may be closed or no matches today"
+        )
         return []
 
     stocks = []
-    for row in raw_stocks:
-        # Chartink returns fields like: nsecode, company_name, close, volume, ...
-        symbol = row.get("nsecode", "").strip().upper()
+    for row in raw:
+        symbol = (row.get("nsecode") or row.get("symbol") or "").strip().upper()
         if not symbol:
             continue
         stocks.append({
-            "symbol": symbol,
-            "name": row.get("company_name", symbol),
-            "close": float(row.get("close", 0)),
-            "volume": int(row.get("volume", 0)),
-            "change_pct": float(row.get("per_chg", 0)),
+            "symbol":     symbol,
+            "name":       row.get("company_name") or row.get("name") or symbol,
+            "close":      float(row.get("close") or 0),
+            "volume":     int(row.get("volume") or 0),
+            "change_pct": float(row.get("per_chg") or row.get("change_pct") or 0),
         })
 
-    logger.info("[Chartink] Scan matched %d stocks", len(stocks))
+    logger.info("[Chartink] Matched %d stocks", len(stocks))
     return stocks
 
 
@@ -152,6 +170,6 @@ if __name__ == "__main__":
     if matches:
         print(f"\nChartink matched {len(matches)} stocks:\n")
         for s in matches:
-            print(f"  {s['symbol']:15s} ₹{s['close']:>8.2f}  {s['change_pct']:+.2f}%  vol {s['volume']:,}")
+            print(f"  {s['symbol']:15s}  Rs.{s['close']:>8.2f}  {s['change_pct']:+.2f}%  vol {s['volume']:,}")
     else:
         print("No matches returned.")
