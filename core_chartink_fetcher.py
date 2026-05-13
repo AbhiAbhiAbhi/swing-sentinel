@@ -147,10 +147,19 @@ def fetch_chartink_stocks() -> List[Dict]:
         )
         return []
 
+    # ETF suffixes / known ETF symbols to exclude from swing scan
+    ETF_SUFFIXES = ("BEES", "CASE", "IETF", "GETF")
+    ETF_SYMBOLS  = {"LIQUIDBEES", "TATAGOLD", "GOLDBEES", "JUNIORBEES", "NIFTYBEES",
+                    "BANKBEES", "ITBEES", "PSUBNKBEES", "HNGSNGBEES", "INFRABEES",
+                    "SMALLCAP", "MIDCAP", "CPSEETF", "BHARAT22ETF", "MON100"}
+
     stocks = []
     for row in raw:
         symbol = (row.get("nsecode") or row.get("symbol") or "").strip().upper()
         if not symbol:
+            continue
+        if symbol in ETF_SYMBOLS or any(symbol.endswith(s) for s in ETF_SUFFIXES):
+            logger.debug("[Chartink] Skipping ETF: %s", symbol)
             continue
         stocks.append({
             "symbol":     symbol,
