@@ -272,6 +272,13 @@ function fmt(n, d = 2) {
   if (n == null || isNaN(n)) return "—";
   return (+n).toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d });
 }
+// Auto decimal places for prices: <10 → 2dp, <100 → 1dp, else 0dp
+function fmtP(n) {
+  if (n == null || isNaN(n)) return "—";
+  const v = +n;
+  const d = v < 10 ? 2 : v < 100 ? 1 : 0;
+  return v.toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d });
+}
 function rrNum(rr) {
   try { return parseFloat(String(rr).split(":").pop()) || 0; } catch { return 0; }
 }
@@ -381,15 +388,15 @@ function renderStocks(stocks) {
           <div class="cname">${s.name||s.symbol}</div>
         </div>
         <div class="px-block">
-          <div class="px ${chgCls}">₹${fmt(s.price)}</div>
+          <div class="px ${chgCls}">₹${fmtP(s.price)}</div>
           <div class="chg ${chgCls}">${s.change_pct>=0?"▲":"▼"} ${Math.abs(s.change_pct||0).toFixed(2)}%</div>
         </div>
       </div>
       <div class="plan">
-        <div class="prow"><span class="plbl">Entry Zone</span><span class="entry-chip">₹${fmt(s.entry_min,0)} – ₹${fmt(s.entry_max,0)}</span></div>
-        <div class="prow"><span class="plbl">Stop Loss</span><span class="pval sl-v">₹${fmt(s.sl,0)}</span></div>
-        <div class="prow"><span class="plbl">Target 1</span><span class="pval t1-v">₹${fmt(s.target_1,0)}${upside(s.target_1,s.price)}</span></div>
-        <div class="prow"><span class="plbl">Target 2</span><span class="pval t2-v">₹${fmt(s.target_2,0)}${upside(s.target_2,s.price)}</span></div>
+        <div class="prow"><span class="plbl">Entry Zone</span><span class="entry-chip">₹${fmtP(s.entry_min)} – ₹${fmtP(s.entry_max)}</span></div>
+        <div class="prow"><span class="plbl">Stop Loss</span><span class="pval sl-v">₹${fmtP(s.sl)}</span></div>
+        <div class="prow"><span class="plbl">Target 1</span><span class="pval t1-v">₹${fmtP(s.target_1)}${upside(s.target_1,s.price)}</span></div>
+        <div class="prow"><span class="plbl">Target 2</span><span class="pval t2-v">₹${fmtP(s.target_2)}${upside(s.target_2,s.price)}</span></div>
         <div class="prow"><span class="plbl">Risk / Reward</span><span class="rr-chip ${rrClass(s.rr)}">R:R ${String(s.rr).includes(":")?s.rr:"1:"+rrNum(s.rr).toFixed(1)}</span></div>
       </div>
       <div class="tags">
@@ -423,8 +430,8 @@ function renderPositions(positions) {
       <td>${p.Quantity||"—"}</td>
       <td class="${cls}">₹${fmt(pnl)}</td>
       <td class="${cls}">${pPct>=0?"+":""}${fmt(pPct)}%</td>
-      <td>₹${fmt(p.Target_1||p.target_1,0)}</td>
-      <td><span style="color:var(--red)">₹${fmt(p.Current_SL||p.sl,0)}</span></td>
+      <td>₹${fmtP(p.Target_1||p.target_1)}</td>
+      <td><span style="color:var(--red)">₹${fmtP(p.Current_SL||p.sl)}</span></td>
     </tr>`;
   }).join("");
 
