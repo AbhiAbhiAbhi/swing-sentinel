@@ -6,7 +6,7 @@ Open: http://localhost:5000
 import json
 import logging
 import os
-from datetime import datetime, time
+from datetime import datetime
 
 from flask import Flask, jsonify, send_from_directory
 
@@ -61,23 +61,11 @@ def api_market():
 @app.route("/api/scan", methods=["POST"])
 def api_scan():
     """
-    Full scan: Chartink → yfinance trade plans.
-    Outside market hours returns the last saved scan automatically.
+    Full scan: Chartink (works intraday and EOD) → yfinance trade plans.
+    If Chartink returns 0 matches, falls back to the last saved scan.
     """
     try:
         logger.info("[scan] Starting…")
-
-        if not _market_is_open():
-            brief = _load_latest_brief()
-            if brief:
-                brief["source"]  = "last_session"
-                brief["message"] = f"Market closed. Showing last scan from {brief.get('date','?')} {brief.get('time','')}"
-                logger.info("[scan] Market closed — serving last brief (%s)", brief.get("date"))
-                return jsonify(brief)
-            return jsonify({
-                "status":  "no_results",
-                "message": "Market is closed and no previous scan found. Run during market hours (9:15 AM – 3:30 PM IST).",
-            })
 
         nifty = fetch_nifty_levels()
         fii   = fetch_fii_dii_flow(days=5)
@@ -85,18 +73,22 @@ def api_scan():
         chartink_stocks = fetch_chartink_stocks()
 
         if not chartink_stocks:
-            result = {
+            brief = _load_latest_brief()
+            if brief:
+                brief["source"]  = "last_session"
+                brief["message"] = f"No matches today. Showing last scan from {brief.get('date','?')} {brief.get('time','')}"
+                logger.info("[scan] 0 matches — serving last brief (%s)", brief.get("date"))
+                return jsonify(brief)
+            return jsonify({
                 "status":        "no_results",
-                "message":       "Chartink returned 0 matches — market may be closed or no setups today.",
+                "message":       "No stocks matched today's conditions and no previous scan was found.",
                 "date":          _now_date(),
                 "time":          _now_time(),
                 "stocks":        [],
                 "actions":       [],
                 "total_scanned": 0,
                 "market":        {"nifty": nifty, "fii_dii": fii, "sentiment": _sentiment(nifty, fii)},
-            }
-            _persist(result)
-            return jsonify(result)
+            })
 
         # Sort by volume (descending) and take top 30 to keep yfinance calls fast
         chartink_stocks.sort(key=lambda x: x.get("volume", 0), reverse=True)
@@ -253,19 +245,6 @@ def _persist(result: dict):
     os.makedirs("data/daily_briefs", exist_ok=True)
     with open(f"data/daily_briefs/{result['date']}.json", "w") as f:
         json.dump(result, f, indent=2)
-
-
-def _market_is_open() -> bool:
-    try:
-        import pytz
-        ist = pytz.timezone("Asia/Kolkata")
-        now = datetime.now(ist)
-    except Exception:
-        now = datetime.now()
-    if now.weekday() >= 5:
-        return False
-    t = now.time()
-    return time(9, 0) <= t <= time(15, 45)
 
 
 def _load_latest_brief():
