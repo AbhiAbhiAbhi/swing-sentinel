@@ -309,7 +309,9 @@ function renderMarket(data) {
 function renderSummary(data) {
   const stocks = data.stocks || [];
   document.getElementById("matchVal").textContent  = data.total_scanned ?? stocks.length ?? "—";
-  document.getElementById("scanSrc").textContent   = data.source || "Chartink screener";
+  document.getElementById("scanSrc").textContent   = data.source === "last_session"
+    ? `Last session · ${data.date}`
+    : "Chartink screener";
 
   if (stocks.length) {
     const best = stocks.reduce((b, s) => rrNum(s.rr) > rrNum(b.rr) ? s : b, stocks[0]);
@@ -458,8 +460,10 @@ async function runScan() {
   try {
     const data = await apiFetch("/api/scan", { method: "POST" });
     renderAll(data);
-    if (data.status === "no_results") {
-      toast(`No matches today — ${data.message}`, "info", 6000);
+    if (data.source === "last_session") {
+      toast(`Market closed — showing last session (${data.date})`, "info", 6000);
+    } else if (data.status === "no_results") {
+      toast(`No matches — ${data.message}`, "info", 6000);
     } else {
       toast(`Scan complete — ${(data.stocks||[]).length} setups found`, "success");
     }

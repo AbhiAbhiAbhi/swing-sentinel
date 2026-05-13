@@ -6,7 +6,7 @@ Open: http://localhost:5000
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, time
 
 from flask import Flask, jsonify, send_from_directory
 
@@ -62,10 +62,22 @@ def api_market():
 def api_scan():
     """
     Full scan: Chartink → yfinance trade plans.
-    Blocking — may take 30–90 s depending on number of matches.
+    Outside market hours returns the last saved scan automatically.
     """
     try:
         logger.info("[scan] Starting…")
+
+        if not _market_is_open():
+            brief = _load_latest_brief()
+            if brief:
+                brief["source"]  = "last_session"
+                brief["message"] = f"Market closed. Showing last scan from {brief.get('date','?')} {brief.get('time','')}"
+                logger.info("[scan] Market closed — serving last brief (%s)", brief.get("date"))
+                return jsonify(brief)
+            return jsonify({
+                "status":  "no_results",
+                "message": "Market is closed and no previous scan found. Run during market hours (9:15 AM – 3:30 PM IST).",
+            })
 
         nifty = fetch_nifty_levels()
         fii   = fetch_fii_dii_flow(days=5)
@@ -241,6 +253,33 @@ def _persist(result: dict):
     os.makedirs("data/daily_briefs", exist_ok=True)
     with open(f"data/daily_briefs/{result['date']}.json", "w") as f:
         json.dump(result, f, indent=2)
+
+
+def _market_is_open() -> bool:
+    try:
+        import pytz
+        ist = pytz.timezone("Asia/Kolkata")
+        now = datetime.now(ist)
+    except Exception:
+        now = datetime.now()
+    if now.weekday() >= 5:
+        return False
+    t = now.time()
+    return time(9, 0) <= t <= time(15, 45)
+
+
+def _load_latest_brief():
+    folder = "data/daily_briefs"
+    if not os.path.exists(folder):
+        return None
+    files = sorted([f for f in os.listdir(folder) if f.endswith(".json")], reverse=True)
+    for fname in files:
+        try:
+            with open(os.path.join(folder, fname)) as fh:
+                return json.load(fh)
+        except Exception:
+            continue
+    return None
 
 
 def _now_date() -> str:
