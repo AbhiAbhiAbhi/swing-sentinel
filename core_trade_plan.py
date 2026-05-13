@@ -1,6 +1,9 @@
 """
 Trade Plan Calculator
-Generates entry zone, targets, and stop loss from technical levels
+Hybrid target method:
+  T1 = 20-day resistance (real supply zone; fallback: entry + 1.5×ATR)
+  T2 = max(entry + 3×ATR, T1 × 1.02)  — ATR-based, always above T1
+  SL = below support or EMA50, anchored by ATR
 """
 from typing import Dict
 
@@ -12,54 +15,58 @@ def calculate_trade_plan(stock_data: Dict) -> Dict:
     support_1    = stock_data.get('support_1', 0)
     resistance_1 = stock_data.get('resistance_1', 0)
     resistance_2 = stock_data.get('resistance_2', 0)
-    atr          = stock_data.get('atr', price * 0.02)
+    atr          = stock_data.get('atr') or price * 0.02
 
-    plan: Dict = {}
+    # ── Entry zone: pullback to EMA20 ────────────────────────────────────
+    entry_min = round(ema20 * 0.99, 2)  if ema20 else round(price * 0.99, 2)
+    entry_max = round(ema20 * 1.005, 2) if ema20 else round(price * 1.005, 2)
+    entry_mid = (entry_min + entry_max) / 2
 
-    # ── Pullback entry: price above EMA20 and EMA20 > EMA50 ──────────────
-    if price >= ema20 > 0 and ema20 > ema50:
-        plan['setup_type']      = 'PULLBACK_ENTRY'
-        plan['entry_zone_min']  = round(ema20 * 0.99, 2)
-        plan['entry_zone_max']  = round(ema20 * 1.005, 2)
-        plan['target_1']        = round(resistance_1, 2) if resistance_1 > price else round(price * 1.05, 2)
-        plan['target_2']        = round(resistance_2, 2) if resistance_2 > plan['target_1'] else round(price * 1.10, 2)
-        plan['stop_loss']       = round(max(support_1 - atr, ema50 * 0.98), 2)
+    # ── Stop loss: below support or EMA50, always below price and entry ──
+    sl_support = (support_1 - atr * 0.5) if support_1 else 0
+    sl_ema50   = (ema50 * 0.98) if ema50 else 0
+    sl_raw     = max(sl_support, sl_ema50) if (sl_support or sl_ema50) else 0
+    # Hard ceiling: SL must be below both current price and entry zone
+    sl_ceiling = min(price, entry_min) * 0.985
+    sl = round(min(sl_raw, sl_ceiling, entry_mid - atr) if sl_raw else min(sl_ceiling, entry_mid - atr), 2)
 
-    # ── Breakout: price just above resistance ────────────────────────────
-    elif resistance_1 > 0 and price > resistance_1 and (resistance_2 == 0 or price < resistance_2):
-        move = max(price - support_1, price * 0.03)
-        plan['setup_type']      = 'BREAKOUT'
-        plan['entry_zone_min']  = round(resistance_1, 2)
-        plan['entry_zone_max']  = round(resistance_1 * 1.01, 2)
-        plan['target_1']        = round(price + move * 0.5, 2)
-        plan['target_2']        = round(price + move, 2)
-        plan['stop_loss']       = round(support_1, 2) if support_1 else round(price * 0.96, 2)
-
-    # ── Support bounce ───────────────────────────────────────────────────
-    elif support_1 > 0 and price <= support_1 * 1.02:
-        plan['setup_type']      = 'SUPPORT_BOUNCE'
-        plan['entry_zone_min']  = round(support_1 * 0.99, 2)
-        plan['entry_zone_max']  = round(support_1 * 1.005, 2)
-        plan['target_1']        = round(ema20, 2) if ema20 > price else round(price * 1.04, 2)
-        plan['target_2']        = round(resistance_1, 2) if resistance_1 > plan['target_1'] else round(price * 1.08, 2)
-        plan['stop_loss']       = round(support_1 - atr, 2)
-
-    # ── Consolidation / default ──────────────────────────────────────────
+    # ── T1: nearest resistance (institutional supply zone) ───────────────
+    # Use 20-day high if it's above entry; else fall back to 1.5×ATR projection
+    if resistance_1 > entry_mid:
+        t1 = round(resistance_1, 2)
     else:
-        plan['setup_type']      = 'CONSOLIDATION'
-        plan['entry_zone_min']  = round(ema20 * 0.99, 2) if ema20 else round(price * 0.99, 2)
-        plan['entry_zone_max']  = round(ema50 * 1.005, 2) if ema50 else round(price * 1.005, 2)
-        plan['target_1']        = round(resistance_1, 2) if resistance_1 > price else round(price * 1.05, 2)
-        plan['target_2']        = round(resistance_2, 2) if resistance_2 > plan['target_1'] else round(price * 1.10, 2)
-        plan['stop_loss']       = round(support_1, 2) if support_1 else round(price * 0.95, 2)
+        t1 = round(entry_mid + 1.5 * atr, 2)
+
+    # ── T2: ATR-based ride target, always above T1 ───────────────────────
+    # 3×ATR projection captures a full swing; if 60-day resistance is higher, use it
+    atr_t2 = round(entry_mid + 3.0 * atr, 2)
+    res_t2 = round(resistance_2, 2) if resistance_2 > t1 else 0
+    t2 = max(atr_t2, res_t2, round(t1 * 1.02, 2))  # always > T1
+
+    # ── Setup label ──────────────────────────────────────────────────────
+    if ema20 > 0 and ema20 > ema50 and price >= ema20:
+        setup = 'PULLBACK'
+    elif resistance_1 > 0 and price > resistance_1:
+        setup = 'BREAKOUT'
+    elif support_1 > 0 and price <= support_1 * 1.02:
+        setup = 'SUPPORT_BOUNCE'
+    else:
+        setup = 'CONSOLIDATION'
 
     # ── R:R ──────────────────────────────────────────────────────────────
-    entry_mid    = (plan['entry_zone_min'] + plan['entry_zone_max']) / 2
-    risk         = entry_mid - plan['stop_loss']
-    reward       = plan['target_2'] - entry_mid
-    plan['rr_ratio'] = round(reward / risk, 1) if risk > 0 else 0
+    risk   = entry_mid - sl
+    reward = t2 - entry_mid
+    rr     = round(reward / risk, 1) if risk > 0 else 0
 
-    return plan
+    return {
+        'setup_type':     setup,
+        'entry_zone_min': entry_min,
+        'entry_zone_max': entry_max,
+        'stop_loss':      sl,
+        'target_1':       t1,
+        'target_2':       t2,
+        'rr_ratio':       rr,
+    }
 
 
 def calculate_rr(stock_data: Dict) -> str:

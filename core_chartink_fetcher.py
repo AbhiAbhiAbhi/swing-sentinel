@@ -28,15 +28,17 @@ BASE_HEADERS = {
 
 def build_scan_clause() -> str:
     """
-    Chartink DSL for swing trade candidates — 7 core conditions:
+    Chartink DSL for swing trade candidates — 8 core conditions:
       - Price above EMA20, EMA20 > EMA50, Price above EMA200  (uptrend structure)
       - RSI(14) between 40 and 70                              (momentum, not extreme)
       - MACD line above signal line                            (bullish crossover)
       - ADX(14) > 20                                           (trend is strong)
       - Volume > 5 lakh                                        (liquid stock)
+      - Price >= 50                                            (exclude penny stocks)
     """
     return (
         "( {cash} ( "
+        "latest close >= 50 and "
         "latest close > latest ema(close,20) and "
         "latest ema(close,20) > latest ema(close,50) and "
         "latest close > latest ema(close,200) and "
