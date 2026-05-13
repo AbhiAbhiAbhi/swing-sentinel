@@ -138,9 +138,9 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .empty code{background:var(--card);padding:2px 6px;border-radius:4px;font-size:12px}
 
 /* ── Buy button on stock card ───────────────────────────── */
-.buy-btn{width:100%;background:var(--green);color:#0d1117;border:none;padding:8px;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.4px;transition:opacity .15s}
-.buy-btn:hover{opacity:.85}
-.buy-btn:disabled{opacity:.4;cursor:not-allowed}
+.buy-btn{background:var(--green-bg);color:var(--green);border:1px solid var(--green);padding:3px 9px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;opacity:0;transition:opacity .15s;white-space:nowrap;flex-shrink:0}
+.scard:hover .buy-btn{opacity:1}
+.buy-btn:hover{background:var(--green);color:#0d1117}
 
 /* ── Buy modal ──────────────────────────────────────────── */
 #buyModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center}
@@ -449,8 +449,8 @@ function renderStocks(stocks) {
         ${s.setup?`<span class="tag t-setup">${s.setup.replace(/_/g," ")}</span>`:""}
         ${rsi?`<span class="tag t-rsi" style="color:${rsiCol}">RSI ${rsi.toFixed(0)}</span>`:""}
         ${vol?`<span class="tag t-vol">${vol}</span>`:""}
+        <button class="buy-btn" onclick='openBuyModal(${JSON.stringify(s)})'>+ Buy</button>
       </div>
-      <button class="buy-btn" onclick='openBuyModal(${JSON.stringify(s)})'>+ Add to Positions</button>
     </div>`;
   }).join("");
 }
