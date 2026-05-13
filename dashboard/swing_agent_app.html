@@ -137,6 +137,32 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .empty-sub{font-size:13px}
 .empty code{background:var(--card);padding:2px 6px;border-radius:4px;font-size:12px}
 
+/* ── Buy button on stock card ───────────────────────────── */
+.buy-btn{width:100%;background:var(--green);color:#0d1117;border:none;padding:8px;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.4px;transition:opacity .15s}
+.buy-btn:hover{opacity:.85}
+.buy-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── Buy modal ──────────────────────────────────────────── */
+#buyModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center}
+#buyModal.open{display:flex}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:320px;max-width:90vw}
+.modal-box h3{font-size:15px;font-weight:700;margin-bottom:16px}
+.modal-row{display:flex;flex-direction:column;gap:4px;margin-bottom:14px}
+.modal-row label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.modal-row input{background:var(--card);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:14px;font-weight:600;width:100%}
+.modal-row input:focus{outline:none;border-color:var(--blue)}
+.modal-actions{display:flex;gap:8px;margin-top:4px}
+.modal-actions button{flex:1;padding:9px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;border:none}
+.btn-confirm{background:var(--green);color:#0d1117}
+.btn-cancel {background:var(--card); color:var(--text);border:1px solid var(--border)!important}
+
+/* ── Target hit indicators on positions table ───────────── */
+.hit-badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;vertical-align:middle}
+.hit-t1{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
+.hit-t2{background:var(--green-bg); color:var(--green); border:1px solid var(--green)}
+.pos-table tr.t2-reached td{background:rgba(63,185,80,.06)}
+.pos-table tr.t1-reached td{background:rgba(210,153,34,.06)}
+
 /* ── Responsive ─────────────────────────────────────────── */
 @media(max-width:600px){
   header{padding:10px 14px}
@@ -150,6 +176,26 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 <body>
 
 <div id="toastArea"></div>
+
+<!-- Buy Modal -->
+<div id="buyModal">
+  <div class="modal-box">
+    <h3 id="modalTitle">Buy Setup</h3>
+    <div class="modal-row">
+      <label>Entry Price (₹)</label>
+      <input id="modalEntry" type="number" step="0.01">
+    </div>
+    <div class="modal-row">
+      <label>Quantity</label>
+      <input id="modalQty" type="number" min="1" value="1">
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px" id="modalInfo"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeBuyModal()">Cancel</button>
+      <button class="btn-confirm" onclick="confirmBuy()">Confirm Buy</button>
+    </div>
+  </div>
+</div>
 
 <header>
   <div class="logo">
@@ -404,6 +450,7 @@ function renderStocks(stocks) {
         ${rsi?`<span class="tag t-rsi" style="color:${rsiCol}">RSI ${rsi.toFixed(0)}</span>`:""}
         ${vol?`<span class="tag t-vol">${vol}</span>`:""}
       </div>
+      <button class="buy-btn" onclick='openBuyModal(${JSON.stringify(s)})'>+ Add to Positions</button>
     </div>`;
   }).join("");
 }
@@ -423,14 +470,19 @@ function renderPositions(positions) {
     const pnl  = p.pnl || 0;
     const pPct = p.pnl_pct || 0;
     const cls  = pnlClass(pnl);
-    return `<tr>
-      <td><b>${p.Symbol||"—"}</b></td>
-      <td>₹${fmt(p.Entry_Price)}</td>
-      <td>₹${fmt(p.current_price)}</td>
+    const t1   = p.Target_1 || p.target_1 || 0;
+    const t2   = p.Target_2 || p.target_2 || 0;
+    const rowCls = p.t2_hit ? "t2-reached" : p.t1_hit ? "t1-reached" : "";
+    const t1Badge = p.t1_hit ? `<span class="hit-badge hit-t1">T1 HIT</span>` : "";
+    const t2Badge = p.t2_hit ? `<span class="hit-badge hit-t2">T2 HIT</span>` : "";
+    return `<tr class="${rowCls}">
+      <td><b>${p.Symbol||"—"}</b>${t2Badge}${t1Badge}</td>
+      <td>₹${fmtP(p.Entry_Price)}</td>
+      <td>₹${fmtP(p.current_price)}</td>
       <td>${p.Quantity||"—"}</td>
       <td class="${cls}">₹${fmt(pnl)}</td>
       <td class="${cls}">${pPct>=0?"+":""}${fmt(pPct)}%</td>
-      <td>₹${fmtP(p.Target_1||p.target_1)}</td>
+      <td>₹${fmtP(t1)}${t1Badge?"":" "}<small style="color:var(--muted)">→</small> ₹${fmtP(t2)}</td>
       <td><span style="color:var(--red)">₹${fmtP(p.Current_SL||p.sl)}</span></td>
     </tr>`;
   }).join("");
@@ -438,7 +490,7 @@ function renderPositions(positions) {
   wrap.innerHTML = `
     <div class="pos-wrap">
       <table class="pos-table">
-        <thead><tr><th>Symbol</th><th>Entry</th><th>LTP</th><th>Qty</th><th>P&L</th><th>%</th><th>Target</th><th>SL</th></tr></thead>
+        <thead><tr><th>Symbol</th><th>Entry</th><th>LTP</th><th>Qty</th><th>P&L</th><th>%</th><th>T1 → T2</th><th>SL</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
@@ -493,6 +545,66 @@ async function loadPositions() {
     renderPositions(d.positions || []);
   } catch { renderPositions([]); }
 }
+
+/* ── Buy modal ───────────────────────────────────────────── */
+let _buyStock = null;
+
+function openBuyModal(s) {
+  if (!BASE) { toast("Start the server first: run.bat", "error"); return; }
+  _buyStock = s;
+  document.getElementById("modalTitle").textContent = `Buy ${s.symbol} — ${s.name||s.symbol}`;
+  document.getElementById("modalEntry").value = s.entry_min || s.price || "";
+  document.getElementById("modalQty").value   = 1;
+  document.getElementById("modalInfo").textContent =
+    `SL ₹${fmtP(s.sl)}  ·  T1 ₹${fmtP(s.target_1)}  ·  T2 ₹${fmtP(s.target_2)}  ·  R:R ${s.rr}`;
+  document.getElementById("buyModal").classList.add("open");
+  document.getElementById("modalQty").focus();
+}
+
+function closeBuyModal() {
+  document.getElementById("buyModal").classList.remove("open");
+  _buyStock = null;
+}
+
+async function confirmBuy() {
+  if (!_buyStock) return;
+  const entry = parseFloat(document.getElementById("modalEntry").value);
+  const qty   = parseInt(document.getElementById("modalQty").value);
+  if (!entry || entry <= 0) { toast("Enter a valid entry price", "error"); return; }
+  if (!qty   || qty   <= 0) { toast("Enter a valid quantity",    "error"); return; }
+
+  const btn = document.querySelector(".btn-confirm");
+  btn.disabled = true;
+  btn.textContent = "Adding…";
+  try {
+    await apiFetch("/api/positions/add", {
+      method: "POST",
+      body: JSON.stringify({
+        symbol:      _buyStock.symbol,
+        name:        _buyStock.name || _buyStock.symbol,
+        entry_price: entry,
+        quantity:    qty,
+        target_1:    _buyStock.target_1,
+        target_2:    _buyStock.target_2,
+        sl:          _buyStock.sl,
+        setup:       _buyStock.setup,
+      }),
+    });
+    closeBuyModal();
+    toast(`${_buyStock.symbol} added to positions`, "success");
+    loadPositions();
+  } catch(err) {
+    toast(`Failed: ${err.message}`, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Confirm Buy";
+  }
+}
+
+// Close modal on backdrop click
+document.getElementById("buyModal").addEventListener("click", e => {
+  if (e.target === document.getElementById("buyModal")) closeBuyModal();
+});
 
 /* ── Load market ticker ──────────────────────────────────── */
 async function loadMarket() {

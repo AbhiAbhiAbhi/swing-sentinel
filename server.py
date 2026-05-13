@@ -3,12 +3,13 @@ Swing Sentinel — Local Server
 Run : python server.py
 Open: http://localhost:5000
 """
+import csv
 import json
 import logging
 import os
 from datetime import datetime
 
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -156,9 +157,48 @@ def api_brief_latest():
     return jsonify({"found": False})
 
 
+@app.route("/api/positions/add", methods=["POST"])
+def api_positions_add():
+    """Add a new position from the Buy button on a stock card."""
+    try:
+        data = request.get_json()
+        if not data or not data.get("symbol"):
+            return jsonify({"status": "error", "message": "symbol required"}), 400
+
+        path    = "data/positions.csv"
+        os.makedirs("data", exist_ok=True)
+        is_new  = not os.path.exists(path)
+
+        row = {
+            "Symbol":       data["symbol"],
+            "Name":         data.get("name", data["symbol"]),
+            "Entry_Price":  data.get("entry_price", 0),
+            "Quantity":     data.get("quantity", 1),
+            "Target_1":     data.get("target_1", 0),
+            "Target_2":     data.get("target_2", 0),
+            "Current_SL":   data.get("sl", 0),
+            "Setup":        data.get("setup", ""),
+            "Entry_Date":   _now_date(),
+            "Status":       "OPEN",
+        }
+
+        with open(path, "a", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=row.keys())
+            if is_new:
+                writer.writeheader()
+            writer.writerow(row)
+
+        logger.info("[positions] Added %s @ %s", row["Symbol"], row["Entry_Price"])
+        return jsonify({"status": "ok", "position": row})
+
+    except Exception as exc:
+        logger.error("[positions/add] %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
 @app.route("/api/positions")
 def api_positions():
-    """Open positions with live P&L (fetches current price per symbol)."""
+    """All positions with live P&L and target-hit status."""
     path = "data/positions.csv"
     if not os.path.exists(path):
         return jsonify({"positions": []})
@@ -175,11 +215,16 @@ def api_positions():
                 cur  = tech.get("price", 0) if tech else 0
             except Exception:
                 cur = 0
-            ep = float(pos.get("Entry_Price", 0))
+            ep  = float(pos.get("Entry_Price", 0))
             qty = float(pos.get("Quantity", 0))
+            t1  = float(pos.get("Target_1", 0))
+            t2  = float(pos.get("Target_2", 0))
             pos["current_price"] = cur
             pos["pnl"]           = round((cur - ep) * qty, 2) if cur else 0
             pos["pnl_pct"]       = round(((cur - ep) / ep * 100) if ep else 0, 2)
+            # Target hit indicators
+            pos["t1_hit"] = bool(cur and t1 and cur >= t1)
+            pos["t2_hit"] = bool(cur and t2 and cur >= t2)
             positions.append(pos)
         return jsonify({"positions": positions})
     except Exception as exc:
