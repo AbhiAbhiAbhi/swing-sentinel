@@ -161,7 +161,7 @@ def api_brief_latest():
 def api_positions_add():
     """Add a new position from the Buy button on a stock card."""
     try:
-        data = request.get_json()
+        data = request.get_json(force=True, silent=True)
         if not data or not data.get("symbol"):
             return jsonify({"status": "error", "message": "symbol required"}), 400
 
@@ -193,6 +193,50 @@ def api_positions_add():
 
     except Exception as exc:
         logger.error("[positions/add] %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route("/api/positions/add-all", methods=["POST"])
+def api_positions_add_all():
+    """Add all stocks from the current scan to positions (qty=1, entry=entry_min)."""
+    try:
+        data   = request.get_json(force=True, silent=True) or {}
+        stocks = data.get("stocks", [])
+        if not stocks:
+            return jsonify({"status": "error", "message": "no stocks provided"}), 400
+
+        path   = "data/positions.csv"
+        os.makedirs("data", exist_ok=True)
+        is_new = not os.path.exists(path)
+
+        fields = ["Symbol","Name","Entry_Price","Quantity","Target_1","Target_2","Current_SL","Setup","Entry_Date","Status"]
+        added  = 0
+        with open(path, "a", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fields)
+            if is_new:
+                writer.writeheader()
+            for s in stocks:
+                if not s.get("symbol"):
+                    continue
+                writer.writerow({
+                    "Symbol":       s["symbol"],
+                    "Name":         s.get("name", s["symbol"]),
+                    "Entry_Price":  s.get("entry_min", s.get("price", 0)),
+                    "Quantity":     1,
+                    "Target_1":     s.get("target_1", 0),
+                    "Target_2":     s.get("target_2", 0),
+                    "Current_SL":   s.get("sl", 0),
+                    "Setup":        s.get("setup", ""),
+                    "Entry_Date":   _now_date(),
+                    "Status":       "OPEN",
+                })
+                added += 1
+
+        logger.info("[positions] Bulk added %d stocks", added)
+        return jsonify({"status": "ok", "added": added})
+
+    except Exception as exc:
+        logger.error("[positions/add-all] %s", exc)
         return jsonify({"status": "error", "message": str(exc)}), 500
 
 

@@ -256,7 +256,10 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
   <!-- Stocks -->
   <div class="sec-head">
     <span class="sec-title">📊 Trade Setups</span>
-    <span class="pill" id="stockPill">0 stocks</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button id="addAllBtn" onclick="addAllToPositions()" style="display:none;background:var(--green-bg);color:var(--green);border:1px solid var(--green);padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer" onmouseover="this.style.background='var(--green)';this.style.color='#0d1117'" onmouseout="this.style.background='var(--green-bg)';this.style.color='var(--green)'">+ Add All to Positions</button>
+      <span class="pill" id="stockPill">0 stocks</span>
+    </div>
   </div>
   <div class="stocks-grid" id="stocksGrid">
     <div class="empty">
@@ -411,10 +414,15 @@ function showSkeletons(n = 4) {
 }
 
 /* ── Render stocks ───────────────────────────────────────── */
+let _currentStocks = [];
+
 function renderStocks(stocks) {
-  const grid = document.getElementById("stocksGrid");
-  const pill = document.getElementById("stockPill");
-  pill.textContent = `${stocks.length} stock${stocks.length!==1?"s":""}`;
+  _currentStocks = stocks;
+  const grid    = document.getElementById("stocksGrid");
+  const pill    = document.getElementById("stockPill");
+  const addAll  = document.getElementById("addAllBtn");
+  pill.textContent    = `${stocks.length} stock${stocks.length!==1?"s":""}`;
+  addAll.style.display = stocks.length && BASE ? "block" : "none";
 
   if (!stocks.length) {
     grid.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">No setups today</div><div class="empty-sub">Market may be closed or conditions not met</div></div>`;
@@ -605,6 +613,27 @@ async function confirmBuy() {
 document.getElementById("buyModal").addEventListener("click", e => {
   if (e.target === document.getElementById("buyModal")) closeBuyModal();
 });
+
+/* ── Add all stocks to positions ─────────────────────────── */
+async function addAllToPositions() {
+  if (!BASE || !_currentStocks.length) return;
+  const btn = document.getElementById("addAllBtn");
+  btn.disabled    = true;
+  btn.textContent = "Adding…";
+  try {
+    const d = await apiFetch("/api/positions/add-all", {
+      method: "POST",
+      body:   JSON.stringify({ stocks: _currentStocks }),
+    });
+    toast(`Added ${d.added} stocks to positions`, "success");
+    loadPositions();
+  } catch(err) {
+    toast(`Failed: ${err.message}`, "error");
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = "+ Add All to Positions";
+  }
+}
 
 /* ── Load market ticker ──────────────────────────────────── */
 async function loadMarket() {
