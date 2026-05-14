@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.pyo
+data/positions.csv
+data/daily_briefs/
+.env
