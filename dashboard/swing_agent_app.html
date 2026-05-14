@@ -429,7 +429,7 @@ function renderStocks(stocks) {
     return;
   }
 
-  grid.innerHTML = stocks.map(s => {
+  grid.innerHTML = stocks.map((s, i) => {
     const chgCls = s.change_pct >= 0 ? "up" : "down";
     const rsi    = parseFloat(s.rsi) || 0;
     const rsiCol = rsi > 60 ? "var(--yellow)" : "var(--green)";
@@ -457,7 +457,7 @@ function renderStocks(stocks) {
         ${s.setup?`<span class="tag t-setup">${s.setup.replace(/_/g," ")}</span>`:""}
         ${rsi?`<span class="tag t-rsi" style="color:${rsiCol}">RSI ${rsi.toFixed(0)}</span>`:""}
         ${vol?`<span class="tag t-vol">${vol}</span>`:""}
-        <button class="buy-btn" onclick='openBuyModal(${JSON.stringify(s)})'>+ Buy</button>
+        <button class="buy-btn" onclick="openBuyModal(${i})">+ Buy</button>
       </div>
     </div>`;
   }).join("");
@@ -557,8 +557,10 @@ async function loadPositions() {
 /* ── Buy modal ───────────────────────────────────────────── */
 let _buyStock = null;
 
-function openBuyModal(s) {
+function openBuyModal(idx) {
   if (!BASE) { toast("Start the server first: run.bat", "error"); return; }
+  const s = _currentStocks[idx];
+  if (!s) return;
   _buyStock = s;
   document.getElementById("modalTitle").textContent = `Buy ${s.symbol} — ${s.name||s.symbol}`;
   document.getElementById("modalEntry").value = s.entry_min || s.price || "";

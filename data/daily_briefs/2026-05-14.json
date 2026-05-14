@@ -1,0 +1,38 @@
+{
+  "status": "no_results",
+  "message": "Chartink returned 0 matches \u2014 market may be closed or no setups today.",
+  "date": "2026-05-14",
+  "time": "08:42",
+  "stocks": [],
+  "actions": [],
+  "total_scanned": 0,
+  "market": {
+    "nifty": {
+      "level": 23412.6,
+      "change": 33.05,
+      "change_pct": 0.14,
+      "status": "ok"
+    },
+    "fii_dii": {
+      "fii_today": 0,
+      "dii_today": 0,
+      "fii_last_5_days": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "dii_last_5_days": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "fii_trend": "unknown",
+      "note": "Live FII data unavailable"
+    },
+    "sentiment": "\u26aa Neutral"
+  }
+}
