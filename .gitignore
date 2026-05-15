@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 *.pyo
-data/positions.csv
+# data/positions.csv — tracked so GitHub Actions cron can read/write watchlist state
 data/daily_briefs/
 .env
+.env.local

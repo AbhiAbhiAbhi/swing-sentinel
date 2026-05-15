@@ -156,6 +156,33 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .btn-confirm{background:var(--green);color:#0d1117}
 .btn-cancel {background:var(--card); color:var(--text);border:1px solid var(--border)!important}
 
+/* ── Results section ────────────────────────────────────── */
+.results-toggle{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:3px}
+.results-toggle button{background:transparent;border:none;color:var(--muted);padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+.results-toggle button.active{background:var(--surface);color:var(--text)}
+.results-toggle button:hover:not(.active){color:var(--text)}
+.results-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.rsum-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.rsum-card .lbl{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+.rsum-card .val{font-size:22px;font-weight:700;line-height:1.1}
+.rsum-card .sub{font-size:11px;margin-top:4px;color:var(--muted)}
+.setup-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:14px}
+.setup-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 15px}
+.setup-card .setup-name{font-size:12px;font-weight:700;color:var(--text);letter-spacing:.5px;margin-bottom:8px}
+.setup-card .wr-bar{height:6px;background:var(--card);border-radius:3px;overflow:hidden;margin:6px 0}
+.setup-card .wr-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--blue));transition:width .4s}
+.setup-card .stats{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:5px}
+.outcome-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;display:inline-block}
+.outcome-T2_WIN{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
+.outcome-SL_LOSS{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
+.outcome-T1_HIT{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
+
+/* ── Kite status chip ───────────────────────────────────── */
+#kiteChip{display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--card);white-space:nowrap;text-decoration:none;cursor:default}
+#kiteChip.connected{border-color:var(--green);color:var(--green)}
+#kiteChip.disconnected{border-color:var(--orange);color:var(--orange);cursor:pointer}
+#kiteChip .kite-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+
 /* ── Target hit indicators on positions table ───────────── */
 .hit-badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;vertical-align:middle}
 .hit-t1{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
@@ -203,6 +230,9 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     Swing Sentinel
   </div>
   <div class="header-right">
+    <span id="kiteChip" class="disconnected" title="Click to connect Kite" onclick="kiteLogin()">
+      <span class="kite-dot"></span>Kite
+    </span>
     <div class="status-dot" id="statusDot"></div>
     <span class="last-upd" id="lastUpd">Not loaded</span>
     <button id="scanBtn" onclick="runScan()">
@@ -266,6 +296,20 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <div class="empty-icon">📭</div>
       <div class="empty-title">No setups yet</div>
       <div class="empty-sub">Click <b>Scan Now</b> or run <code>python server.py</code></div>
+    </div>
+  </div>
+
+  <!-- Strategy Results -->
+  <div class="sec-head">
+    <span class="sec-title">📈 Strategy Results</span>
+    <div class="results-toggle">
+      <button id="rtForward" class="active" onclick="switchResults('forward')">Forward (Live)</button>
+      <button id="rtBacktest"             onclick="switchResults('backtest')">Backtest (6mo)</button>
+    </div>
+  </div>
+  <div id="resultsWrap">
+    <div class="empty" style="padding:24px 20px">
+      <div class="empty-sub">Loading results…</div>
     </div>
   </div>
 
@@ -483,6 +527,10 @@ function renderPositions(positions) {
     const rowCls = p.t2_hit ? "t2-reached" : p.t1_hit ? "t1-reached" : "";
     const t1Badge = p.t1_hit ? `<span class="hit-badge hit-t1">T1 HIT</span>` : "";
     const t2Badge = p.t2_hit ? `<span class="hit-badge hit-t2">T2 HIT</span>` : "";
+    const gttId  = p.GTT_Id || p.gtt_id || "";
+    const gttBadge = gttId
+      ? `<span style="font-size:10px;background:rgba(88,166,255,.15);color:var(--blue);border:1px solid var(--blue);border-radius:4px;padding:1px 5px;margin-left:5px" title="Kite GTT #${gttId}">GTT</span>`
+      : `<span style="font-size:10px;color:var(--muted)">—</span>`;
     return `<tr class="${rowCls}">
       <td><b>${p.Symbol||"—"}</b>${t2Badge}${t1Badge}</td>
       <td>₹${fmtP(p.Entry_Price)}</td>
@@ -492,13 +540,14 @@ function renderPositions(positions) {
       <td class="${cls}">${pPct>=0?"+":""}${fmt(pPct)}%</td>
       <td>₹${fmtP(t1)}${t1Badge?"":" "}<small style="color:var(--muted)">→</small> ₹${fmtP(t2)}</td>
       <td><span style="color:var(--red)">₹${fmtP(p.Current_SL||p.sl)}</span></td>
+      <td>${gttBadge}</td>
     </tr>`;
   }).join("");
 
   wrap.innerHTML = `
     <div class="pos-wrap">
       <table class="pos-table">
-        <thead><tr><th>Symbol</th><th>Entry</th><th>LTP</th><th>Qty</th><th>P&L</th><th>%</th><th>T1 → T2</th><th>SL</th></tr></thead>
+        <thead><tr><th>Symbol</th><th>Entry</th><th>LTP</th><th>Qty</th><th>P&L</th><th>%</th><th>T1 → T2</th><th>SL</th><th>GTT</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
@@ -646,6 +695,115 @@ async function loadMarket() {
   } catch { /* silent */ }
 }
 
+/* ── Strategy Results ────────────────────────────────────── */
+let _resultsMode = "forward";   // "forward" | "backtest"
+
+async function switchResults(mode) {
+  _resultsMode = mode;
+  document.getElementById("rtForward").classList.toggle("active",  mode === "forward");
+  document.getElementById("rtBacktest").classList.toggle("active", mode === "backtest");
+  await loadResults();
+}
+
+async function loadResults() {
+  if (!BASE && _resultsMode === "forward") return;
+  const wrap = document.getElementById("resultsWrap");
+  try {
+    const url = _resultsMode === "forward" ? "/api/results" : "/data/backtest_results.json";
+    const r = await apiFetch(url);
+    renderResults(r);
+  } catch {
+    wrap.innerHTML = `<div class="empty" style="padding:20px"><div class="empty-sub">${_resultsMode==="backtest"?"No backtest data — run <code>python backtest.py</code>":"No results yet"}</div></div>`;
+  }
+}
+
+function renderResults(r) {
+  const wrap = document.getElementById("resultsWrap");
+  if (!r || (!r.total && !r.closed_positions?.length)) {
+    wrap.innerHTML = `<div class="empty" style="padding:20px"><div class="empty-sub">No positions tracked yet. Add stocks to your watchlist via <b>Buy</b> button.</div></div>`;
+    return;
+  }
+  const wr = Math.round((r.win_rate||0) * 100);
+
+  // Summary cards
+  const summary = `
+    <div class="results-summary">
+      <div class="rsum-card"><div class="lbl">Win Rate</div><div class="val ${wr>=50?"up":"down"}">${wr}%</div><div class="sub">${r.wins||0} wins / ${r.losses||0} losses</div></div>
+      <div class="rsum-card"><div class="lbl">Closed Trades</div><div class="val">${r.closed||0}</div><div class="sub">of ${r.total||0} total</div></div>
+      <div class="rsum-card"><div class="lbl">Open Positions</div><div class="val">${r.open||0}</div><div class="sub">currently tracking</div></div>
+      <div class="rsum-card"><div class="lbl">Avg Days Held</div><div class="val">${r.avg_days_held||0}</div><div class="sub">closed trades</div></div>
+    </div>`;
+
+  // Per-setup breakdown
+  const setupCards = Object.entries(r.by_setup || {}).map(([setup, s]) => {
+    const swr = Math.round((s.win_rate||0) * 100);
+    return `
+      <div class="setup-card">
+        <div class="setup-name">${setup}</div>
+        <div class="stats">
+          <span>${s.closed||0} closed of ${s.total||0}</span>
+          <span class="${swr>=50?"up":"down"}"><b>${swr}%</b> WR</span>
+        </div>
+        <div class="wr-bar"><div class="wr-fill" style="width:${swr}%"></div></div>
+        <div class="stats">
+          <span>✅ ${s.wins||0} / ❌ ${s.losses||0}</span>
+          <span class="${(s.avg_pnl_pct||0)>=0?"up":"down"}">${(s.avg_pnl_pct||0)>=0?"+":""}${(s.avg_pnl_pct||0).toFixed(1)}% avg</span>
+        </div>
+      </div>`;
+  }).join("");
+
+  const setups = setupCards
+    ? `<div class="setup-grid">${setupCards}</div>`
+    : "";
+
+  // Closed positions table
+  const closedRows = (r.closed_positions || []).map(p => {
+    const pnlCls = p.pnl_pct >= 0 ? "up" : "down";
+    return `<tr>
+      <td><b>${p.symbol}</b></td>
+      <td><small style="color:var(--muted)">${p.setup||"—"}</small></td>
+      <td>₹${fmtP(p.entry)} <small style="color:var(--muted)">→</small> ₹${fmtP(p.exit)}</td>
+      <td class="${pnlCls}"><b>${p.pnl_pct>=0?"+":""}${fmt(p.pnl_pct)}%</b></td>
+      <td>${p.days_held||0}d</td>
+      <td><span class="outcome-badge outcome-${p.outcome}">${p.outcome}</span></td>
+    </tr>`;
+  }).join("");
+
+  const closed = closedRows
+    ? `<div class="pos-wrap"><table class="pos-table">
+         <thead><tr><th>Symbol</th><th>Setup</th><th>Entry → Exit</th><th>P&L</th><th>Held</th><th>Outcome</th></tr></thead>
+         <tbody>${closedRows}</tbody>
+       </table></div>`
+    : `<div class="empty" style="padding:18px 20px;margin-top:10px"><div class="empty-sub">No closed trades yet — alerts will fill this in as targets/SL fire.</div></div>`;
+
+  wrap.innerHTML = summary + setups + closed;
+}
+
+/* ── Kite status ─────────────────────────────────────────── */
+async function checkKiteStatus() {
+  if (!BASE) return;
+  try {
+    const d   = await apiFetch("/api/kite/status");
+    const chip = document.getElementById("kiteChip");
+    if (d.connected) {
+      chip.className  = "connected";
+      chip.title      = `Kite connected as ${d.user}`;
+      chip.onclick    = null;
+      chip.innerHTML  = `<span class="kite-dot"></span>Kite: ${d.user}`;
+    } else {
+      chip.className  = "disconnected";
+      chip.title      = "Click to log in to Kite";
+      chip.onclick    = kiteLogin;
+      chip.innerHTML  = `<span class="kite-dot"></span>Kite: Login`;
+    }
+  } catch { /* server not running */ }
+}
+
+function kiteLogin() {
+  if (!BASE) return;
+  window.location.href = BASE + "/api/kite/login";
+}
+
 /* ── Init ────────────────────────────────────────────────── */
 async function init() {
   // Try static fallback first (fast, works on GitHub Pages)
@@ -665,9 +823,13 @@ async function init() {
 
     loadMarket();
     loadPositions();
+    loadResults();
+    checkKiteStatus();
 
     // Refresh market data every 5 minutes
     setInterval(loadMarket, 5 * 60 * 1000);
+    // Refresh Kite status every 10 minutes
+    setInterval(checkKiteStatus, 10 * 60 * 1000);
   } else {
     // Static / GitHub Pages mode
     if (!STATIC_STOCKS.length) {

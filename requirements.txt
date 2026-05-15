@@ -7,3 +7,6 @@ anthropic
 flask
 python-dateutil
 pytz
+kiteconnect
+python-dotenv
+apscheduler

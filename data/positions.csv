@@ -1,0 +1,45 @@
+Symbol,Name,Entry_Price,Quantity,Target_1,Target_2,Current_SL,Setup,Entry_Date,Status,Entry_Notified,T1_Notified,T2_Notified,SL_Notified
+CROMPTON,Crompton Greaves Consumer Electricals Limited,271.65,1,299.15,305.13,265.31,PULLBACK,2026-05-14,OPEN,False,False,False,False
+SCI,Shipping Corporation Of India Limited,306.09,1,368.75,376.12,292.75,PULLBACK,2026-05-14,OPEN,False,False,False,False
+IFCI,Ifci Limited,60.37,1,66.25,68.15,58.54,PULLBACK,2026-05-14,OPEN,False,False,False,False
+OIL,Oil India Limited,475.43,1,531.0,541.62,463.37,PULLBACK,2026-05-14,OPEN,False,False,False,False
+CROMPTON,Crompton Greaves Consumer Electricals Limited,271.65,1,299.15,305.13,265.31,PULLBACK,2026-05-14,OPEN,False,False,False,False
+ONGC,Oil & Natural Gas Corporation Limited,286.57,1,307.5,313.65,281.64,PULLBACK,2026-05-14,OPEN,False,False,False,False
+PARACABLES,Paramount Communications Limited,46.15,1,60.9,62.12,42.69,PULLBACK,2026-05-14,OPEN,False,False,False,False
+CIPLA,Cipla Limited,1300.89,1,1432.1,1460.74,1279.28,PULLBACK,2026-05-14,OPEN,False,True,False,False
+DIACABS,Diamond Power Infrastructure Ltd,162.54,1,184.75,190.95,155.12,PULLBACK,2026-05-14,OPEN,False,True,True,False
+SCI,Shipping Corporation Of India Limited,306.09,1,368.75,376.12,292.75,PULLBACK,2026-05-14,OPEN,False,False,False,False
+ZYDUSLIFE,Zydus Lifesciences Ltd,920.68,1,981.0,1000.62,906.54,PULLBACK,2026-05-14,OPEN,False,True,False,False
+LICHSGFIN,Lic Housing Finance Limited,556.22,1,598.2,610.16,545.66,PULLBACK,2026-05-14,OPEN,False,False,False,False
+LICHSGFIN,Lic Housing Finance Limited,556.22,1,598.2,610.16,545.66,PULLBACK,2026-05-14,OPEN,False,False,False,False
+OIL,Oil India Limited,474.68,1,531.0,541.62,462.61,PULLBACK,2026-05-14,OPEN,False,False,False,False
+IFCI,Ifci Limited,60.29,1,66.25,68.52,58.31,PULLBACK,2026-05-14,OPEN,False,False,False,False
+ONGC,Oil & Natural Gas Corporation Limited,286.44,1,307.5,313.65,281.43,PULLBACK,2026-05-14,OPEN,False,False,False,False
+OIL,Oil India Limited,474.68,1,531.0,541.62,462.61,PULLBACK,2026-05-14,OPEN,False,False,False,False
+CROMPTON,Crompton Greaves Consumer Electricals Limited,271.61,1,299.15,305.13,265.13,PULLBACK,2026-05-14,OPEN,False,False,False,False
+CIPLA,Cipla Limited,1301.85,1,1432.1,1460.74,1280.25,PULLBACK,2026-05-14,OPEN,False,True,False,False
+SCI,Shipping Corporation Of India Limited,305.24,1,368.75,376.12,291.13,PULLBACK,2026-05-14,OPEN,False,False,False,False
+PPLPHARMA,Piramal Pharma Ltd,165.12,1,196.44,200.37,158.37,PULLBACK,2026-05-14,OPEN,False,False,False,False
+GODREJIND,Godrej Industries Limited,1032.45,1,1260.65,1285.86,980.47,PULLBACK,2026-05-14,OPEN,False,False,False,False
+ZYDUSLIFE,Zydus Lifesciences Ltd,921.13,1,989.9,1009.7,906.35,PULLBACK,2026-05-14,OPEN,False,True,False,False
+ALKYLAMINE,Alkyl Amines Chemicals Limited,1575.04,1,1881.6,1919.23,1504.9,PULLBACK,2026-05-14,OPEN,False,False,False,False
+MOSCHIP,Moschip Technologies Ltd,204.51,1,236.7,241.43,195.25,PULLBACK,2026-05-14,OPEN,False,False,False,False
+INDOAMIN,Indo Amines Ltd,115.01,1,134.95,137.65,110.91,PULLBACK,2026-05-14,OPEN,False,False,False,False
+ADANIPORTS,Adani Ports And Special Economic Zone Limited,1651.42,1,1792.0,1827.84,1615.95,PULLBACK,2026-05-14,OPEN,False,False,False,False
+HSCL,Himadri Speciality Chemical Limited,578.02,1,654.45,680.47,551.17,PULLBACK,2026-05-14,OPEN,False,False,False,False
+JAIBALAJI,Jai Balaji Industries Limited,78.23,1,88.5,91.16,74.91,PULLBACK,2026-05-14,OPEN,False,False,False,False
+GNFC,Gujarat Narmada Valley Fertilizers And Chemicals Limited,473.73,1,521.7,532.13,464.57,PULLBACK,2026-05-14,OPEN,False,False,False,False
+AEROFLEX,Aeroflex Industries Ltd,332.69,1,458.7,467.87,307.6,PULLBACK,2026-05-14,OPEN,False,False,False,False
+MIDHANI,Mishra Dhatu Nigam Ltd,386.8,1,438.7,447.47,372.92,PULLBACK,2026-05-14,OPEN,False,False,False,False
+JSFB,Jana Small Finance Bank Ltd,448.0,1,503.0,523.61,428.46,PULLBACK,2026-05-14,OPEN,False,False,False,False
+MANAPPURAM,Manappuram Finance Limited,293.72,1,317.7,325.05,286.99,PULLBACK,2026-05-14,OPEN,False,False,False,False
+VIYASH,Viyash Scientific Ltd,211.46,1,235.4,241.03,204.28,PULLBACK,2026-05-14,OPEN,False,False,False,False
+SPARC,Sun Pharma Advanced Research Company Limited,152.59,1,182.59,186.24,144.21,PULLBACK,2026-05-14,OPEN,False,False,False,False
+RPEL,Raghav Productivity Enhancers Ltd,727.45,1,824.0,846.99,696.79,PULLBACK,2026-05-14,OPEN,False,False,False,False
+SUNPHARMA,Sun Pharmaceuticals Industries Limited,1777.95,1,1885.8,1928.28,1750.29,PULLBACK,2026-05-14,OPEN,False,False,False,False
+MARKSANS,Marksans Pharma Limited,189.16,1,208.65,216.06,182.58,PULLBACK,2026-05-14,OPEN,False,False,False,False
+NITCO,Nitco Limited,94.34,1,110.05,112.25,89.59,PULLBACK,2026-05-14,OPEN,False,False,False,False
+SAILIFE,Sai Life Sciences Ltd,1054.68,1,1139.4,1168.9,1029.92,PULLBACK,2026-05-14,OPEN,False,False,False,False
+RATNAVEER,Ratnaveer Precision Engineering Ltd,165.16,1,193.39,204.03,154.29,PULLBACK,2026-05-14,OPEN,False,False,False,False
+WOCKPHARMA,Wockhardt Limited,1478.9,1,1778.0,1813.56,1417.35,PULLBACK,2026-05-14,OPEN,False,False,False,False
+NIVABUPA,Niva Bupa Health Insurance Company Ltd,78.65,1,89.77,91.57,76.75,PULLBACK,2026-05-14,OPEN,False,False,False,False

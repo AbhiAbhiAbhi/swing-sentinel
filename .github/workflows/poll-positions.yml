@@ -1,0 +1,54 @@
+name: Poll Positions
+
+# Runs every 5 minutes during NSE market hours
+# NSE: 9:15-15:30 IST  →  3:45-10:00 UTC, Mon-Fri
+# GitHub Actions cron only supports standard cron, so we cover 3:45-9:55 UTC
+# (= 9:15-15:25 IST — close enough; misses last 5 min of market)
+on:
+  schedule:
+    - cron: '*/5 3-9 * * 1-5'
+  workflow_dispatch: {}   # allow manual trigger from Actions tab
+
+permissions:
+  contents: write          # required to commit positions.csv state back
+
+concurrency:
+  group: poll-positions
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run poll
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python poll_once.py
+
+      - name: Commit state changes
+        run: |
+          git config user.name  "Swing Sentinel Bot"
+          git config user.email "bot@swingsentinel.local"
+          git add data/positions.csv
+          if git diff --staged --quiet; then
+            echo "No state change — nothing to commit."
+          else
+            git commit -m "Auto: position state update [skip ci]"
+            git push
+          fi
