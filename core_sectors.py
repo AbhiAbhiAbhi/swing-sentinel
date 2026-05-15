@@ -23,12 +23,21 @@ SECTOR_INDEX: Dict[str, str] = {
     "METAL":      "^CNXMETAL",
     "FMCG":       "^CNXFMCG",
     "ENERGY":     "^CNXENERGY",
-    "FINANCE":    "^CNXFIN",
+    "FINANCE":    "NIFTY_FIN_SERVICE.NS",  # ^CNXFIN returns only 1 bar — use NIFTY_FIN_SERVICE.NS
     "REALTY":     "^CNXREALTY",
     "MEDIA":      "^CNXMEDIA",
     "PSUBANK":    "^CNXPSUBANK",
     "INFRA":      "^CNXINFRA",
-    "HEALTHCARE": "^CNXPHARMA",     # alias — same index, surfaced for clarity
+}
+
+# Sectors without a working yfinance index — pulse synthesized from constituents
+SYNTHETIC_SECTORS: Dict[str, list] = {
+    "DEFENCE": ["BEL","HAL","BDL","MAZDOCK","COCHINSHIP","GRSE","SOLARINDS",
+                "DATAPATTNS","ZENTEC","BEML","MTARTECH","ASTRAMICRO"],
+    "CHEMICALS": ["UPL","TATACHEM","AARTIIND","NAVINFLUOR","PIIND",
+                  "DEEPAKNTR","SRF","ATUL","SUMICHEM","CLEAN","PCBL","FINEORG"],
+    "CONSUMER": ["TITAN","TRENT","DMART","NYKAA","JUBLFOOD","DEVYANI",
+                 "WESTLIFE","BATAINDIA","RELAXO","KALYANKJIL","HONASA","INDIGO"],
 }
 
 # ── Symbol → Sector ─────────────────────────────────────────────────────────
@@ -114,8 +123,11 @@ SECTOR_MAP: Dict[str, str] = {
     "BHEL":"INFRA","CUMMINSIND":"INFRA","ABBOTINDIA":"INFRA","THERMAX":"INFRA",
     "VOLTAS":"INFRA","CGPOWER":"INFRA","KEC":"INFRA","KALPATPOWR":"INFRA",
     "GMRINFRA":"INFRA","NCC":"INFRA","IRB":"INFRA","KNRCON":"INFRA",
-    "BEL":"INFRA","HAL":"INFRA","BDL":"INFRA","MAZDOCK":"INFRA",
-    "COCHINSHIP":"INFRA","GRSE":"INFRA","SOLARINDS":"INFRA","ADANIENT":"INFRA",
+    "BEL":"DEFENCE","HAL":"DEFENCE","BDL":"DEFENCE","MAZDOCK":"DEFENCE",
+    "COCHINSHIP":"DEFENCE","GRSE":"DEFENCE","SOLARINDS":"DEFENCE",
+    "DATAPATTNS":"DEFENCE","ZENTEC":"DEFENCE","BEML":"DEFENCE",
+    "MTARTECH":"DEFENCE","ASTRAMICRO":"DEFENCE",
+    "ADANIENT":"INFRA",
     "ADANIPORTS":"INFRA","ADANIGREEN":"INFRA","ADANIPOWER":"INFRA","ADANIENSOL":"INFRA",
     "ATGL":"INFRA","ULTRACEMCO":"INFRA","SHREECEM":"INFRA","AMBUJACEM":"INFRA",
     "ACC":"INFRA","DALBHARAT":"INFRA","RAMCOCEM":"INFRA","JKCEMENT":"INFRA",
@@ -152,9 +164,66 @@ def get_sector(symbol: str) -> str:
     return SECTOR_MAP.get(symbol.upper(), "OTHERS")
 
 
+def _pulse_from_series(close) -> dict:
+    """Compute pulse fields from a Close price Series."""
+    level  = float(close.iloc[-1])
+    prev   = float(close.iloc[-2])
+    change = round((level - prev) / prev * 100, 2) if prev else 0.0
+    ema20  = float(close.ewm(span=20, adjust=False).mean().iloc[-1])
+    above  = level > ema20
+    # 20-day breadth — how much above/below the 20d average right now
+    pct_from_ema20 = round((level - ema20) / ema20 * 100, 2) if ema20 else 0.0
+    trend = "STRONG" if above and change >= 0 else "WEAK" if not above and change < 0 else "NEUTRAL"
+    return {
+        "level":          round(level, 2),
+        "change_pct":     change,
+        "above_ema20":    above,
+        "pct_from_ema20": pct_from_ema20,
+        "ema20":          round(ema20, 2),
+        "trend":          trend,
+    }
+
+
+def _synthetic_pulse(symbols: list) -> dict:
+    """
+    Compute pulse for a sector that doesn't have a yfinance index ticker.
+    Equal-weight average of constituents' Close series (treated as a price index).
+    """
+    import yfinance as yf
+    import pandas as pd
+
+    series_list = []
+    fetched = 0
+    for sym in symbols:
+        try:
+            df = yf.Ticker(f"{sym}.NS").history(period="60d")
+            df = df.dropna(subset=["Close"])
+            if len(df) < 21:
+                continue
+            # Normalize each stock to its starting price = 100 so equal-weight
+            # works regardless of price levels
+            normalized = df["Close"] / df["Close"].iloc[0] * 100
+            series_list.append(normalized)
+            fetched += 1
+        except Exception:
+            continue
+
+    if not series_list:
+        return {}
+
+    # Align on common dates and average
+    combined = pd.concat(series_list, axis=1).dropna()
+    if combined.empty:
+        return {}
+    synthetic_index = combined.mean(axis=1)
+    pulse = _pulse_from_series(synthetic_index)
+    pulse["constituents"] = fetched
+    return pulse
+
+
 def fetch_sector_pulse() -> Dict[str, dict]:
     """
-    Return {sector_key: {level, change_pct, above_ema20, trend}} for all sectors.
+    Return {sector_key: {level, change_pct, above_ema20, pct_from_ema20, trend}}.
     Cached for 5 minutes to avoid hammering yfinance.
     """
     now = time.time()
@@ -163,28 +232,27 @@ def fetch_sector_pulse() -> Dict[str, dict]:
 
     import yfinance as yf
     result: Dict[str, dict] = {}
+
+    # Index-based sectors
     for sector, ticker in SECTOR_INDEX.items():
         try:
             df = yf.Ticker(ticker).history(period="60d")
             df = df.dropna(subset=["Close"])
             if df.empty or len(df) < 21:
+                logger.warning("[sectors] %s (%s) insufficient bars: %d", sector, ticker, len(df))
                 continue
-            close   = df["Close"]
-            level   = float(close.iloc[-1])
-            prev    = float(close.iloc[-2])
-            change  = round((level - prev) / prev * 100, 2) if prev else 0.0
-            ema20   = float(close.ewm(span=20, adjust=False).mean().iloc[-1])
-            above   = level > ema20
-            trend   = "STRONG" if above and change >= 0 else "WEAK" if not above else "NEUTRAL"
-            result[sector] = {
-                "level":       round(level, 2),
-                "change_pct":  change,
-                "above_ema20": above,
-                "trend":       trend,
-                "ema20":       round(ema20, 2),
-            }
+            result[sector] = _pulse_from_series(df["Close"])
         except Exception as exc:
             logger.warning("[sectors] %s (%s) failed: %s", sector, ticker, exc)
+
+    # Synthetic-pulse sectors (computed from constituent stocks)
+    for sector, symbols in SYNTHETIC_SECTORS.items():
+        try:
+            pulse = _synthetic_pulse(symbols)
+            if pulse:
+                result[sector] = pulse
+        except Exception as exc:
+            logger.warning("[sectors] synthetic %s failed: %s", sector, exc)
 
     _PULSE_CACHE["ts"]   = now
     _PULSE_CACHE["data"] = result

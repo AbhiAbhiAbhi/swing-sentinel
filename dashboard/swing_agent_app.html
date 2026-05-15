@@ -802,11 +802,14 @@ function renderSectorChips(pulse) {
     return;
   }
   wrap.innerHTML = entries.map(([name, info]) => {
-    const pct  = info.change_pct || 0;
-    const cls  = info.trend === "STRONG" ? "strong" : info.trend === "WEAK" ? "weak" : "neutral";
-    const arrow = pct >= 0 ? "▲" : "▼";
+    const pct    = info.change_pct || 0;
+    const cls    = info.trend === "STRONG" ? "strong" : info.trend === "WEAK" ? "weak" : "neutral";
+    const arrow  = pct >= 0 ? "▲" : "▼";
     const active = _activeSector === name ? "active" : "";
-    return `<span class="sector-chip ${cls} ${active}" onclick="selectSector('${name}')" title="${info.trend} · ${info.above_ema20?"above":"below"} EMA20">
+    const fromEma = info.pct_from_ema20;
+    const constNote = info.constituents ? ` · synthetic (${info.constituents} stocks)` : "";
+    const tooltip = `${info.trend} · today ${pct>=0?"+":""}${pct.toFixed(2)}% · vs 20d avg ${fromEma>=0?"+":""}${fromEma?.toFixed(2)}%${constNote}`;
+    return `<span class="sector-chip ${cls} ${active}" onclick="selectSector('${name}')" title="${tooltip}">
       <span class="dot"></span>${name}
       <span class="pct">${arrow} ${Math.abs(pct).toFixed(2)}%</span>
     </span>`;
