@@ -204,10 +204,10 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 
 <div id="toastArea"></div>
 
-<!-- Buy Modal -->
+<!-- Add to Watchlist Modal -->
 <div id="buyModal">
   <div class="modal-box">
-    <h3 id="modalTitle">Buy Setup</h3>
+    <h3 id="modalTitle">Add to Watchlist</h3>
     <div class="modal-row">
       <label>Entry Price (₹)</label>
       <input id="modalEntry" type="number" step="0.01">
@@ -219,7 +219,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     <div style="font-size:11px;color:var(--muted);margin-bottom:14px" id="modalInfo"></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeBuyModal()">Cancel</button>
-      <button class="btn-confirm" onclick="confirmBuy()">Confirm Buy</button>
+      <button class="btn-confirm" onclick="confirmBuy()">Add to Watchlist</button>
     </div>
   </div>
 </div>
@@ -287,7 +287,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
   <div class="sec-head">
     <span class="sec-title">📊 Trade Setups</span>
     <div style="display:flex;align-items:center;gap:8px">
-      <button id="addAllBtn" onclick="addAllToPositions()" style="display:none;background:var(--green-bg);color:var(--green);border:1px solid var(--green);padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer" onmouseover="this.style.background='var(--green)';this.style.color='#0d1117'" onmouseout="this.style.background='var(--green-bg)';this.style.color='var(--green)'">+ Add All to Positions</button>
+      <button id="addAllBtn" onclick="addAllToPositions()" style="display:none;background:var(--green-bg);color:var(--green);border:1px solid var(--green);padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer" onmouseover="this.style.background='var(--green)';this.style.color='#0d1117'" onmouseout="this.style.background='var(--green-bg)';this.style.color='var(--green)'">+ Add All to Watchlist</button>
       <span class="pill" id="stockPill">0 stocks</span>
     </div>
   </div>
@@ -315,12 +315,12 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 
   <!-- Positions -->
   <div class="sec-head">
-    <span class="sec-title">💼 Open Positions</span>
+    <span class="sec-title">💼 Watchlist</span>
     <span class="pill" id="posPill">0 positions</span>
   </div>
   <div id="posWrap">
     <div class="empty" style="padding:30px 20px">
-      <div class="empty-sub">No open positions in <code>data/positions.csv</code></div>
+      <div class="empty-sub">Watchlist is empty — click <b>+ Watchlist</b> on any setup card</div>
     </div>
   </div>
 
@@ -501,7 +501,7 @@ function renderStocks(stocks) {
         ${s.setup?`<span class="tag t-setup">${s.setup.replace(/_/g," ")}</span>`:""}
         ${rsi?`<span class="tag t-rsi" style="color:${rsiCol}">RSI ${rsi.toFixed(0)}</span>`:""}
         ${vol?`<span class="tag t-vol">${vol}</span>`:""}
-        <button class="buy-btn" onclick="openBuyModal(${i})">+ Buy</button>
+        <button class="buy-btn" onclick="openBuyModal(${i})">+ Watchlist</button>
       </div>
     </div>`;
   }).join("");
@@ -514,7 +514,7 @@ function renderPositions(positions) {
   pill.textContent = `${positions.length} position${positions.length!==1?"s":""}`;
 
   if (!positions.length) {
-    wrap.innerHTML = `<div class="empty" style="padding:24px 20px"><div class="empty-sub">No open positions in <code>data/positions.csv</code></div></div>`;
+    wrap.innerHTML = `<div class="empty" style="padding:24px 20px"><div class="empty-sub">Watchlist is empty — click <b>+ Watchlist</b> on any setup card</div></div>`;
     return;
   }
 
@@ -611,7 +611,7 @@ function openBuyModal(idx) {
   const s = _currentStocks[idx];
   if (!s) return;
   _buyStock = s;
-  document.getElementById("modalTitle").textContent = `Buy ${s.symbol} — ${s.name||s.symbol}`;
+  document.getElementById("modalTitle").textContent = `Add ${s.symbol} to Watchlist`;
   document.getElementById("modalEntry").value = s.entry_min || s.price || "";
   document.getElementById("modalQty").value   = 1;
   document.getElementById("modalInfo").textContent =
@@ -650,13 +650,14 @@ async function confirmBuy() {
       }),
     });
     closeBuyModal();
-    toast(`${_buyStock.symbol} added to positions`, "success");
+    toast(`${_buyStock.symbol} added to watchlist`, "success");
     loadPositions();
+    loadResults();
   } catch(err) {
     toast(`Failed: ${err.message}`, "error");
   } finally {
     btn.disabled = false;
-    btn.textContent = "Confirm Buy";
+    btn.textContent = "Add to Watchlist";
   }
 }
 
@@ -682,7 +683,7 @@ async function addAllToPositions() {
     toast(`Failed: ${err.message}`, "error");
   } finally {
     btn.disabled    = false;
-    btn.textContent = "+ Add All to Positions";
+    btn.textContent = "+ Add All to Watchlist";
   }
 }
 
@@ -720,7 +721,7 @@ async function loadResults() {
 function renderResults(r) {
   const wrap = document.getElementById("resultsWrap");
   if (!r || (!r.total && !r.closed_positions?.length)) {
-    wrap.innerHTML = `<div class="empty" style="padding:20px"><div class="empty-sub">No positions tracked yet. Add stocks to your watchlist via <b>Buy</b> button.</div></div>`;
+    wrap.innerHTML = `<div class="empty" style="padding:20px"><div class="empty-sub">No positions tracked yet. Click <b>+ Watchlist</b> on any setup card to start.</div></div>`;
     return;
   }
   const wr = Math.round((r.win_rate||0) * 100);

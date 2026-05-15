@@ -523,14 +523,16 @@ def check_positions_and_notify() -> list:
     if df.empty:
         return []
 
-    # Ensure all notification-state + outcome columns exist
+    # Ensure all notification-state + outcome columns exist with correct dtypes
     for col in ("Entry_Notified", "T1_Notified", "T2_Notified", "SL_Notified"):
         if col not in df.columns:
             df[col] = False
-    for col in ("Entry_Hit_Date", "T1_Hit_Date", "T2_Hit_Date", "SL_Hit_Date",
-                "Closing_Price", "Outcome"):
+    # Date / outcome columns — object dtype so they accept strings or floats
+    for col in ("Entry_Hit_Date", "T1_Hit_Date", "T2_Hit_Date", "SL_Hit_Date", "Outcome"):
         if col not in df.columns:
-            df[col] = ""
+            df[col] = pd.Series([""] * len(df), dtype=object)
+    if "Closing_Price" not in df.columns:
+        df["Closing_Price"] = 0.0   # float dtype — will hold the actual exit price
 
     today_str = _now_date()
     csv_dirty = False
