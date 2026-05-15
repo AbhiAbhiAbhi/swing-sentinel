@@ -156,6 +156,26 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .btn-confirm{background:var(--green);color:#0d1117}
 .btn-cancel {background:var(--card); color:var(--text);border:1px solid var(--border)!important}
 
+/* ── Sector Pulse ───────────────────────────────────────── */
+.sector-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.sector-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;user-select:none}
+.sector-chip:hover{border-color:var(--border-hi);transform:translateY(-1px)}
+.sector-chip.active{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+.sector-chip.strong{border-color:var(--green);color:var(--green)}
+.sector-chip.weak  {border-color:var(--red);color:var(--red)}
+.sector-chip.neutral{border-color:var(--yellow);color:var(--yellow)}
+.sector-chip .pct{font-weight:700;font-size:11px}
+.sector-chip .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* ── Sector group header inside Trade Setups ─────────────── */
+.sector-group-head{display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px;padding:6px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px}
+.sector-group-head .name{font-size:12px;font-weight:700;letter-spacing:.4px}
+.sector-group-head .meta{font-size:11px;color:var(--muted);display:flex;gap:10px;align-items:center}
+.sector-group-head .meta .pct{font-weight:700}
+
+/* ── Filtered-out chip in section header ────────────────── */
+.filtered-pill{cursor:help;background:var(--yellow-bg)!important;color:var(--yellow)!important;border-color:var(--yellow)!important;margin-left:6px}
+
 /* ── Results section ────────────────────────────────────── */
 .results-toggle{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:3px}
 .results-toggle button{background:transparent;border:none;color:var(--muted);padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
@@ -271,6 +291,17 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <div class="lbl">Best R:R Today</div>
       <div class="val up" id="bestRR">—</div>
       <div class="sub" id="bestRRSym">—</div>
+    </div>
+  </div>
+
+  <!-- Sector Pulse -->
+  <div class="sec-head">
+    <span class="sec-title">🌡️ Sector Pulse</span>
+    <span class="pill" id="sectorPill">— sectors</span>
+  </div>
+  <div id="sectorPulseWrap" class="sector-row">
+    <div class="empty" style="padding:14px">
+      <div class="empty-sub">Loading sectors…</div>
     </div>
   </div>
 
@@ -458,27 +489,73 @@ function showSkeletons(n = 4) {
 }
 
 /* ── Render stocks ───────────────────────────────────────── */
-let _currentStocks = [];
+let _currentStocks  = [];
+let _sectorPulse    = {};
+let _activeSector   = null;     // null = show all
+let _filteredOut    = [];
 
 function renderStocks(stocks) {
   _currentStocks = stocks;
   const grid    = document.getElementById("stocksGrid");
   const pill    = document.getElementById("stockPill");
   const addAll  = document.getElementById("addAllBtn");
-  pill.textContent    = `${stocks.length} stock${stocks.length!==1?"s":""}`;
-  addAll.style.display = stocks.length && BASE ? "block" : "none";
 
-  if (!stocks.length) {
-    grid.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">No setups today</div><div class="empty-sub">Market may be closed or conditions not met</div></div>`;
+  // Apply active sector filter (set by clicking a Sector Pulse chip)
+  const visible = _activeSector
+    ? stocks.filter(s => (s.sector || "OTHERS") === _activeSector)
+    : stocks;
+
+  let pillText = `${stocks.length} setup${stocks.length!==1?"s":""}`;
+  if (_filteredOut.length) {
+    const summary = _filteredOut.map(f => `${f.symbol}: ${f.reasons.join("; ")}`).join("\n");
+    pillText += `  ·  ${_filteredOut.length} skipped`;
+  }
+  if (_activeSector) pillText += `  ·  filtered: ${_activeSector}`;
+  pill.textContent     = pillText;
+  pill.title           = _filteredOut.length ? _filteredOut.map(f => `${f.symbol}: ${f.reasons.join("; ")}`).join("\n") : "";
+  addAll.style.display = visible.length && BASE ? "block" : "none";
+
+  if (!visible.length) {
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">${stocks.length?"No setups in this sector":"No setups today"}</div><div class="empty-sub">${stocks.length?"Click the active sector chip to clear the filter":"Market may be closed or conditions not met"}</div></div>`;
     return;
   }
 
-  grid.innerHTML = stocks.map((s, i) => {
-    const chgCls = s.change_pct >= 0 ? "up" : "down";
-    const rsi    = parseFloat(s.rsi) || 0;
-    const rsiCol = rsi > 60 ? "var(--yellow)" : "var(--green)";
-    const vol    = s.vol_ratio ? `Vol ${(+s.vol_ratio).toFixed(1)}×` : "";
-    return `
+  // Group by sector (preserve original order within each group)
+  const grouped = {};
+  visible.forEach((s, idxInVisible) => {
+    const sec = s.sector || "OTHERS";
+    if (!grouped[sec]) grouped[sec] = [];
+    // Track original index in _currentStocks so + Watchlist button still works
+    grouped[sec].push({ stock: s, origIdx: stocks.indexOf(s) });
+  });
+
+  // Render: one section per sector
+  grid.innerHTML = Object.entries(grouped).map(([sector, items]) => {
+    const secInfo = _sectorPulse[sector] || {};
+    const pct     = secInfo.change_pct;
+    const pctCls  = pct >= 0 ? "up" : "down";
+    const head = `
+      <div class="sector-group-head">
+        <span class="name">${sector}</span>
+        <span class="meta">
+          <span>${items.length} setup${items.length>1?"s":""}</span>
+          ${secInfo.level ? `<span>Index ₹${secInfo.level.toFixed(0)}</span>` : ""}
+          ${pct !== undefined ? `<span class="pct ${pctCls}">${pct>=0?"+":""}${pct.toFixed(2)}%</span>` : ""}
+        </span>
+      </div>
+      <div class="stocks-grid">
+        ${items.map(({stock, origIdx}) => renderStockCard(stock, origIdx)).join("")}
+      </div>`;
+    return head;
+  }).join("");
+}
+
+function renderStockCard(s, i) {
+  const chgCls = s.change_pct >= 0 ? "up" : "down";
+  const rsi    = parseFloat(s.rsi) || 0;
+  const rsiCol = rsi > 60 ? "var(--yellow)" : "var(--green)";
+  const vol    = s.vol_ratio ? `Vol ${(+s.vol_ratio).toFixed(1)}×` : "";
+  return `
     <div class="scard">
       <div class="scard-head">
         <div>
@@ -504,7 +581,6 @@ function renderStocks(stocks) {
         <button class="buy-btn" onclick="openBuyModal(${i})">+ Watchlist</button>
       </div>
     </div>`;
-  }).join("");
 }
 
 /* ── Render positions ────────────────────────────────────── */
@@ -559,6 +635,12 @@ function renderAll(data) {
   renderMarket(data.market || data.market_context && {nifty: data.market_context.nifty, fii_dii: data.market_context.fii_dii, sentiment: data.market_context.sentiment} || data);
   renderSummary(data);
   renderActions(data.actions || []);
+  // Pick up filter info + sector pulse from the scan payload
+  _filteredOut = data.filtered_out || [];
+  if (data.sectors && Object.keys(data.sectors).length) {
+    _sectorPulse = data.sectors;
+    renderSectorChips(_sectorPulse);
+  }
   renderStocks(stocks);
 }
 
@@ -696,6 +778,49 @@ async function loadMarket() {
   } catch { /* silent */ }
 }
 
+/* ── Sector Pulse ────────────────────────────────────────── */
+async function loadSectors() {
+  if (!BASE) return;
+  try {
+    const r = await apiFetch("/api/sectors");
+    _sectorPulse = r.sectors || {};
+    renderSectorChips(_sectorPulse);
+  } catch {
+    document.getElementById("sectorPulseWrap").innerHTML =
+      `<div class="empty" style="padding:14px"><div class="empty-sub">Sectors unavailable</div></div>`;
+  }
+}
+
+function renderSectorChips(pulse) {
+  const wrap = document.getElementById("sectorPulseWrap");
+  const pill = document.getElementById("sectorPill");
+  const entries = Object.entries(pulse).sort((a,b) => (b[1].change_pct||0) - (a[1].change_pct||0));
+  pill.textContent = `${entries.length} sectors`;
+
+  if (!entries.length) {
+    wrap.innerHTML = `<div class="empty" style="padding:14px"><div class="empty-sub">No sector data</div></div>`;
+    return;
+  }
+  wrap.innerHTML = entries.map(([name, info]) => {
+    const pct  = info.change_pct || 0;
+    const cls  = info.trend === "STRONG" ? "strong" : info.trend === "WEAK" ? "weak" : "neutral";
+    const arrow = pct >= 0 ? "▲" : "▼";
+    const active = _activeSector === name ? "active" : "";
+    return `<span class="sector-chip ${cls} ${active}" onclick="selectSector('${name}')" title="${info.trend} · ${info.above_ema20?"above":"below"} EMA20">
+      <span class="dot"></span>${name}
+      <span class="pct">${arrow} ${Math.abs(pct).toFixed(2)}%</span>
+    </span>`;
+  }).join("");
+}
+
+function selectSector(name) {
+  _activeSector = (_activeSector === name) ? null : name;
+  renderSectorChips(_sectorPulse);
+  renderStocks(_currentStocks);
+  // Scroll to setups
+  document.getElementById("stocksGrid").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 /* ── Strategy Results ────────────────────────────────────── */
 let _resultsMode = "forward";   // "forward" | "backtest"
 
@@ -823,12 +948,14 @@ async function init() {
     } catch { /* no brief yet — that's fine */ }
 
     loadMarket();
+    loadSectors();
     loadPositions();
     loadResults();
     checkKiteStatus();
 
-    // Refresh market data every 5 minutes
-    setInterval(loadMarket, 5 * 60 * 1000);
+    // Refresh market + sectors every 5 minutes
+    setInterval(loadMarket,  5 * 60 * 1000);
+    setInterval(loadSectors, 5 * 60 * 1000);
     // Refresh Kite status every 10 minutes
     setInterval(checkKiteStatus, 10 * 60 * 1000);
   } else {

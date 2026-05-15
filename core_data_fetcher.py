@@ -52,6 +52,12 @@ def fetch_stock_technicals(symbol: str) -> Dict:
         support_1    = float(df['Low'].tail(20).min())
         resistance_2 = float(df['High'].tail(60).max())
 
+        # Risk-filter inputs (used by core_risk_filters.py)
+        recent_returns = close.pct_change().tail(60)
+        worst_60d_pct  = float(recent_returns.min()) if not recent_returns.dropna().empty else 0.0
+        bars_count     = len(df)
+        first_bar_iso  = df.index[0].strftime("%Y-%m-%d") if len(df) else ""
+
         return {
             'symbol': symbol, 'price': round(price, 2), 'change_pct': round(change_pct, 2),
             'ema20': round(ema20, 2), 'ema50': round(ema50, 2), 'ema200': round(ema200, 2),
@@ -63,6 +69,9 @@ def fetch_stock_technicals(symbol: str) -> Dict:
             'high_52w': round(high_52w, 2), 'low_52w': round(low_52w, 2),
             'resistance_1': round(resistance_1, 2), 'resistance_2': round(resistance_2, 2),
             'support_1': round(support_1, 2),
+            'worst_60d_pct': round(worst_60d_pct, 4),
+            'bars_count':    bars_count,
+            'first_bar':     first_bar_iso,
             'timestamp': datetime.now().isoformat(),
         }
     except Exception as e:

@@ -41,6 +41,20 @@ def _tg_send(msg: str):
     except Exception as exc:
         logger.warning("[telegram] send failed: %s", exc)
 
+# ── Risk filters + sectors ───────────────────────────────────────────────────
+try:
+    from core.risk_filters import apply_risk_filters
+    from core.sectors       import get_sector, fetch_sector_pulse
+except ImportError:
+    try:
+        from core_risk_filters import apply_risk_filters
+        from core_sectors      import get_sector, fetch_sector_pulse
+    except ImportError:
+        def apply_risk_filters(sym, tech, sector_pulse=None): return True, []
+        def get_sector(sym): return "OTHERS"
+        def fetch_sector_pulse(): return {}
+
+
 # ── Kite helper ──────────────────────────────────────────────────────────────
 try:
     from core.kite import get_kite, place_gtt
@@ -119,6 +133,15 @@ def api_kite_callback():
     return redirect("/")
 
 
+@app.route("/api/sectors")
+def api_sectors():
+    """Live sector index trend + strength — feeds the Sector Pulse widget."""
+    try:
+        return jsonify({"status": "ok", "sectors": fetch_sector_pulse()})
+    except Exception as exc:
+        return jsonify({"status": "error", "sectors": {}, "message": str(exc)}), 500
+
+
 @app.route("/api/market")
 def api_market():
     """Fast endpoint: Nifty level + FII/DII + sentiment (~2–4 s)."""
@@ -173,7 +196,14 @@ def api_scan():
         chartink_stocks = chartink_stocks[:30]
         logger.info("[scan] Processing top %d stocks via yfinance…", len(chartink_stocks))
 
-        scan_results = []
+        # Pre-fetch sector pulse once (cached for 5min) — passed to every risk-filter call
+        try:
+            sector_pulse = fetch_sector_pulse()
+        except Exception:
+            sector_pulse = {}
+
+        scan_results  = []
+        filtered_out  = []   # [{symbol, name, reasons}]
         for i, stock in enumerate(chartink_stocks, 1):
             symbol = stock["symbol"]
             logger.info("[scan] %d/%d  %s", i, len(chartink_stocks), symbol)
@@ -181,6 +211,18 @@ def api_scan():
                 tech = fetch_stock_technicals(symbol)
                 if not tech:
                     continue
+
+                # ── Risk gating ───────────────────────────────────────────────
+                passed, reasons = apply_risk_filters(symbol, tech, sector_pulse=sector_pulse)
+                if not passed:
+                    logger.info("[scan]   %s skipped → %s", symbol, "; ".join(reasons))
+                    filtered_out.append({
+                        "symbol":  symbol,
+                        "name":    stock.get("name", symbol),
+                        "reasons": reasons,
+                    })
+                    continue
+
                 plan = calculate_trade_plan(tech)
                 entry_mid = (plan.get("entry_zone_min", 0) + plan.get("entry_zone_max", 0)) / 2
                 rr_raw    = calculate_rr({"price": entry_mid, "target": plan.get("target_2", 0), "sl": plan.get("stop_loss", 0)})
@@ -200,6 +242,7 @@ def api_scan():
                     "sl":         plan.get("stop_loss", 0),
                     "rr":         rr_raw if isinstance(rr_raw, str) else plan.get("rr_ratio", "N/A"),
                     "setup":      plan.get("setup_type", "—"),
+                    "sector":     get_sector(symbol),
                     "verdict":    "entry",
                 })
             except Exception as exc:
@@ -210,9 +253,11 @@ def api_scan():
             "date":          _now_date(),
             "time":          _now_time(),
             "stocks":        scan_results,
+            "filtered_out":  filtered_out,
             "actions":       _build_actions(scan_results),
             "total_scanned": len(chartink_stocks),
             "market":        {"nifty": nifty, "fii_dii": fii, "sentiment": _sentiment(nifty, fii)},
+            "sectors":       sector_pulse,
         }
         _persist(result)
         logger.info("[scan] Done — %d setups", len(scan_results))
