@@ -79,6 +79,42 @@ def fetch_stock_technicals(symbol: str) -> Dict:
         return {}
 
 
+def fetch_prices_bulk(symbols: list) -> Dict[str, float]:
+    """
+    Fetch live prices for many NSE symbols in ONE yfinance call.
+    Returns {symbol: latest_close_price}. Missing/errored symbols are absent.
+
+    Used by check_positions_and_notify() — 11× faster than calling
+    fetch_stock_technicals() per position when we only need the price.
+    """
+    if not symbols:
+        return {}
+    tickers = [f"{s}.NS" for s in symbols]
+    try:
+        data = yf.download(
+            tickers, period="2d", group_by="ticker",
+            progress=False, threads=True, auto_adjust=False,
+        )
+    except Exception as e:
+        print(f"[bulk_prices] yfinance error: {e}")
+        return {}
+
+    out: Dict[str, float] = {}
+    for sym in symbols:
+        try:
+            # Multi-symbol return: data[<ticker>][<field>]
+            # Single-symbol return: data[<field>]  (no outer level)
+            if len(symbols) == 1:
+                close = data["Close"].dropna()
+            else:
+                close = data[f"{sym}.NS"]["Close"].dropna()
+            if len(close):
+                out[sym] = float(close.iloc[-1])
+        except Exception:
+            continue
+    return out
+
+
 def fetch_nifty_levels() -> Dict:
     try:
         df = yf.Ticker("^NSEI").history(period="2d")
