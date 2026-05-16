@@ -730,8 +730,9 @@ def check_positions_and_notify() -> list:
         pos["sl_hit"]        = sl_hit
         pct                  = round(((cur - ep) / ep * 100) if ep else 0, 1)
 
-        # Send Telegram once per crossing — also record hit date + lock outcome
-        if entry_hit and not _truthy(pos.get("Entry_Notified")):
+        # ── Entry alert always fires independently ───────────────────────
+        entry_done = _truthy(pos.get("Entry_Notified"))
+        if entry_hit and not entry_done:
             _tg_send(
                 f"🎯 <b>ENTRY READY — {sym}</b>\n"
                 f"{name}\n"
@@ -740,7 +741,16 @@ def check_positions_and_notify() -> list:
             )
             df.at[idx, "Entry_Notified"] = True
             df.at[idx, "Entry_Hit_Date"] = today_str
+            entry_done = True   # so T1/T2/SL gate sees it within this same iteration
             csv_dirty = True
+
+        # ── T1/T2/SL alerts are GATED behind Entry ───────────────────────
+        # If the stock never pulled back into the entry zone, we never "entered"
+        # the watchlist position, so target/SL alerts would be misleading
+        # ("Book profits on what?"). Skip them until Entry fires first.
+        if not entry_done:
+            positions.append(pos)
+            continue
 
         if t1_hit and not _truthy(pos.get("T1_Notified")):
             _tg_send(
@@ -752,8 +762,6 @@ def check_positions_and_notify() -> list:
             )
             df.at[idx, "T1_Notified"]  = True
             df.at[idx, "T1_Hit_Date"]  = today_str
-            # Don't close on T1 — user typically books partial and lets T2 ride.
-            # Mark intermediate outcome so dashboard can show "T1 booked, T2 pending".
             if not str(pos.get("Outcome", "")).strip():
                 df.at[idx, "Outcome"] = "T1_HIT"
             csv_dirty = True
