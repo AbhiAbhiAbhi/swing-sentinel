@@ -90,7 +90,12 @@ except ImportError:
 
 @app.route("/")
 def index():
-    return send_from_directory("dashboard", "swing_agent_app.html")
+    """Serve the dashboard with no-cache headers so the browser can't pin a stale build."""
+    resp = send_from_directory("dashboard", "swing_agent_app.html")
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"]        = "no-cache"
+    resp.headers["Expires"]       = "0"
+    return resp
 
 
 @app.route("/api/kite/status")
@@ -588,6 +593,13 @@ def check_positions_and_notify() -> list:
 
     for idx, row in df.iterrows():
         pos    = row.to_dict()
+        # Convert NaN to None/empty string for JSON serialization
+        for key, val in pos.items():
+            try:
+                if pd.isna(val):
+                    pos[key] = ""
+            except (TypeError, ValueError):
+                pass
         status = str(pos.get("Status", "OPEN")).upper()
 
         # Skip closed positions — don't waste yfinance calls or fire stale alerts
