@@ -1,217 +1,51 @@
 Symbol,Name,Entry_Price,Quantity,Target_1,Target_2,Current_SL,Setup,Entry_Date,Status,Entry_Notified,T1_Notified,T2_Notified,SL_Notified,Entry_Hit_Date,T1_Hit_Date,T2_Hit_Date,SL_Hit_Date,Outcome,Closing_Price
-CROMPTON,Crompton Greaves Consumer Electricals Limited,271.65,1,299.15,305.13,265.31,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-SCI,Shipping Corporation Of India Limited,306.09,1,368.75,376.12,292.75,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-IFCI,Ifci Limited,60.37,1,66.25,68.15,58.54,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-OIL,Oil India Limited,475.43,1,531.0,541.62,463.37,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-CROMPTON,Crompton Greaves Consumer Electricals Limited,271.65,1,299.15,305.13,265.31,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-ONGC,Oil & Natural Gas Corporation Limited,286.57,1,307.5,313.65,281.64,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-PARACABLES,Paramount Communications Limited,46.15,1,60.9,62.12,42.69,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-CIPLA,Cipla Limited,1300.89,1,1432.1,1460.74,1279.28,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-DIACABS,Diamond Power Infrastructure Ltd,162.54,1,184.75,190.95,155.12,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-SCI,Shipping Corporation Of India Limited,306.09,1,368.75,376.12,292.75,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-ZYDUSLIFE,Zydus Lifesciences Ltd,920.68,1,981.0,1000.62,906.54,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-LICHSGFIN,Lic Housing Finance Limited,556.22,1,598.2,610.16,545.66,PULLBACK,2026-05-14,OPEN,True,False,False,False,2026-05-15,,,,,0.0
-LICHSGFIN,Lic Housing Finance Limited,556.22,1,598.2,610.16,545.66,PULLBACK,2026-05-14,OPEN,True,False,False,False,2026-05-15,,,,,0.0
-OIL,Oil India Limited,474.68,1,531.0,541.62,462.61,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-IFCI,Ifci Limited,60.29,1,66.25,68.52,58.31,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-ONGC,Oil & Natural Gas Corporation Limited,286.44,1,307.5,313.65,281.43,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-OIL,Oil India Limited,474.68,1,531.0,541.62,462.61,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-CROMPTON,Crompton Greaves Consumer Electricals Limited,271.61,1,299.15,305.13,265.13,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-CIPLA,Cipla Limited,1301.85,1,1432.1,1460.74,1280.25,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-SCI,Shipping Corporation Of India Limited,305.24,1,368.75,376.12,291.13,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-PPLPHARMA,Piramal Pharma Ltd,165.12,1,196.44,200.37,158.37,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-GODREJIND,Godrej Industries Limited,1032.45,1,1260.65,1285.86,980.47,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-ZYDUSLIFE,Zydus Lifesciences Ltd,921.13,1,989.9,1009.7,906.35,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-ALKYLAMINE,Alkyl Amines Chemicals Limited,1575.04,1,1881.6,1919.23,1504.9,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-MOSCHIP,Moschip Technologies Ltd,204.51,1,236.7,241.43,195.25,PULLBACK,2026-05-14,OPEN,True,False,False,False,2026-05-15,,,,,0.0
-INDOAMIN,Indo Amines Ltd,115.01,1,134.95,137.65,110.91,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-ADANIPORTS,Adani Ports And Special Economic Zone Limited,1651.42,1,1792.0,1827.84,1615.95,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-HSCL,Himadri Speciality Chemical Limited,578.02,1,654.45,680.47,551.17,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
 JAIBALAJI,Jai Balaji Industries Limited,78.23,1,88.5,91.16,74.91,PULLBACK,2026-05-14,OPEN,True,False,False,False,2026-05-15,,,,,0.0
-GNFC,Gujarat Narmada Valley Fertilizers And Chemicals Limited,473.73,1,521.7,532.13,464.57,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-AEROFLEX,Aeroflex Industries Ltd,332.69,1,458.7,467.87,307.6,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-MIDHANI,Mishra Dhatu Nigam Ltd,386.8,1,438.7,447.47,372.92,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-JSFB,Jana Small Finance Bank Ltd,448.0,1,503.0,523.61,428.46,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-MANAPPURAM,Manappuram Finance Limited,293.72,1,317.7,325.05,286.99,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-VIYASH,Viyash Scientific Ltd,211.46,1,235.4,241.03,204.28,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-SPARC,Sun Pharma Advanced Research Company Limited,152.59,1,182.59,186.24,144.21,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-RPEL,Raghav Productivity Enhancers Ltd,727.45,1,824.0,846.99,696.79,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-SUNPHARMA,Sun Pharmaceuticals Industries Limited,1777.95,1,1885.8,1928.28,1750.29,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-MARKSANS,Marksans Pharma Limited,189.16,1,208.65,216.06,182.58,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-NITCO,Nitco Limited,94.34,1,110.05,112.25,89.59,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-SAILIFE,Sai Life Sciences Ltd,1054.68,1,1139.4,1168.9,1029.92,PULLBACK,2026-05-14,CLOSED,True,False,False,True,2026-05-15,,,2026-05-15,SL_LOSS,1007.2
-RATNAVEER,Ratnaveer Precision Engineering Ltd,165.16,1,193.39,204.03,154.29,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
+HSCL,Himadri Speciality Chemical Limited,578.02,1,654.45,680.47,551.17,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
+LICHSGFIN,Lic Housing Finance Limited,556.22,1,598.2,610.16,545.66,PULLBACK,2026-05-14,OPEN,True,False,False,False,2026-05-15,,,,,0.0
 WOCKPHARMA,Wockhardt Limited,1478.9,1,1778.0,1813.56,1417.35,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
+NITCO,Nitco Limited,94.34,1,110.05,112.25,89.59,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
+DIACABS,Diamond Power Infrastructure Ltd,162.54,1,184.75,190.95,155.12,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
+MOSCHIP,Moschip Technologies Ltd,204.51,1,236.7,241.43,195.25,PULLBACK,2026-05-14,OPEN,True,False,False,False,2026-05-15,,,,,0.0
+CIPLA,Cipla Limited,1301.85,1,1432.1,1460.74,1280.25,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
+PARACABLES,Paramount Communications Limited,46.15,1,60.9,62.12,42.69,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
 NIVABUPA,Niva Bupa Health Insurance Company Ltd,78.65,1,89.77,91.57,76.75,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
-TEXRAIL,Texmaco Rail & Engineering Limited,107.03,1,124.73,127.22,102.97,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
-SAIL,Steel Authority Of India Limited,179.13,1,202.35,206.4,174.84,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
-IFCI,Ifci Limited,59.94,1,66.25,68.13,57.97,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
-ONGC,Oil & Natural Gas Corporation Limited,285.25,1,307.5,313.65,280.35,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
-OIL,Oil India Limited,470.6,1,511.45,523.03,459.06,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
-CROMPTON,Crompton Greaves Consumer Electricals Limited,270.16,1,299.15,305.13,263.87,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
-SCI,Shipping Corporation Of India Limited,303.57,1,368.75,376.12,289.83,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
-GODREJIND,Godrej Industries Limited,1014.87,1,1260.65,1285.86,970.77,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
-PPLPHARMA,Piramal Pharma Ltd,164.36,1,196.44,200.37,157.7,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
-ALKYLAMINE,Alkyl Amines Chemicals Limited,1548.51,1,1785.0,1820.7,1489.89,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
-JINDRILL,Jindal Drilling And Industries Limited,540.56,1,686.15,699.87,519.89,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
-ZYDUSLIFE,Zydus Lifesciences Ltd,915.72,1,963.95,990.27,901.98,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
-HAL,Hindustan Aeronautics Ltd,4418.11,1,4836.3,4933.03,4347.4,PULLBACK,2026-05-15,OPEN,True,,,,2026-05-15,,,,,0.0
-ADANIPORTS,Adani Ports And Special Economic Zone Limited,1641.36,1,1792.0,1827.84,1604.22,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
-METROPOLIS,Metropolis Healthcare Ltd,498.62,1,574.9,586.4,483.16,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
-INDOAMIN,Indo Amines Ltd,113.56,1,125.8,128.32,110.3,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
-MANAPPURAM,Manappuram Finance Limited,292.38,1,317.7,324.05,285.64,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
-SUNPHARMA,Sun Pharmaceuticals Industries Limited,1772.33,1,1885.8,1930.03,1742.14,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
-GRAPHITE,Graphite India Limited,706.78,1,764.7,790.59,687.77,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
-GNFC,Gujarat Narmada Valley Fertilizers And Chemicals Limited,469.67,1,506.7,516.83,461.29,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
-RATNAVEER,Ratnaveer Precision Engineering Ltd,164.24,1,193.39,202.36,153.61,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
-RPEL,Raghav Productivity Enhancers Ltd,718.22,1,809.0,825.18,691.96,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
-AEROFLEX,Aeroflex Industries Ltd,330.54,1,458.7,467.87,305.52,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
 JSFB,Jana Small Finance Bank Ltd,443.47,1,501.0,520.75,423.31,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
 MIDHANI,Mishra Dhatu Nigam Ltd,383.8,1,438.7,447.47,370.05,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
-FORTIS,Fortis Healthcare Limited,921.34,1,982.95,1002.61,907.49,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
-GRASIM,Grasim Industries Limited,2819.06,1,3007.3,3067.45,2776.77,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
+METROPOLIS,Metropolis Healthcare Ltd,498.62,1,574.9,586.4,483.16,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
+SCI,Shipping Corporation Of India Limited,303.57,1,368.75,376.12,289.83,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
 SENORES,Senores Pharmaceuticals Ltd,897.49,1,991.0,1010.82,872.74,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
-VIYASH,Viyash Scientific Ltd,211.75,1,235.4,241.32,204.57,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
+SAIL,Steel Authority Of India Limited,179.13,1,202.35,206.4,174.84,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
 SPARC,Sun Pharma Advanced Research Company Limited,151.02,1,182.59,186.24,142.64,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
-GRASIM,Grasim Industries Limited,2819.06,1,3007.3,3067.45,2776.77,PULLBACK,2026-05-15,OPEN,,,,,,,,,,
-BHEL,Bharat Heavy Electricals Limited,365.15,1,417.9,426.26,352.1,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-ONGC,Oil & Natural Gas Corporation Limited,287.4,1,307.5,314.12,282.12,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-NLCINDIA,Nlc India Limited,316.94,1,387.8,395.56,302.95,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-HINDZINC,Hindustan Zinc Limited,611.23,1,678.25,691.82,598.8,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SAILIFE,Sai Life Sciences Ltd,1056.34,1,1139.4,1195.77,1023.2,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-GRAPHITE,Graphite India Limited,716.38,1,802.4,818.45,694.07,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-ADANIPORTS,Adani Ports And Special Economic Zone Limited,1664.14,1,1823.9,1860.38,1628.99,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-MANAPPURAM,Manappuram Finance Limited,294.86,1,317.7,327.04,287.86,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-MARKSANS,Marksans Pharma Limited,190.88,1,213.45,219.62,183.71,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-OIL,Oil India Limited,478.24,1,531.0,541.62,465.96,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-PPLPHARMA,Piramal Pharma Ltd,165.92,1,196.44,200.37,159.09,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SUNPHARMA,Sun Pharmaceuticals Industries Limited,1786.84,1,1887.9,1925.66,1760.04,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-TATACONSUM,TATA Consumer Products Ltd,1168.83,1,1282.7,1308.35,1148.46,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SANDUMA,Sandur Manganese & Iron Ores Ltd,216.45,1,253.9,258.98,208.01,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-IOLCP,Iol Chemicals And Pharmaceuticals Limited,96.52,1,116.46,118.79,92.28,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-GRASIM,Grasim Industries Limited,2834.97,1,3007.3,3067.45,2792.45,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-KANSAINER,Kansai Nerolac Paints Limited,204.98,1,224.45,230.06,199.21,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-KANSAINER,Kansai Nerolac Paints Limited,204.98,1,224.45,230.06,199.21,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-TATACONSUM,TATA Consumer Products Ltd,1168.83,1,1282.7,1308.35,1148.46,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-BHEL,Bharat Heavy Electricals Limited,365.15,1,417.9,426.26,352.1,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-ONGC,Oil & Natural Gas Corporation Limited,287.4,1,307.5,314.12,282.12,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-NLCINDIA,Nlc India Limited,316.94,1,387.8,395.56,302.95,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-HINDZINC,Hindustan Zinc Limited,611.23,1,678.25,691.82,598.8,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SAILIFE,Sai Life Sciences Ltd,1056.34,1,1139.4,1195.77,1023.2,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-GRAPHITE,Graphite India Limited,716.38,1,802.4,818.45,694.07,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-ADANIPORTS,Adani Ports And Special Economic Zone Limited,1664.14,1,1823.9,1860.38,1628.99,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-MANAPPURAM,Manappuram Finance Limited,294.86,1,317.7,327.04,287.86,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-MARKSANS,Marksans Pharma Limited,190.88,1,213.45,219.62,183.71,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-OIL,Oil India Limited,478.24,1,531.0,541.62,465.96,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-PPLPHARMA,Piramal Pharma Ltd,165.92,1,196.44,200.37,159.09,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SUNPHARMA,Sun Pharmaceuticals Industries Limited,1786.84,1,1887.9,1925.66,1760.04,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-TATACONSUM,TATA Consumer Products Ltd,1168.83,1,1282.7,1308.35,1148.46,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SANDUMA,Sandur Manganese & Iron Ores Ltd,216.45,1,253.9,258.98,208.01,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-IOLCP,Iol Chemicals And Pharmaceuticals Limited,96.52,1,116.46,118.79,92.28,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-GRASIM,Grasim Industries Limited,2834.97,1,3007.3,3067.45,2792.45,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-KANSAINER,Kansai Nerolac Paints Limited,204.98,1,224.45,230.06,199.21,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-IOLCP,Iol Chemicals And Pharmaceuticals Limited,96.52,1,116.46,118.79,92.28,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-BHEL,Bharat Heavy Electricals Limited,365.15,1,417.9,426.26,352.1,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-ONGC,Oil & Natural Gas Corporation Limited,287.4,1,307.5,314.12,282.12,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-NLCINDIA,Nlc India Limited,316.94,1,387.8,395.56,302.95,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-HINDZINC,Hindustan Zinc Limited,611.23,1,678.25,691.82,598.8,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SAILIFE,Sai Life Sciences Ltd,1056.34,1,1139.4,1195.77,1023.2,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-GRAPHITE,Graphite India Limited,716.38,1,802.4,818.45,694.07,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-ADANIPORTS,Adani Ports And Special Economic Zone Limited,1664.14,1,1823.9,1860.38,1628.99,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-MANAPPURAM,Manappuram Finance Limited,294.86,1,317.7,327.04,287.86,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-MARKSANS,Marksans Pharma Limited,190.88,1,213.45,219.62,183.71,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-OIL,Oil India Limited,478.24,1,531.0,541.62,465.96,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-PPLPHARMA,Piramal Pharma Ltd,165.92,1,196.44,200.37,159.09,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SUNPHARMA,Sun Pharmaceuticals Industries Limited,1786.84,1,1887.9,1925.66,1760.04,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-TATACONSUM,TATA Consumer Products Ltd,1168.83,1,1282.7,1308.35,1148.46,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SANDUMA,Sandur Manganese & Iron Ores Ltd,216.45,1,253.9,258.98,208.01,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-IOLCP,Iol Chemicals And Pharmaceuticals Limited,96.52,1,116.46,118.79,92.28,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-GRASIM,Grasim Industries Limited,2834.97,1,3007.3,3067.45,2792.45,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-KANSAINER,Kansai Nerolac Paints Limited,204.98,1,224.45,230.06,199.21,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
+JINDRILL,Jindal Drilling And Industries Limited,540.56,1,686.15,699.87,519.89,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
+ZYDUSLIFE,Zydus Lifesciences Ltd,915.72,1,963.95,990.27,901.98,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
+GNFC,Gujarat Narmada Valley Fertilizers And Chemicals Limited,469.67,1,506.7,516.83,461.29,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
+AEROFLEX,Aeroflex Industries Ltd,330.54,1,458.7,467.87,305.52,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
+ALKYLAMINE,Alkyl Amines Chemicals Limited,1548.51,1,1785.0,1820.7,1489.89,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
+VIYASH,Viyash Scientific Ltd,211.75,1,235.4,241.32,204.57,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
+CROMPTON,Crompton Greaves Consumer Electricals Limited,270.16,1,299.15,305.13,263.87,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
+FORTIS,Fortis Healthcare Limited,921.34,1,982.95,1002.61,907.49,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
+RATNAVEER,Ratnaveer Precision Engineering Ltd,164.24,1,193.39,202.36,153.61,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
+RPEL,Raghav Productivity Enhancers Ltd,718.22,1,809.0,825.18,691.96,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
+TEXRAIL,Texmaco Rail & Engineering Limited,107.03,1,124.73,127.22,102.97,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
+HAL,Hindustan Aeronautics Ltd,4418.11,1,4836.3,4933.03,4347.4,PULLBACK,2026-05-15,OPEN,True,,,,2026-05-15,,,,,0.0
+IFCI,Ifci Limited,59.94,1,66.25,68.13,57.97,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
+INDOAMIN,Indo Amines Ltd,113.56,1,125.8,128.32,110.3,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
+GODREJIND,Godrej Industries Limited,1014.87,1,1260.65,1285.86,970.77,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
 TEST1,Test Stock,100.0,1,110.0,120.0,90.0,TEST,2026-05-16,OPEN,,,,,,,,,,
-BHEL,Bharat Heavy Electricals Limited,365.15,1,417.9,426.26,352.1,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-ONGC,Oil & Natural Gas Corporation Limited,287.4,1,307.5,314.12,282.12,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-NLCINDIA,Nlc India Limited,316.94,1,387.8,395.56,302.95,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-HINDZINC,Hindustan Zinc Limited,611.23,1,678.25,691.82,598.8,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SAILIFE,Sai Life Sciences Ltd,1056.34,1,1139.4,1195.77,1023.2,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-GRAPHITE,Graphite India Limited,716.38,1,802.4,818.45,694.07,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-ADANIPORTS,Adani Ports And Special Economic Zone Limited,1664.14,1,1823.9,1860.38,1628.99,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-MANAPPURAM,Manappuram Finance Limited,294.86,1,317.7,327.04,287.86,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-MARKSANS,Marksans Pharma Limited,190.88,1,213.45,219.62,183.71,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-OIL,Oil India Limited,478.24,1,531.0,541.62,465.96,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-PPLPHARMA,Piramal Pharma Ltd,165.92,1,196.44,200.37,159.09,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SUNPHARMA,Sun Pharmaceuticals Industries Limited,1786.84,1,1887.9,1925.66,1760.04,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
 TATACONSUM,TATA Consumer Products Ltd,1168.83,1,1282.7,1308.35,1148.46,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
 SANDUMA,Sandur Manganese & Iron Ores Ltd,216.45,1,253.9,258.98,208.01,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-IOLCP,Iol Chemicals And Pharmaceuticals Limited,96.52,1,116.46,118.79,92.28,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-GRASIM,Grasim Industries Limited,2834.97,1,3007.3,3067.45,2792.45,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-KANSAINER,Kansai Nerolac Paints Limited,204.98,1,224.45,230.06,199.21,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-BHEL,Bharat Heavy Electricals Limited,365.15,1,417.9,426.26,352.1,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-ONGC,Oil & Natural Gas Corporation Limited,287.4,1,307.5,314.12,282.12,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-NLCINDIA,Nlc India Limited,316.94,1,387.8,395.56,302.95,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-HINDZINC,Hindustan Zinc Limited,611.23,1,678.25,691.82,598.8,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
 SAILIFE,Sai Life Sciences Ltd,1056.34,1,1139.4,1195.77,1023.2,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-GRAPHITE,Graphite India Limited,716.38,1,802.4,818.45,694.07,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-ADANIPORTS,Adani Ports And Special Economic Zone Limited,1664.14,1,1823.9,1860.38,1628.99,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-MANAPPURAM,Manappuram Finance Limited,294.86,1,317.7,327.04,287.86,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-MARKSANS,Marksans Pharma Limited,190.88,1,213.45,219.62,183.71,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-OIL,Oil India Limited,478.24,1,531.0,541.62,465.96,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-PPLPHARMA,Piramal Pharma Ltd,165.92,1,196.44,200.37,159.09,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
 SUNPHARMA,Sun Pharmaceuticals Industries Limited,1786.84,1,1887.9,1925.66,1760.04,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-TATACONSUM,TATA Consumer Products Ltd,1168.83,1,1282.7,1308.35,1148.46,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SANDUMA,Sandur Manganese & Iron Ores Ltd,216.45,1,253.9,258.98,208.01,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-IOLCP,Iol Chemicals And Pharmaceuticals Limited,96.52,1,116.46,118.79,92.28,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-GRASIM,Grasim Industries Limited,2834.97,1,3007.3,3067.45,2792.45,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-KANSAINER,Kansai Nerolac Paints Limited,204.98,1,224.45,230.06,199.21,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-BHEL,Bharat Heavy Electricals Limited,365.15,1,417.9,426.26,352.1,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
+ADANIPORTS,Adani Ports And Special Economic Zone Limited,1664.14,1,1823.9,1860.38,1628.99,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
 ONGC,Oil & Natural Gas Corporation Limited,287.4,1,307.5,314.12,282.12,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-NLCINDIA,Nlc India Limited,316.94,1,387.8,395.56,302.95,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-HINDZINC,Hindustan Zinc Limited,611.23,1,678.25,691.82,598.8,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SAILIFE,Sai Life Sciences Ltd,1056.34,1,1139.4,1195.77,1023.2,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-GRAPHITE,Graphite India Limited,716.38,1,802.4,818.45,694.07,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-ADANIPORTS,Adani Ports And Special Economic Zone Limited,1664.14,1,1823.9,1860.38,1628.99,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-MANAPPURAM,Manappuram Finance Limited,294.86,1,317.7,327.04,287.86,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-MARKSANS,Marksans Pharma Limited,190.88,1,213.45,219.62,183.71,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
 OIL,Oil India Limited,478.24,1,531.0,541.62,465.96,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-PPLPHARMA,Piramal Pharma Ltd,165.92,1,196.44,200.37,159.09,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SUNPHARMA,Sun Pharmaceuticals Industries Limited,1786.84,1,1887.9,1925.66,1760.04,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-TATACONSUM,TATA Consumer Products Ltd,1168.83,1,1282.7,1308.35,1148.46,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SANDUMA,Sandur Manganese & Iron Ores Ltd,216.45,1,253.9,258.98,208.01,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-IOLCP,Iol Chemicals And Pharmaceuticals Limited,96.52,1,116.46,118.79,92.28,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-GRASIM,Grasim Industries Limited,2834.97,1,3007.3,3067.45,2792.45,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
+NLCINDIA,Nlc India Limited,316.94,1,387.8,395.56,302.95,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
+MANAPPURAM,Manappuram Finance Limited,294.86,1,317.7,327.04,287.86,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
 KANSAINER,Kansai Nerolac Paints Limited,204.98,1,224.45,230.06,199.21,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
+IOLCP,Iol Chemicals And Pharmaceuticals Limited,96.52,1,116.46,118.79,92.28,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
+HINDZINC,Hindustan Zinc Limited,611.23,1,678.25,691.82,598.8,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
+GRASIM,Grasim Industries Limited,2834.97,1,3007.3,3067.45,2792.45,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
+GRAPHITE,Graphite India Limited,716.38,1,802.4,818.45,694.07,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
 BHEL,Bharat Heavy Electricals Limited,365.15,1,417.9,426.26,352.1,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-ONGC,Oil & Natural Gas Corporation Limited,287.4,1,307.5,314.12,282.12,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-NLCINDIA,Nlc India Limited,316.94,1,387.8,395.56,302.95,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-HINDZINC,Hindustan Zinc Limited,611.23,1,678.25,691.82,598.8,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SAILIFE,Sai Life Sciences Ltd,1056.34,1,1139.4,1195.77,1023.2,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-GRAPHITE,Graphite India Limited,716.38,1,802.4,818.45,694.07,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-ADANIPORTS,Adani Ports And Special Economic Zone Limited,1664.14,1,1823.9,1860.38,1628.99,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-MANAPPURAM,Manappuram Finance Limited,294.86,1,317.7,327.04,287.86,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-MARKSANS,Marksans Pharma Limited,190.88,1,213.45,219.62,183.71,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-OIL,Oil India Limited,478.24,1,531.0,541.62,465.96,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
 PPLPHARMA,Piramal Pharma Ltd,165.92,1,196.44,200.37,159.09,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SUNPHARMA,Sun Pharmaceuticals Industries Limited,1786.84,1,1887.9,1925.66,1760.04,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-TATACONSUM,TATA Consumer Products Ltd,1168.83,1,1282.7,1308.35,1148.46,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SANDUMA,Sandur Manganese & Iron Ores Ltd,216.45,1,253.9,258.98,208.01,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-IOLCP,Iol Chemicals And Pharmaceuticals Limited,96.52,1,116.46,118.79,92.28,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-GRASIM,Grasim Industries Limited,2834.97,1,3007.3,3067.45,2792.45,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-KANSAINER,Kansai Nerolac Paints Limited,204.98,1,224.45,230.06,199.21,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-HINDZINC,Hindustan Zinc Limited,611.23,1,678.25,691.82,598.8,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-BHEL,Bharat Heavy Electricals Limited,365.15,1,417.9,426.26,352.1,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-ONGC,Oil & Natural Gas Corporation Limited,287.4,1,307.5,314.12,282.12,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-NLCINDIA,Nlc India Limited,316.94,1,387.8,395.56,302.95,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-HINDZINC,Hindustan Zinc Limited,611.23,1,678.25,691.82,598.8,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SAILIFE,Sai Life Sciences Ltd,1056.34,1,1139.4,1195.77,1023.2,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-GRAPHITE,Graphite India Limited,716.38,1,802.4,818.45,694.07,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-ADANIPORTS,Adani Ports And Special Economic Zone Limited,1664.14,1,1823.9,1860.38,1628.99,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-MANAPPURAM,Manappuram Finance Limited,294.86,1,317.7,327.04,287.86,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
 MARKSANS,Marksans Pharma Limited,190.88,1,213.45,219.62,183.71,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-OIL,Oil India Limited,478.24,1,531.0,541.62,465.96,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-PPLPHARMA,Piramal Pharma Ltd,165.92,1,196.44,200.37,159.09,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SUNPHARMA,Sun Pharmaceuticals Industries Limited,1786.84,1,1887.9,1925.66,1760.04,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-TATACONSUM,TATA Consumer Products Ltd,1168.83,1,1282.7,1308.35,1148.46,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-SANDUMA,Sandur Manganese & Iron Ores Ltd,216.45,1,253.9,258.98,208.01,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-IOLCP,Iol Chemicals And Pharmaceuticals Limited,96.52,1,116.46,118.79,92.28,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-GRASIM,Grasim Industries Limited,2834.97,1,3007.3,3067.45,2792.45,PULLBACK,2026-05-16,OPEN,,,,,,,,,,
-KANSAINER,Kansai Nerolac Paints Limited,204.98,1,224.45,230.06,199.21,PULLBACK,2026-05-16,OPEN,,,,,,,,,,

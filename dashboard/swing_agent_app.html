@@ -808,14 +808,17 @@ async function confirmBuy() {
   btn.disabled = true;
   btn.textContent = "Adding…";
   try {
-    await apiFetch("/api/positions/add", {
+    const resp = await apiFetch("/api/positions/add", {
       method: "POST",
       body: JSON.stringify(payload),
     });
     closeBuyModal();
-    toast(`${symbol} added to watchlist`, "success");
+    if (resp.status === "duplicate") {
+      toast(`${symbol} is already on your watchlist`, "info");
+    } else {
+      toast(`${symbol} added to watchlist`, "success");
+    }
     await loadPositions();
-    // Scroll to the freshly-loaded watchlist so the user actually sees the new row
     document.getElementById("posWrap").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch(err) {
     toast(`Failed: ${err.message}`, "error");
@@ -841,7 +844,12 @@ async function addAllToPositions() {
       method: "POST",
       body:   JSON.stringify({ stocks: _currentStocks }),
     });
-    toast(`Added ${d.added} stocks to positions`, "success");
+    const skipped = d.skipped || 0;
+    if (skipped) {
+      toast(`Added ${d.added} new · skipped ${skipped} already on watchlist`, "success", 5000);
+    } else {
+      toast(`Added ${d.added} stocks to watchlist`, "success");
+    }
     loadPositions();
   } catch(err) {
     toast(`Failed: ${err.message}`, "error");

@@ -297,19 +297,40 @@ def api_brief_latest():
     return jsonify({"found": False})
 
 
-def _append_rows_to_csv(path: str, rows: list):
+def _append_rows_to_csv(path: str, rows: list) -> tuple:
     """
-    Append rows to positions.csv preserving column alignment.
-    Pandas auto-fills missing columns with NaN, keeping the existing schema intact.
+    Append rows to positions.csv preserving column alignment + skipping symbols
+    that already have an OPEN position. Pandas auto-fills missing columns with
+    NaN so the existing schema stays intact.
+
+    Returns (added_rows, skipped_symbols) tuple.
     """
     import pandas as pd
-    new_df = pd.DataFrame(rows)
-    if os.path.exists(path):
-        existing = pd.read_csv(path)
-        combined = pd.concat([existing, new_df], ignore_index=True)
-    else:
-        combined = new_df
-    combined.to_csv(path, index=False)
+    if not rows:
+        return [], []
+
+    existing  = pd.read_csv(path) if os.path.exists(path) else pd.DataFrame()
+    open_syms = set()
+    if not existing.empty and "Status" in existing.columns:
+        open_syms = set(
+            existing.loc[existing["Status"].astype(str).str.upper() == "OPEN", "Symbol"]
+                    .astype(str).tolist()
+        )
+
+    added, skipped = [], []
+    for row in rows:
+        if row.get("Symbol") in open_syms:
+            skipped.append(row["Symbol"])
+        else:
+            added.append(row)
+            open_syms.add(row["Symbol"])   # also dedupe within this single batch
+
+    if added:
+        new_df   = pd.DataFrame(added)
+        combined = pd.concat([existing, new_df], ignore_index=True) if not existing.empty else new_df
+        combined.to_csv(path, index=False)
+
+    return added, skipped
 
 
 @app.route("/api/positions/add", methods=["POST"])
@@ -335,7 +356,14 @@ def api_positions_add():
             "Entry_Date":   _now_date(),
             "Status":       "OPEN",
         }
-        _append_rows_to_csv(path, [row])
+        added, skipped = _append_rows_to_csv(path, [row])
+        if not added:
+            logger.info("[positions] %s already on watchlist — skipped", row["Symbol"])
+            return jsonify({
+                "status":   "duplicate",
+                "message":  f"{row['Symbol']} is already on your watchlist",
+                "skipped":  skipped,
+            }), 200
 
         # Place Kite GTT (silently skipped if not connected)
         gtt_id = place_gtt(
@@ -383,10 +411,10 @@ def api_positions_add_all():
                 "Entry_Date":   _now_date(),
                 "Status":       "OPEN",
             })
-        _append_rows_to_csv(path, rows)
+        added, skipped = _append_rows_to_csv(path, rows)
 
-        # Place Kite GTTs after CSV write
-        for row in rows:
+        # Place Kite GTTs only for newly-added rows
+        for row in added:
             gtt_id = place_gtt(
                 symbol=row["Symbol"], qty=int(row["Quantity"]),
                 last_price=float(row["Entry_Price"]),
@@ -395,8 +423,14 @@ def api_positions_add_all():
             if gtt_id:
                 _write_gtt_id(path, row["Symbol"], gtt_id)
 
-        logger.info("[positions] Bulk added %d stocks", len(rows))
-        return jsonify({"status": "ok", "added": len(rows)})
+        logger.info("[positions] Bulk add: +%d new, %d skipped (already on watchlist)",
+                    len(added), len(skipped))
+        return jsonify({
+            "status":  "ok",
+            "added":   len(added),
+            "skipped": len(skipped),
+            "skipped_symbols": skipped,
+        })
 
     except Exception as exc:
         logger.error("[positions/add-all] %s", exc)
