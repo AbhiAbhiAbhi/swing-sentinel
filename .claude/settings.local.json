@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash('C:\\\\Users\\\\Abhishek\\\\AppData\\\\Local\\\\Python\\\\pythoncore-3.14-64\\\\python.exe' -c ' *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Watchlist: sort newest-first + open-first, auto-scroll after add *)",
+      "Bash(git push *)"
+    ]
+  }
+}
