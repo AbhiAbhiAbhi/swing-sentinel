@@ -728,25 +728,30 @@ async function confirmBuy() {
   if (!entry || entry <= 0) { toast("Enter a valid entry price", "error"); return; }
   if (!qty   || qty   <= 0) { toast("Enter a valid quantity",    "error"); return; }
 
+  // Snapshot stock info BEFORE closeBuyModal() nulls _buyStock —
+  // otherwise the toast + refresh code crashes with "null.symbol"
+  const symbol  = _buyStock.symbol;
+  const payload = {
+    symbol,
+    name:        _buyStock.name || symbol,
+    entry_price: entry,
+    quantity:    qty,
+    target_1:    _buyStock.target_1,
+    target_2:    _buyStock.target_2,
+    sl:          _buyStock.sl,
+    setup:       _buyStock.setup,
+  };
+
   const btn = document.querySelector(".btn-confirm");
   btn.disabled = true;
   btn.textContent = "Adding…";
   try {
     await apiFetch("/api/positions/add", {
       method: "POST",
-      body: JSON.stringify({
-        symbol:      _buyStock.symbol,
-        name:        _buyStock.name || _buyStock.symbol,
-        entry_price: entry,
-        quantity:    qty,
-        target_1:    _buyStock.target_1,
-        target_2:    _buyStock.target_2,
-        sl:          _buyStock.sl,
-        setup:       _buyStock.setup,
-      }),
+      body: JSON.stringify(payload),
     });
     closeBuyModal();
-    toast(`${_buyStock.symbol} added to watchlist`, "success");
+    toast(`${symbol} added to watchlist`, "success");
     loadPositions();
     loadResults();
   } catch(err) {
