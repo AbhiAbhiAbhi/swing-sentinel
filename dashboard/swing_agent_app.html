@@ -168,10 +168,15 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .sector-chip .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
 
 /* ── Sector group header inside Trade Setups ─────────────── */
-.sector-group-head{display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px;padding:6px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px}
-.sector-group-head .name{font-size:12px;font-weight:700;letter-spacing:.4px}
-.sector-group-head .meta{font-size:11px;color:var(--muted);display:flex;gap:10px;align-items:center}
+.sector-group-head{display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;border-left:3px solid var(--blue)}
+.sector-group-head .name{font-size:13px;font-weight:700;letter-spacing:.4px;display:flex;align-items:center;gap:8px}
+.sector-group-head .meta{font-size:11px;color:var(--muted);display:flex;gap:12px;align-items:center}
 .sector-group-head .meta .pct{font-weight:700}
+.sector-mini-trend{font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.5px;background:var(--card);border:1px solid var(--border)}
+.sector-mini-trend.up  {color:var(--green);border-color:var(--green)}
+.sector-mini-trend.down{color:var(--red);  border-color:var(--red)}
+/* Add some breathing space between sector groups */
+.sector-group-head + .stocks-grid{margin-bottom:6px}
 
 /* ── Filtered-out chip in section header ────────────────── */
 .filtered-pill{cursor:help;background:var(--yellow-bg)!important;color:var(--yellow)!important;border-color:var(--yellow)!important;margin-left:6px}
@@ -322,7 +327,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <span class="pill" id="stockPill">0 stocks</span>
     </div>
   </div>
-  <div class="stocks-grid" id="stocksGrid">
+  <div id="stocksGrid">
     <div class="empty">
       <div class="empty-icon">📭</div>
       <div class="empty-title">No setups yet</div>
@@ -477,7 +482,7 @@ function renderActions(actions) {
 /* ── Skeleton ────────────────────────────────────────────── */
 function showSkeletons(n = 4) {
   const grid = document.getElementById("stocksGrid");
-  grid.innerHTML = Array(n).fill(0).map(() => `
+  const cards = Array(n).fill(0).map(() => `
     <div class="scard" style="pointer-events:none">
       <div class="scard-head">
         <div><div class="skeleton" style="width:80px;height:18px;margin-bottom:6px"></div><div class="skeleton" style="width:120px;height:11px"></div></div>
@@ -486,6 +491,7 @@ function showSkeletons(n = 4) {
       <div class="plan">${Array(5).fill(0).map(()=>`<div class="prow"><div class="skeleton" style="width:60px;height:11px"></div><div class="skeleton" style="width:90px;height:13px"></div></div>`).join("")}</div>
       <div class="tags"><div class="skeleton" style="width:70px;height:18px"></div><div class="skeleton" style="width:50px;height:18px"></div></div>
     </div>`).join("");
+  grid.innerHTML = `<div class="stocks-grid">${cards}</div>`;
 }
 
 /* ── Render stocks ───────────────────────────────────────── */
@@ -529,24 +535,32 @@ function renderStocks(stocks) {
     grouped[sec].push({ stock: s, origIdx: stocks.indexOf(s) });
   });
 
-  // Render: one section per sector
-  grid.innerHTML = Object.entries(grouped).map(([sector, items]) => {
+  // Sort sectors by strength (today's change% desc, with OTHERS last)
+  const sortedSectors = Object.entries(grouped).sort((a, b) => {
+    if (a[0] === "OTHERS") return  1;
+    if (b[0] === "OTHERS") return -1;
+    const aPct = (_sectorPulse[a[0]]?.change_pct) ?? -999;
+    const bPct = (_sectorPulse[b[0]]?.change_pct) ?? -999;
+    return bPct - aPct;
+  });
+
+  grid.innerHTML = sortedSectors.map(([sector, items]) => {
     const secInfo = _sectorPulse[sector] || {};
     const pct     = secInfo.change_pct;
     const pctCls  = pct >= 0 ? "up" : "down";
-    const head = `
+    const trend   = secInfo.trend ? `<span class="sector-mini-trend ${pctCls}">${secInfo.trend}</span>` : "";
+    return `
       <div class="sector-group-head">
-        <span class="name">${sector}</span>
+        <span class="name">📍 ${sector} ${trend}</span>
         <span class="meta">
           <span>${items.length} setup${items.length>1?"s":""}</span>
-          ${secInfo.level ? `<span>Index ₹${secInfo.level.toFixed(0)}</span>` : ""}
+          ${secInfo.level ? `<span>Index ${secInfo.level.toFixed(0)}</span>` : ""}
           ${pct !== undefined ? `<span class="pct ${pctCls}">${pct>=0?"+":""}${pct.toFixed(2)}%</span>` : ""}
         </span>
       </div>
       <div class="stocks-grid">
         ${items.map(({stock, origIdx}) => renderStockCard(stock, origIdx)).join("")}
       </div>`;
-    return head;
   }).join("");
 }
 
