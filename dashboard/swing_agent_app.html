@@ -507,9 +507,10 @@ function renderStocks(stocks) {
   const addAll  = document.getElementById("addAllBtn");
 
   // Apply active sector filter (set by clicking a Sector Pulse chip)
-  const visible = _activeSector
-    ? stocks.filter(s => (s.sector || "OTHERS") === _activeSector)
-    : stocks;
+  const visibleWithIdx = stocks
+    .map((s, idx) => ({ stock: s, origIdx: idx }))
+    .filter(({stock}) => !_activeSector || (stock.sector || "OTHERS") === _activeSector);
+  const visible = visibleWithIdx.map(v => v.stock);
 
   let pillText = `${stocks.length} setup${stocks.length!==1?"s":""}`;
   if (_filteredOut.length) {
@@ -528,11 +529,10 @@ function renderStocks(stocks) {
 
   // Group by sector (preserve original order within each group)
   const grouped = {};
-  visible.forEach((s, idxInVisible) => {
+  visibleWithIdx.forEach(({stock: s, origIdx}) => {
     const sec = s.sector || "OTHERS";
     if (!grouped[sec]) grouped[sec] = [];
-    // Track original index in _currentStocks so + Watchlist button still works
-    grouped[sec].push({ stock: s, origIdx: stocks.indexOf(s) });
+    grouped[sec].push({ stock: s, origIdx });
   });
 
   // Sort sectors by strength (today's change% desc, with OTHERS last)
@@ -880,44 +880,86 @@ async function loadResults() {
 
 function renderResults(r) {
   const wrap = document.getElementById("resultsWrap");
-  if (!r || (!r.total && !r.closed_positions?.length)) {
+  if (!r || (!r.total && !r.closed_positions?.length && !r.active_positions?.length)) {
     wrap.innerHTML = `<div class="empty" style="padding:20px"><div class="empty-sub">No positions tracked yet. Click <b>+ Watchlist</b> on any setup card to start.</div></div>`;
     return;
   }
-  const wr = Math.round((r.win_rate||0) * 100);
+  const wr        = Math.round((r.win_rate || 0) * 100);
+  const unr       = r.avg_unrealized_pct || 0;
+  const unrCls    = unr >= 0 ? "up" : "down";
+  const profitPct = r.active_count ? Math.round((r.active_in_profit || 0) / r.active_count * 100) : 0;
 
-  // Summary cards
+  // ── Summary cards: now shows BOTH realized + unrealized ────────────────
   const summary = `
     <div class="results-summary">
-      <div class="rsum-card"><div class="lbl">Win Rate</div><div class="val ${wr>=50?"up":"down"}">${wr}%</div><div class="sub">${r.wins||0} wins / ${r.losses||0} losses</div></div>
-      <div class="rsum-card"><div class="lbl">Closed Trades</div><div class="val">${r.closed||0}</div><div class="sub">of ${r.total||0} total</div></div>
-      <div class="rsum-card"><div class="lbl">Open Positions</div><div class="val">${r.open||0}</div><div class="sub">currently tracking</div></div>
-      <div class="rsum-card"><div class="lbl">Avg Days Held</div><div class="val">${r.avg_days_held||0}</div><div class="sub">closed trades</div></div>
+      <div class="rsum-card">
+        <div class="lbl">Realized Win Rate</div>
+        <div class="val ${wr>=50?"up":"down"}">${wr}%</div>
+        <div class="sub">${r.wins||0} wins / ${r.losses||0} losses  ·  ${r.closed||0} closed</div>
+      </div>
+      <div class="rsum-card">
+        <div class="lbl">Avg Unrealized P&L</div>
+        <div class="val ${unrCls}">${unr>=0?"+":""}${unr.toFixed(2)}%</div>
+        <div class="sub">across ${r.active_count||0} active positions</div>
+      </div>
+      <div class="rsum-card">
+        <div class="lbl">Active In Profit</div>
+        <div class="val up">${r.active_in_profit||0}</div>
+        <div class="sub">${profitPct}% of active  ·  ${r.active_in_loss||0} in loss</div>
+      </div>
+      <div class="rsum-card">
+        <div class="lbl">Active Triggered</div>
+        <div class="val">${r.active_t1_hit||0}</div>
+        <div class="sub">T1 hit (riding for T2)  ·  ${r.active_entry_hit||0} at entry zone</div>
+      </div>
     </div>`;
 
-  // Per-setup breakdown
+  // ── Per-setup cards: now show BOTH realized WR and live unrealized ─────
   const setupCards = Object.entries(r.by_setup || {}).map(([setup, s]) => {
-    const swr = Math.round((s.win_rate||0) * 100);
+    const swr  = Math.round((s.win_rate || 0) * 100);
+    const sUnr = s.avg_unrealized || 0;
     return `
       <div class="setup-card">
         <div class="setup-name">${setup}</div>
         <div class="stats">
-          <span>${s.closed||0} closed of ${s.total||0}</span>
+          <span>${s.total||0} total · ${s.open||0} open</span>
           <span class="${swr>=50?"up":"down"}"><b>${swr}%</b> WR</span>
         </div>
         <div class="wr-bar"><div class="wr-fill" style="width:${swr}%"></div></div>
         <div class="stats">
-          <span>✅ ${s.wins||0} / ❌ ${s.losses||0}</span>
-          <span class="${(s.avg_pnl_pct||0)>=0?"up":"down"}">${(s.avg_pnl_pct||0)>=0?"+":""}${(s.avg_pnl_pct||0).toFixed(1)}% avg</span>
+          <span>Realized: <span class="${(s.avg_pnl_pct||0)>=0?"up":"down"}">${(s.avg_pnl_pct||0)>=0?"+":""}${(s.avg_pnl_pct||0).toFixed(1)}%</span></span>
+          <span>Live: <span class="${sUnr>=0?"up":"down"}">${sUnr>=0?"+":""}${sUnr.toFixed(1)}%</span></span>
         </div>
       </div>`;
   }).join("");
+  const setups = setupCards ? `<div class="setup-grid">${setupCards}</div>` : "";
 
-  const setups = setupCards
-    ? `<div class="setup-grid">${setupCards}</div>`
+  // ── Active Positions table (live data, NEW) ─────────────────────────────
+  const activeRows = (r.active_positions || []).slice(0, 50).map(p => {
+    const pnlCls = p.pnl_pct >= 0 ? "up" : "down";
+    const badge  = p.t1_hit
+      ? `<span class="outcome-badge outcome-T1_HIT">T1 HIT</span>`
+      : p.entry_hit
+      ? `<span class="outcome-badge" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue)">ENTRY</span>`
+      : `<span class="outcome-badge" style="background:var(--card);color:var(--muted);border:1px solid var(--border)">WAITING</span>`;
+    return `<tr>
+      <td><b>${p.symbol}</b></td>
+      <td><small style="color:var(--muted)">${p.setup||"—"}</small></td>
+      <td>₹${fmtP(p.entry)} <small style="color:var(--muted)">→</small> ₹${fmtP(p.current)}</td>
+      <td class="${pnlCls}"><b>${p.pnl_pct>=0?"+":""}${fmt(p.pnl_pct)}%</b></td>
+      <td>${p.days_held||0}d</td>
+      <td>${badge}</td>
+    </tr>`;
+  }).join("");
+  const activeHead = (r.active_positions||[]).length
+    ? `<div class="sec-head" style="margin-top:18px"><span class="sec-title">▶ Active Positions (Live)</span><span class="pill">${(r.active_positions||[]).length} active</span></div>
+       <div class="pos-wrap"><table class="pos-table">
+         <thead><tr><th>Symbol</th><th>Setup</th><th>Entry → LTP</th><th>P&L</th><th>Held</th><th>Status</th></tr></thead>
+         <tbody>${activeRows}</tbody>
+       </table></div>`
     : "";
 
-  // Closed positions table
+  // ── Closed positions table (existing) ───────────────────────────────────
   const closedRows = (r.closed_positions || []).map(p => {
     const pnlCls = p.pnl_pct >= 0 ? "up" : "down";
     return `<tr>
@@ -929,15 +971,15 @@ function renderResults(r) {
       <td><span class="outcome-badge outcome-${p.outcome}">${p.outcome}</span></td>
     </tr>`;
   }).join("");
-
-  const closed = closedRows
-    ? `<div class="pos-wrap"><table class="pos-table">
+  const closedHead = closedRows
+    ? `<div class="sec-head" style="margin-top:18px"><span class="sec-title">▶ Closed Trades (Realized)</span><span class="pill">${(r.closed_positions||[]).length} closed</span></div>
+       <div class="pos-wrap"><table class="pos-table">
          <thead><tr><th>Symbol</th><th>Setup</th><th>Entry → Exit</th><th>P&L</th><th>Held</th><th>Outcome</th></tr></thead>
          <tbody>${closedRows}</tbody>
        </table></div>`
     : `<div class="empty" style="padding:18px 20px;margin-top:10px"><div class="empty-sub">No closed trades yet — alerts will fill this in as targets/SL fire.</div></div>`;
 
-  wrap.innerHTML = summary + setups + closed;
+  wrap.innerHTML = summary + setups + activeHead + closedHead;
 }
 
 /* ── Kite status ─────────────────────────────────────────── */

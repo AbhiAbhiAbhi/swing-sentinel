@@ -424,7 +424,12 @@ def api_backtest():
 
 @app.route("/api/results")
 def api_results():
-    """Aggregate strategy performance: win rate, per-setup breakdown, closed positions."""
+    """
+    Strategy performance for EVERY watchlist entry (open + closed):
+      - Closed trades drive realized win rate / avg P&L
+      - Open trades drive live unrealized P&L + active counts
+      - by_setup breaks down both
+    """
     path = "data/positions.csv"
     if not os.path.exists(path):
         return jsonify(_empty_results())
@@ -434,9 +439,10 @@ def api_results():
         if df.empty:
             return jsonify(_empty_results())
 
-        # Ensure outcome columns exist (read-only — won't write)
+        # Ensure all expected columns exist (read-only — won't write)
         for col in ("Outcome", "Entry_Hit_Date", "T1_Hit_Date", "T2_Hit_Date",
-                    "SL_Hit_Date", "Closing_Price", "Setup"):
+                    "SL_Hit_Date", "Closing_Price", "Setup", "Entry_Notified",
+                    "T1_Notified", "T2_Notified", "SL_Notified"):
             if col not in df.columns:
                 df[col] = ""
 
@@ -463,18 +469,78 @@ def api_results():
                     pass
         avg_days_held = round(sum(days_list) / len(days_list), 1) if days_list else 0
 
-        # Per-setup breakdown
+        # ── Live prices for OPEN positions (one bulk yfinance call) ──
+        open_symbols = open_df["Symbol"].astype(str).unique().tolist()
+        price_map    = fetch_prices_bulk(open_symbols) if open_symbols else {}
+
+        # Build active_positions with unrealized P&L
+        today        = datetime.now().date()
+        active_list  = []
+        active_pnls  = []
+        active_wins  = 0    # OPEN positions currently in profit
+        active_loss  = 0    # OPEN positions currently in loss
+        t1_hit_open  = 0    # OPEN positions that have hit T1 (riding for T2)
+        entry_hit_open = 0  # OPEN positions where entry zone reached
+
+        for _, r in open_df.iterrows():
+            try:
+                sym = str(r.get("Symbol", ""))
+                ep  = float(r.get("Entry_Price", 0))
+                cp  = float(price_map.get(sym, 0) or 0)
+                pnl_pct = round((cp - ep) / ep * 100, 2) if ep and cp else 0
+
+                # Days held so far
+                entry_date_str = str(r.get("Entry_Date", ""))
+                days_held = 0
+                if entry_date_str:
+                    try:
+                        days_held = (today - datetime.strptime(entry_date_str, "%Y-%m-%d").date()).days
+                    except Exception:
+                        days_held = 0
+
+                t1_done    = _truthy(r.get("T1_Notified"))
+                entry_done = _truthy(r.get("Entry_Notified"))
+
+                if pnl_pct > 0: active_wins += 1
+                elif pnl_pct < 0: active_loss += 1
+                if t1_done:    t1_hit_open  += 1
+                if entry_done: entry_hit_open += 1
+
+                active_pnls.append(pnl_pct)
+                active_list.append({
+                    "symbol":     sym,
+                    "name":       str(r.get("Name", sym)),
+                    "setup":      str(r.get("Setup", "")),
+                    "entry":      ep,
+                    "current":    cp,
+                    "target_2":   float(r.get("Target_2", 0)),
+                    "sl":         float(r.get("Current_SL", 0)),
+                    "pnl_pct":    pnl_pct,
+                    "days_held":  days_held,
+                    "t1_hit":     t1_done,
+                    "entry_hit":  entry_done,
+                    "entry_date": entry_date_str,
+                    "outcome":    "T1_HIT" if t1_done else "OPEN",
+                })
+            except Exception:
+                continue
+
+        active_list.sort(key=lambda x: x["pnl_pct"], reverse=True)
+        avg_unrealized = round(sum(active_pnls) / len(active_pnls), 2) if active_pnls else 0
+
+        # Per-setup breakdown — now includes BOTH closed + open
         by_setup = {}
         for setup in df["Setup"].dropna().astype(str).unique():
             if not setup:
                 continue
             grp        = df[df["Setup"] == setup]
             grp_closed = grp[grp["Status"].astype(str).str.upper() == "CLOSED"]
+            grp_open   = grp[grp["Status"].astype(str).str.upper() == "OPEN"]
             grp_wins   = len(grp_closed[grp_closed["Outcome"] == "T2_WIN"])
             grp_loss   = len(grp_closed[grp_closed["Outcome"] == "SL_LOSS"])
             grp_total  = len(grp_closed)
 
-            # Average % P&L for closed trades in this setup
+            # Realized P&L (closed)
             pnls = []
             for _, r in grp_closed.iterrows():
                 try:
@@ -485,13 +551,27 @@ def api_results():
                 except Exception:
                     pass
 
+            # Unrealized P&L (open) — uses live prices
+            unr_pnls = []
+            for _, r in grp_open.iterrows():
+                try:
+                    sym = str(r.get("Symbol", ""))
+                    ep  = float(r.get("Entry_Price", 0))
+                    cp  = float(price_map.get(sym, 0) or 0)
+                    if ep and cp:
+                        unr_pnls.append((cp - ep) / ep * 100)
+                except Exception:
+                    pass
+
             by_setup[setup] = {
-                "total":       int(len(grp)),
-                "closed":      int(grp_total),
-                "wins":        int(grp_wins),
-                "losses":      int(grp_loss),
-                "win_rate":    round(grp_wins / grp_total, 3) if grp_total else 0,
-                "avg_pnl_pct": round(sum(pnls) / len(pnls), 2) if pnls else 0,
+                "total":            int(len(grp)),
+                "open":             int(len(grp_open)),
+                "closed":           int(grp_total),
+                "wins":             int(grp_wins),
+                "losses":           int(grp_loss),
+                "win_rate":         round(grp_wins / grp_total, 3) if grp_total else 0,
+                "avg_pnl_pct":      round(sum(pnls) / len(pnls), 2) if pnls else 0,
+                "avg_unrealized":   round(sum(unr_pnls) / len(unr_pnls), 2) if unr_pnls else 0,
             }
 
         # Closed positions list (most recent first)
@@ -536,6 +616,14 @@ def api_results():
             "avg_days_held":    avg_days_held,
             "by_setup":         by_setup,
             "closed_positions": closed_list,
+            # ── Live data for OPEN positions ──────────────────────────────
+            "active_count":       len(open_df),
+            "active_in_profit":   active_wins,
+            "active_in_loss":     active_loss,
+            "active_entry_hit":   entry_hit_open,
+            "active_t1_hit":      t1_hit_open,
+            "avg_unrealized_pct": avg_unrealized,
+            "active_positions":   active_list,
         })
     except Exception as exc:
         logger.error("[results] %s", exc)
@@ -547,6 +635,9 @@ def _empty_results():
         "total": 0, "open": 0, "closed": 0,
         "wins": 0, "losses": 0, "win_rate": 0, "avg_days_held": 0,
         "by_setup": {}, "closed_positions": [],
+        "active_count": 0, "active_in_profit": 0, "active_in_loss": 0,
+        "active_entry_hit": 0, "active_t1_hit": 0,
+        "avg_unrealized_pct": 0, "active_positions": [],
     }
 
 
