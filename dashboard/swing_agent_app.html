@@ -601,7 +601,18 @@ function renderStockCard(s, i) {
 function renderPositions(positions) {
   const wrap = document.getElementById("posWrap");
   const pill = document.getElementById("posPill");
-  pill.textContent = `${positions.length} position${positions.length!==1?"s":""}`;
+
+  // Show OPEN positions first, then CLOSED. Within each group, newest first.
+  positions = [...positions].sort((a, b) => {
+    const aOpen = String(a.Status || "OPEN").toUpperCase() === "OPEN" ? 0 : 1;
+    const bOpen = String(b.Status || "OPEN").toUpperCase() === "OPEN" ? 0 : 1;
+    if (aOpen !== bOpen) return aOpen - bOpen;
+    // Newest Entry_Date first
+    return String(b.Entry_Date || "").localeCompare(String(a.Entry_Date || ""));
+  });
+
+  const openCount = positions.filter(p => String(p.Status||"OPEN").toUpperCase()==="OPEN").length;
+  pill.textContent = `${openCount} open · ${positions.length - openCount} closed`;
 
   if (!positions.length) {
     wrap.innerHTML = `<div class="empty" style="padding:24px 20px"><div class="empty-sub">Watchlist is empty — click <b>+ Watchlist</b> on any setup card</div></div>`;
@@ -752,8 +763,10 @@ async function confirmBuy() {
     });
     closeBuyModal();
     toast(`${symbol} added to watchlist`, "success");
-    loadPositions();
+    await loadPositions();
     loadResults();
+    // Scroll to the freshly-loaded watchlist so the user actually sees the new row
+    document.getElementById("posWrap").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch(err) {
     toast(`Failed: ${err.message}`, "error");
   } finally {
