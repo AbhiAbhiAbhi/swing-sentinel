@@ -290,17 +290,31 @@ def api_brief_latest():
     return jsonify({"found": False})
 
 
+def _append_rows_to_csv(path: str, rows: list):
+    """
+    Append rows to positions.csv preserving column alignment.
+    Pandas auto-fills missing columns with NaN, keeping the existing schema intact.
+    """
+    import pandas as pd
+    new_df = pd.DataFrame(rows)
+    if os.path.exists(path):
+        existing = pd.read_csv(path)
+        combined = pd.concat([existing, new_df], ignore_index=True)
+    else:
+        combined = new_df
+    combined.to_csv(path, index=False)
+
+
 @app.route("/api/positions/add", methods=["POST"])
 def api_positions_add():
-    """Add a new position from the Buy button on a stock card."""
+    """Add a new position from the Watchlist button on a stock card."""
     try:
         data = request.get_json(force=True, silent=True)
         if not data or not data.get("symbol"):
             return jsonify({"status": "error", "message": "symbol required"}), 400
 
-        path    = "data/positions.csv"
+        path = "data/positions.csv"
         os.makedirs("data", exist_ok=True)
-        is_new  = not os.path.exists(path)
 
         row = {
             "Symbol":       data["symbol"],
@@ -313,28 +327,20 @@ def api_positions_add():
             "Setup":        data.get("setup", ""),
             "Entry_Date":   _now_date(),
             "Status":       "OPEN",
-            "GTT_Id":       "",
         }
+        _append_rows_to_csv(path, [row])
 
-        with open(path, "a", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=row.keys())
-            if is_new:
-                writer.writeheader()
-            writer.writerow(row)
-
-        # Place Kite GTT (SL + T2 two-leg OCO) — silently skipped if not connected
+        # Place Kite GTT (silently skipped if not connected)
         gtt_id = place_gtt(
-            symbol=row["Symbol"],
-            qty=int(row["Quantity"]),
+            symbol=row["Symbol"], qty=int(row["Quantity"]),
             last_price=float(row["Entry_Price"]),
-            sl=float(row["Current_SL"]),
-            target=float(row["Target_2"]),
+            sl=float(row["Current_SL"]), target=float(row["Target_2"]),
         )
         if gtt_id:
             _write_gtt_id(path, row["Symbol"], gtt_id)
             row["gtt_id"] = gtt_id
 
-        logger.info("[positions] Added %s @ %s  GTT=%s", row["Symbol"], row["Entry_Price"], gtt_id or "—")
+        logger.info("[positions] Added %s @ %s  GTT=%s", row["Symbol"], row["Entry_Price"], gtt_id or "-")
         return jsonify({"status": "ok", "position": row})
 
     except Exception as exc:
@@ -344,58 +350,46 @@ def api_positions_add():
 
 @app.route("/api/positions/add-all", methods=["POST"])
 def api_positions_add_all():
-    """Add all stocks from the current scan to positions (qty=1, entry=entry_min)."""
+    """Add all stocks from the current scan to watchlist (qty=1, entry=entry_min)."""
     try:
         data   = request.get_json(force=True, silent=True) or {}
         stocks = data.get("stocks", [])
         if not stocks:
             return jsonify({"status": "error", "message": "no stocks provided"}), 400
 
-        path   = "data/positions.csv"
+        path = "data/positions.csv"
         os.makedirs("data", exist_ok=True)
-        is_new = not os.path.exists(path)
 
-        fields = ["Symbol","Name","Entry_Price","Quantity","Target_1","Target_2","Current_SL","Setup","Entry_Date","Status","GTT_Id"]
-        added  = 0
-        rows_added = []
-        with open(path, "a", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fields)
-            if is_new:
-                writer.writeheader()
-            for s in stocks:
-                if not s.get("symbol"):
-                    continue
-                row = {
-                    "Symbol":       s["symbol"],
-                    "Name":         s.get("name", s["symbol"]),
-                    "Entry_Price":  s.get("entry_min", s.get("price", 0)),
-                    "Quantity":     1,
-                    "Target_1":     s.get("target_1", 0),
-                    "Target_2":     s.get("target_2", 0),
-                    "Current_SL":   s.get("sl", 0),
-                    "Setup":        s.get("setup", ""),
-                    "Entry_Date":   _now_date(),
-                    "Status":       "OPEN",
-                    "GTT_Id":       "",
-                }
-                writer.writerow(row)
-                rows_added.append(row)
-                added += 1
+        rows = []
+        for s in stocks:
+            if not s.get("symbol"):
+                continue
+            rows.append({
+                "Symbol":       s["symbol"],
+                "Name":         s.get("name", s["symbol"]),
+                "Entry_Price":  s.get("entry_min", s.get("price", 0)),
+                "Quantity":     1,
+                "Target_1":     s.get("target_1", 0),
+                "Target_2":     s.get("target_2", 0),
+                "Current_SL":   s.get("sl", 0),
+                "Setup":        s.get("setup", ""),
+                "Entry_Date":   _now_date(),
+                "Status":       "OPEN",
+            })
+        _append_rows_to_csv(path, rows)
 
         # Place Kite GTTs after CSV write
-        for row in rows_added:
+        for row in rows:
             gtt_id = place_gtt(
-                symbol=row["Symbol"],
-                qty=int(row["Quantity"]),
+                symbol=row["Symbol"], qty=int(row["Quantity"]),
                 last_price=float(row["Entry_Price"]),
-                sl=float(row["Current_SL"]),
-                target=float(row["Target_2"]),
+                sl=float(row["Current_SL"]), target=float(row["Target_2"]),
             )
             if gtt_id:
                 _write_gtt_id(path, row["Symbol"], gtt_id)
 
-        logger.info("[positions] Bulk added %d stocks", added)
-        return jsonify({"status": "ok", "added": added})
+        logger.info("[positions] Bulk added %d stocks", len(rows))
+        return jsonify({"status": "ok", "added": len(rows)})
 
     except Exception as exc:
         logger.error("[positions/add-all] %s", exc)
