@@ -520,6 +520,9 @@ def api_results():
             try:
                 sym = str(r.get("Symbol", ""))
                 ep  = float(r.get("Entry_Price", 0))
+                t1  = float(r.get("Target_1", 0))
+                t2  = float(r.get("Target_2", 0))
+                sl  = float(r.get("Current_SL", 0))
                 cp  = float(price_map.get(sym, 0) or 0)
                 pnl_pct = round((cp - ep) / ep * 100, 2) if ep and cp else 0
 
@@ -532,29 +535,53 @@ def api_results():
                     except Exception:
                         days_held = 0
 
+                # ── LIVE state derived from current price (independent of notifications) ──
+                live_at_entry = bool(cp and ep and cp <= ep * 1.005)
+                live_above_t1 = bool(cp and t1 and cp >= t1)
+                live_above_t2 = bool(cp and t2 and cp >= t2)
+                live_below_sl = bool(cp and sl and cp <= sl)
+
+                # Pick a single label for the status badge (priority: T2 > T1 > SL > Entry > Waiting)
+                if   live_above_t2: live_status = "T2_REACHED"
+                elif live_above_t1: live_status = "T1_REACHED"
+                elif live_below_sl: live_status = "BELOW_SL"
+                elif live_at_entry: live_status = "AT_ENTRY"
+                else:               live_status = "WAITING"
+
+                # Notification flags (alerts already sent) — separate from live state
                 t1_done    = _truthy(r.get("T1_Notified"))
                 entry_done = _truthy(r.get("Entry_Notified"))
 
                 if pnl_pct > 0: active_wins += 1
                 elif pnl_pct < 0: active_loss += 1
-                if t1_done:    t1_hit_open  += 1
-                if entry_done: entry_hit_open += 1
+                # Count LIVE T1/Entry (price-based, not notification-based) for the
+                # summary cards — these reflect what's actually happening, not what
+                # alerts have fired.
+                if live_above_t1:  t1_hit_open    += 1
+                if live_at_entry:  entry_hit_open += 1
 
                 active_pnls.append(pnl_pct)
                 active_list.append({
-                    "symbol":     sym,
-                    "name":       str(r.get("Name", sym)),
-                    "setup":      str(r.get("Setup", "")),
-                    "entry":      ep,
-                    "current":    cp,
-                    "target_2":   float(r.get("Target_2", 0)),
-                    "sl":         float(r.get("Current_SL", 0)),
-                    "pnl_pct":    pnl_pct,
-                    "days_held":  days_held,
-                    "t1_hit":     t1_done,
-                    "entry_hit":  entry_done,
-                    "entry_date": entry_date_str,
-                    "outcome":    "T1_HIT" if t1_done else "OPEN",
+                    "symbol":      sym,
+                    "name":        str(r.get("Name", sym)),
+                    "setup":       str(r.get("Setup", "")),
+                    "entry":       ep,
+                    "current":     cp,
+                    "target_1":    t1,
+                    "target_2":    t2,
+                    "sl":          sl,
+                    "pnl_pct":     pnl_pct,
+                    "days_held":   days_held,
+                    # Live state (current price vs target) — for visual badge
+                    "live_status": live_status,
+                    "above_t1":    live_above_t1,
+                    "above_t2":    live_above_t2,
+                    "at_entry":    live_at_entry,
+                    "below_sl":    live_below_sl,
+                    # Notification state (have alerts fired) — for "did Telegram fire" logic
+                    "t1_notified":    t1_done,
+                    "entry_notified": entry_done,
+                    "entry_date":  entry_date_str,
                 })
             except Exception:
                 continue

@@ -621,9 +621,9 @@ function renderWatchlist(r) {
         <div class="sub">${profitPct}% of active · ${r.active_in_loss||0} in loss</div>
       </div>
       <div class="rsum-card">
-        <div class="lbl">Triggered</div>
+        <div class="lbl">Live Status</div>
         <div class="val">${r.active_t1_hit||0}</div>
-        <div class="sub">T1 hit · ${r.active_entry_hit||0} at entry zone</div>
+        <div class="sub">at/above T1 · ${r.active_entry_hit||0} in entry zone</div>
       </div>
       <div class="rsum-card">
         <div class="lbl">Realized Win Rate</div>
@@ -649,19 +649,36 @@ function renderWatchlist(r) {
   }).join("");
   const setups = setupCards ? `<div class="setup-grid">${setupCards}</div>` : "";
 
-  // ── Active Positions table (sorted by P&L desc) ───────────────────────
+  // ── Active Positions table (live status, T1/T2/SL all visible) ──────
+  const STATUS_STYLE = {
+    "T2_REACHED": "background:var(--green-bg);color:var(--green);border:1px solid var(--green)",
+    "T1_REACHED": "background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)",
+    "BELOW_SL":   "background:var(--red-bg);color:var(--red);border:1px solid var(--red)",
+    "AT_ENTRY":   "background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue)",
+    "WAITING":    "background:var(--card);color:var(--muted);border:1px solid var(--border)",
+  };
+  const STATUS_LABEL = {
+    "T2_REACHED": "T2 ✓",
+    "T1_REACHED": "T1 ✓",
+    "BELOW_SL":   "SL HIT",
+    "AT_ENTRY":   "AT ENTRY",
+    "WAITING":    "WAITING",
+  };
   const activeRows = (r.active_positions || []).map(p => {
     const pnlCls = p.pnl_pct >= 0 ? "up" : "down";
-    const badge  = p.t1_hit
-      ? `<span class="outcome-badge outcome-T1_HIT">T1 HIT</span>`
-      : p.entry_hit
-      ? `<span class="outcome-badge" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue)">ENTRY</span>`
-      : `<span class="outcome-badge" style="background:var(--card);color:var(--muted);border:1px solid var(--border)">WAITING</span>`;
+    const status = p.live_status || "WAITING";
+    const badge = `<span class="outcome-badge" style="${STATUS_STYLE[status]||STATUS_STYLE.WAITING}" title="${p.entry_notified?'Entry alert fired':'Entry alert NOT fired yet'}">${STATUS_LABEL[status]}</span>`;
+    // Highlight T1/T2 cells if price has crossed them
+    const t1Cls = p.above_t1 ? 'style="color:var(--yellow);font-weight:700"' : 'style="color:var(--muted)"';
+    const t2Cls = p.above_t2 ? 'style="color:var(--green);font-weight:700"'  : 'style="color:var(--muted)"';
+    const slCls = p.below_sl ? 'style="color:var(--red);font-weight:700"'    : 'style="color:var(--red)"';
     return `<tr>
       <td><b>${p.symbol}</b></td>
       <td><small style="color:var(--muted)">${p.setup||"—"}</small></td>
-      <td>₹${fmtP(p.entry)} <small style="color:var(--muted)">→</small> ₹${fmtP(p.current)}</td>
-      <td>₹${fmtP(p.target_2)} <small style="color:var(--muted)">/</small> <span style="color:var(--red)">₹${fmtP(p.sl)}</span></td>
+      <td>₹${fmtP(p.entry)} <small style="color:var(--muted)">→</small> <b>₹${fmtP(p.current)}</b></td>
+      <td><span ${t1Cls}>₹${fmtP(p.target_1)}</span></td>
+      <td><span ${t2Cls}>₹${fmtP(p.target_2)}</span></td>
+      <td><span ${slCls}>₹${fmtP(p.sl)}</span></td>
       <td class="${pnlCls}"><b>${p.pnl_pct>=0?"+":""}${fmt(p.pnl_pct)}%</b></td>
       <td>${p.days_held||0}d</td>
       <td>${badge}</td>
@@ -670,7 +687,7 @@ function renderWatchlist(r) {
   const activeBlock = (r.active_positions||[]).length
     ? `<div class="sec-head" style="margin-top:18px"><span class="sec-title">▶ Active Positions</span><span class="pill">${r.active_count||0} open</span></div>
        <div class="pos-wrap"><table class="pos-table">
-         <thead><tr><th>Symbol</th><th>Setup</th><th>Entry → LTP</th><th>T2 / SL</th><th>P&L</th><th>Held</th><th>Status</th></tr></thead>
+         <thead><tr><th>Symbol</th><th>Setup</th><th>Entry → LTP</th><th>T1</th><th>T2</th><th>SL</th><th>P&L</th><th>Held</th><th>Status</th></tr></thead>
          <tbody>${activeRows}</tbody>
        </table></div>`
     : "";
