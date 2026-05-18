@@ -1,0 +1,53 @@
+{
+  "feeds": [
+    {
+      "name": "Moneycontrol \u2014 Markets",
+      "url": "https://www.moneycontrol.com/rss/marketreports.xml",
+      "enabled": true
+    },
+    {
+      "name": "Moneycontrol \u2014 Business",
+      "url": "https://www.moneycontrol.com/rss/business.xml",
+      "enabled": true
+    },
+    {
+      "name": "Moneycontrol \u2014 Latest News",
+      "url": "https://www.moneycontrol.com/rss/latestnews.xml",
+      "enabled": true
+    },
+    {
+      "name": "Economic Times \u2014 Markets",
+      "url": "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
+      "enabled": true
+    },
+    {
+      "name": "Economic Times \u2014 Stocks",
+      "url": "https://economictimes.indiatimes.com/markets/stocks/rssfeeds/2146842.cms",
+      "enabled": true
+    },
+    {
+      "name": "Business Standard \u2014 Markets",
+      "url": "https://www.business-standard.com/rss/markets-106.rss",
+      "enabled": true
+    },
+    {
+      "name": "Mint \u2014 Markets",
+      "url": "https://www.livemint.com/rss/markets",
+      "enabled": false
+    },
+    {
+      "name": "Reuters India \u2014 Business",
+      "url": "https://www.reutersagency.com/feed/?best-topics=business-finance&post_type=best",
+      "enabled": false
+    }
+  ],
+  "time_window_hours": 24,
+  "refresh_minutes": 15,
+  "max_headlines": 150,
+  "positive_threshold": 0.55,
+  "negative_threshold": 0.55,
+  "enabled_sectors": [],
+  "enabled_stocks": [],
+  "use_watchlist_only": false,
+  "model": "ProsusAI/finbert"
+}
