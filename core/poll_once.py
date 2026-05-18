@@ -15,7 +15,7 @@ except ImportError:
     pass  # GitHub Actions sets env vars directly via secrets
 
 # Import the canonical check function from server.py — no logic duplication
-from server import check_positions_and_notify
+from server import check_positions_and_notify  # noqa: E402 (sibling in core/)
 
 
 def main() -> int:

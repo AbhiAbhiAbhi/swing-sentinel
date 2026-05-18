@@ -19,7 +19,7 @@ from datetime import datetime
 import pandas as pd
 import yfinance as yf
 
-from core_trade_plan import calculate_trade_plan
+from core_trade_plan import calculate_trade_plan  # noqa: E402 (sibling in core/)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 logger = logging.getLogger("backtest")

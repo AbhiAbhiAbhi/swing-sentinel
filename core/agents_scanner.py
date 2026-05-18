@@ -10,12 +10,14 @@ import os
 from datetime import datetime
 from typing import Dict, List
 
-import pandas as pd
-
-from core.chartink_fetcher import fetch_chartink_stocks
-from core.data_fetcher import fetch_fii_dii_flow, fetch_nifty_levels, fetch_stock_technicals
-from core.telegram_bot import format_morning_brief, send_telegram_message
-from core.trade_plan import calculate_rr, calculate_trade_plan
+try:
+    from core.chartink_fetcher import fetch_chartink_stocks
+    from core.data_fetcher import fetch_fii_dii_flow, fetch_nifty_levels, fetch_stock_technicals
+    from core.trade_plan import calculate_rr, calculate_trade_plan
+except ImportError:
+    from core_chartink_fetcher import fetch_chartink_stocks
+    from core_data_fetcher import fetch_fii_dii_flow, fetch_nifty_levels, fetch_stock_technicals
+    from core_trade_plan import calculate_rr, calculate_trade_plan
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
@@ -273,19 +275,44 @@ def update_dashboard_data(scan_results: List[Dict], brief: Dict = None):
         f.write(html)
 
 
+def _send_telegram(msg: str):
+    """Send a Telegram message using TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID env vars."""
+    token   = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+    if not token or not chat_id or token == "your_bot_token_here":
+        return
+    try:
+        import requests
+        requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"},
+            timeout=10,
+        )
+    except Exception as exc:
+        logger.warning("[telegram] send failed: %s", exc)
+
+
 def send_alert(brief: Dict):
-    message = format_morning_brief(brief)
-    send_telegram_message(message, parse_mode="Markdown")
+    nifty = brief["market_context"]["nifty"]
+    lines = [
+        f"📊 *Morning Brief — {brief['date']} {brief['time']}*",
+        f"Nifty 50: {nifty['level']} ({nifty['change_pct']:+.2f}%)",
+        f"Sentiment: {brief['market_context']['sentiment']}",
+        "",
+        "*Top Actions:*",
+    ]
+    for a in brief.get("actions", []):
+        lines.append(f"• [{a['priority']}] {a['action']}")
+    _send_telegram("\n".join(lines))
 
 
 def _send_empty_brief(nifty_data: Dict, sentiment: str):
-    msg = (
+    _send_telegram(
         f"📊 *Morning Brief — {datetime.now().strftime('%Y-%m-%d')}*\n\n"
         f"Nifty 50: {nifty_data['level']} ({nifty_data['change_pct']:+.2f}%)\n"
         f"Sentiment: {sentiment}\n\n"
         f"⚠️ No setups matched today — market may be closed or conditions not met."
     )
-    send_telegram_message(msg, parse_mode="Markdown")
 
 
 if __name__ == "__main__":

@@ -114,9 +114,26 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 
 .tags{padding:9px 15px;background:var(--surface);display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--border)}
 .tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;letter-spacing:.3px}
-.t-setup {background:rgba(188,140,255,.1);color:var(--purple)}
-.t-rsi   {background:var(--yellow-bg);   color:var(--yellow)}
-.t-vol   {background:var(--green-bg);    color:var(--green)}
+.t-setup  {background:rgba(188,140,255,.1);color:var(--purple)}
+.t-rsi    {background:var(--yellow-bg);   color:var(--yellow)}
+.t-vol    {background:var(--green-bg);    color:var(--green)}
+.t-52w    {background:var(--orange);color:#0d1117}
+.t-golden {background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
+.t-death  {background:var(--red-bg);  color:var(--red);  border:1px solid var(--red)}
+
+/* ── F&O Ban Banner ─────────────────────────────────────── */
+#foBanBanner{display:none;background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.35);border-radius:var(--radius);padding:9px 14px;margin-bottom:12px;font-size:12px;color:var(--text)}
+#foBanBanner.show{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#foBanBanner .ban-label{color:var(--red);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap}
+#foBanBanner .ban-chips{display:flex;gap:5px;flex-wrap:wrap}
+.ban-chip{background:var(--red-bg);border:1px solid var(--red);color:var(--red);font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.3px}
+
+/* ── Regime badge on Nifty card ─────────────────────────── */
+.regime-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;margin-top:4px;letter-spacing:.5px}
+.regime-GREEN {background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
+.regime-AMBER {background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
+.regime-RED   {background:var(--red-bg);  color:var(--red);  border:1px solid var(--red)}
+.regime-UNKNOWN{background:var(--card);  color:var(--muted);border:1px solid var(--border)}
 
 /* ── Positions ──────────────────────────────────────────── */
 .pos-table{width:100%;border-collapse:collapse;font-size:13px}
@@ -308,6 +325,53 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .news-tag-input{background:var(--card);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:5px;font-size:11.5px;width:100%}
 .news-tag-input:focus{outline:none;border-color:var(--blue)}
 
+/* ── TradingView button on stock card ───────────────────── */
+.tv-btn{background:rgba(255,166,87,.12);color:var(--orange);border:1px solid var(--orange);padding:3px 9px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;opacity:0;transition:opacity .15s;white-space:nowrap;flex-shrink:0}
+.scard:hover .tv-btn{opacity:1}
+.tv-btn:hover{background:var(--orange);color:#0d1117}
+.tv-btn:disabled{opacity:.4;cursor:wait}
+.tv-badge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(255,166,87,.15);color:var(--orange);border:1px solid var(--orange);vertical-align:middle;margin-left:5px}
+
+/* ── TV Alerts panel ────────────────────────────────────── */
+.tv-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:18px}
+.tv-wrap-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.tv-alert-list{display:flex;flex-direction:column;max-height:320px;overflow-y:auto}
+.tv-alert-item{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:13px}
+.tv-alert-item:last-child{border:none}
+.tv-alert-item:hover{background:rgba(255,255,255,.02)}
+.tv-alert-sym{font-weight:700;min-width:90px;font-size:12px;color:var(--text)}
+.tv-alert-desc{flex:1;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tv-del-btn{background:var(--red-bg);color:var(--red);border:1px solid var(--red);padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0;white-space:nowrap}
+.tv-del-btn:hover{background:var(--red);color:#fff}
+.tv-del-btn:disabled{opacity:.4;cursor:wait}
+#tvAlertsRefreshBtn{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer}
+#tvAlertsRefreshBtn:hover{color:var(--text);border-color:var(--border-hi)}
+
+/* ── TV Screener modal ──────────────────────────────────── */
+#tvModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center}
+#tvModal.open{display:flex}
+.tv-modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:400px;max-width:92vw;max-height:90vh;overflow-y:auto}
+.tv-modal-box h3{font-size:15px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.tv-modal-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:14px 0 6px}
+.tv-cond-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(48,54,61,.5)}
+.tv-cond-row:last-child{border:none}
+.tv-cond-row label{font-size:12px;color:var(--text);cursor:pointer;flex:1}
+.tv-cond-row input[type=checkbox]{cursor:pointer;accent-color:var(--orange);width:14px;height:14px;flex-shrink:0;margin-right:8px}
+.tv-screener-results{margin-top:16px;border-top:1px solid var(--border);padding-top:12px;display:none}
+.tv-screener-results.show{display:block}
+.tv-result-table{width:100%;border-collapse:collapse;font-size:12px}
+.tv-result-table th{text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;padding:6px 8px;border-bottom:1px solid var(--border)}
+.tv-result-table td{padding:7px 8px;border-bottom:1px solid var(--border)}
+.tv-result-table tr:last-child td{border:none}
+.tv-result-table tr:hover td{background:rgba(255,255,255,.02)}
+#tvScanBtn{background:var(--orange);color:#0d1117;border:none;border-radius:7px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;width:100%;margin-top:6px}
+#tvScanBtn:hover{opacity:.88}
+#tvScanBtn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── TV button in header ────────────────────────────────── */
+#tvBtn{display:flex;align-items:center;gap:6px;background:rgba(255,166,87,.1);color:var(--orange);border:1px solid var(--orange);border-radius:7px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s}
+#tvBtn:hover{background:var(--orange);color:#0d1117}
+
 /* ── Responsive ─────────────────────────────────────────── */
 @media(max-width:600px){
   header{padding:10px 14px}
@@ -325,6 +389,37 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 <body>
 
 <div id="toastArea"></div>
+
+<!-- TradingView Screener Modal -->
+<div id="tvModal">
+  <div class="tv-modal-box">
+    <h3>📺 TradingView Screener</h3>
+    <div class="modal-row">
+      <label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Market</label>
+      <select id="tvMarket" style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:100%;margin-top:4px">
+        <option value="india">India (NSE/BSE)</option>
+        <option value="us">US (S&amp;P 500)</option>
+      </select>
+    </div>
+    <div class="tv-modal-section">Conditions</div>
+    <div>
+      <div class="tv-cond-row"><label><input type="checkbox" id="tvc_rsi" checked> RSI between <input id="tvc_rsi_min" type="number" value="40" min="1" max="99" style="width:42px;background:var(--card);border:1px solid var(--border);color:var(--text);padding:2px 4px;border-radius:4px;font-size:11px"> – <input id="tvc_rsi_max" type="number" value="70" min="1" max="99" style="width:42px;background:var(--card);border:1px solid var(--border);color:var(--text);padding:2px 4px;border-radius:4px;font-size:11px"></label></div>
+      <div class="tv-cond-row"><label><input type="checkbox" id="tvc_ema" checked> Price above EMA20</label></div>
+      <div class="tv-cond-row"><label><input type="checkbox" id="tvc_ema_align" checked> EMA20 above EMA50</label></div>
+      <div class="tv-cond-row"><label><input type="checkbox" id="tvc_vol"> Volume above 1 000 000</label></div>
+      <div class="tv-cond-row"><label><input type="checkbox" id="tvc_positive_day"> Positive day (change &gt; 0)</label></div>
+    </div>
+    <div class="modal-row" style="margin-top:12px">
+      <label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Max Results</label>
+      <input id="tvLimit" type="number" value="50" min="5" max="200" style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:100%;margin-top:4px">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button style="flex:1;padding:9px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;border:none;background:var(--card);color:var(--text);border:1px solid var(--border)" onclick="closeTVModal()">Cancel</button>
+      <button id="tvScanBtn" onclick="runTVScreener()">📺 Run Screener</button>
+    </div>
+    <div class="tv-screener-results" id="tvScreenerResults"></div>
+  </div>
+</div>
 
 <!-- Add to Watchlist Modal -->
 <div id="buyModal">
@@ -360,6 +455,10 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     <button id="filterToggleBtn" onclick="toggleFilterPanel()" title="Configure scan filters">
       <span class="f-dot" id="filterDirtyDot"></span>&#9881; Filters
     </button>
+    <button id="tvBtn" onclick="openTVModal()" title="TradingView Screener">📺 TV</button>
+    <a href="/checklist" target="_blank" style="display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:7px 14px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;transition:border-color .15s" onmouseover="this.style.borderColor='var(--border-hi)'" onmouseout="this.style.borderColor='var(--border)'">
+      ☑ Checklist
+    </a>
     <button id="scanBtn" onclick="runScan()">
       <div class="spinner"></div>
       <span class="btn-icon">⚡</span>
@@ -534,6 +633,53 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <div class="val up" id="bestRR">—</div>
       <div class="sub" id="bestRRSym">—</div>
     </div>
+    <div class="mcard">
+      <div class="lbl">Nifty Regime</div>
+      <div class="val" id="regimeVal" style="font-size:16px">—</div>
+      <div class="sub" id="regimeSub">EMA 50 / 200</div>
+    </div>
+    <div class="mcard">
+      <div class="lbl">S&amp;P 500</div>
+      <div class="val" id="sp500Val">—</div>
+      <div class="sub" id="sp500Sub">—</div>
+    </div>
+    <div class="mcard">
+      <div class="lbl">Nasdaq</div>
+      <div class="val" id="nasdaqVal">—</div>
+      <div class="sub" id="nasdaqSub">—</div>
+    </div>
+    <div class="mcard">
+      <div class="lbl">USD / INR</div>
+      <div class="val" id="usdinrVal">—</div>
+      <div class="sub" id="usdinrSub">—</div>
+    </div>
+    <div class="mcard">
+      <div class="lbl">Bias Score</div>
+      <div class="val" id="biasVal">—</div>
+      <div class="sub" id="biasSub">−5 bearish → +5 bullish</div>
+    </div>
+  </div>
+
+  <!-- F&O Ban Banner -->
+  <div id="foBanBanner">
+    <span class="ban-label">F&amp;O Ban</span>
+    <div class="ban-chips" id="foBanChips"></div>
+  </div>
+
+  <!-- TradingView Alerts -->
+  <div class="sec-head">
+    <span class="sec-title">📺 TradingView Alerts</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="pill" id="tvAlertPill">—</span>
+      <button id="tvAlertsRefreshBtn" onclick="loadTVAlerts()" title="Refresh TV alerts">↻ Refresh</button>
+    </div>
+  </div>
+  <div class="tv-wrap" id="tvAlertsWrap">
+    <div class="tv-alert-list">
+      <div class="news-empty" style="padding:18px;text-align:center;color:var(--muted);font-size:13px">
+        Set <code style="background:var(--card);padding:1px 5px;border-radius:4px;font-size:11px">TV_SESSION</code> in .env and click ↻ to load alerts
+      </div>
+    </div>
   </div>
 
   <!-- Pre-Market News -->
@@ -668,6 +814,13 @@ function fmtP(n) {
 function rrNum(rr) {
   try { return parseFloat(String(rr).split(":").pop()) || 0; } catch { return 0; }
 }
+function fmtVol(n) {
+  if (!n) return "—";
+  if (n >= 1e7) return (n / 1e7).toFixed(1) + "Cr";
+  if (n >= 1e5) return (n / 1e5).toFixed(1) + "L";
+  if (n >= 1e3) return (n / 1e3).toFixed(0) + "K";
+  return n;
+}
 function rrClass(rr) {
   const n = rrNum(rr);
   return n >= 2 ? "rr-good" : n >= 1.5 ? "rr-ok" : "rr-weak";
@@ -689,7 +842,19 @@ function renderMarket(data) {
   nv.textContent  = nifty.level ? fmt(nifty.level, 0) : "—";
   nv.className    = `val ${chg >= 0 ? "up" : "down"}`;
   document.getElementById("niftySub").innerHTML =
-    nifty.level ? `<span class="${chg>=0?'up':'down'}">${chg>=0?"▲":"▼"} ${Math.abs(chg).toFixed(2)}%</span>` : "—";
+    nifty.level
+      ? `<span class="${chg>=0?'up':'down'}">${chg>=0?"▲":"▼"} ${Math.abs(chg).toFixed(2)}%</span>${nifty.regime ? `<br><span class="regime-badge regime-${nifty.regime||'UNKNOWN'}">${nifty.regime}</span>` : ""}`
+      : "—";
+
+  // Regime card
+  const regime = nifty.regime || "";
+  const rv = document.getElementById("regimeVal");
+  rv.textContent = regime || "—";
+  rv.className   = `val`;
+  const regimeBadge = document.getElementById("regimeSub");
+  if (regime) {
+    regimeBadge.innerHTML = `<span class="regime-badge regime-${regime}">${regime}</span>`;
+  }
 
   document.getElementById("sentVal").textContent = sent;
 
@@ -697,6 +862,78 @@ function renderMarket(data) {
   const fv = document.getElementById("fiiVal");
   fv.textContent = fi !== 0 ? `${fi>=0?"+":""}${fmt(fi,0)}` : "—";
   fv.className   = `val ${fi>=0?"up":fi<0?"down":""}`;
+}
+
+function renderGlobal(data) {
+  const _card = (id, sub, d) => {
+    if (!d) return;
+    const pct = d.change_pct || 0;
+    const el  = document.getElementById(id);
+    if (!el) return;
+    el.textContent = d.price ? fmt(d.price, 2) : "—";
+    el.className   = `val ${pct >= 0 ? "up" : "down"}`;
+    const s = document.getElementById(sub);
+    if (s) s.innerHTML = d.price
+      ? `<span class="${pct>=0?'up':'down'}">${pct>=0?"▲":"▼"} ${Math.abs(pct).toFixed(2)}%</span>`
+      : "—";
+  };
+  _card("sp500Val",  "sp500Sub",  data.sp500);
+  _card("nasdaqVal", "nasdaqSub", data.nasdaq);
+
+  const fx = data.usdinr;
+  if (fx) {
+    const el = document.getElementById("usdinrVal");
+    if (el) { el.textContent = fx.price ? fx.price.toFixed(2) : "—"; el.className = "val"; }
+    const s = document.getElementById("usdinrSub");
+    if (s) s.innerHTML = fx.change_pct
+      ? `<span class="${fx.change_pct>=0?'up':'down'}">${fx.change_pct>=0?"▲":"▼"} ${Math.abs(fx.change_pct).toFixed(2)}%</span>`
+      : "—";
+  }
+
+  // Bias Score: +1 per green US index, +1 if INR strong (<=83), regime bonus already shown
+  // Simple composite from available signals (−3 to +3 from globals alone)
+  let score = 0;
+  if (data.sp500?.change_pct  > 0) score += 1; else if (data.sp500?.change_pct  < 0) score -= 1;
+  if (data.nasdaq?.change_pct > 0) score += 1; else if (data.nasdaq?.change_pct < 0) score -= 1;
+  if (data.dow?.change_pct    > 0) score += 1; else if (data.dow?.change_pct    < 0) score -= 1;
+  // Store so Nifty regime can add to it when market data arrives
+  window._globalBiasScore = score;
+  _updateBiasScore();
+}
+
+function _updateBiasScore() {
+  const globalScore = window._globalBiasScore || 0;
+  // Get nifty regime from DOM
+  const regimeText = document.getElementById("regimeVal")?.textContent || "";
+  let regimeScore = 0;
+  if (regimeText === "GREEN") regimeScore = 2;
+  else if (regimeText === "RED") regimeScore = -2;
+  // Sentiment from DOM
+  const sentText = document.getElementById("sentVal")?.textContent || "";
+  let sentScore = 0;
+  if (sentText.toLowerCase().includes("bullish")) sentScore = 1;
+  else if (sentText.toLowerCase().includes("bearish")) sentScore = -1;
+
+  const total = Math.max(-5, Math.min(5, globalScore + regimeScore + sentScore));
+  const bv = document.getElementById("biasVal");
+  const bs = document.getElementById("biasSub");
+  if (bv) {
+    bv.textContent = (total >= 0 ? "+" : "") + total;
+    bv.className   = `val ${total > 0 ? "up" : total < 0 ? "down" : "neutral"}`;
+  }
+  if (bs) {
+    const label = total >= 3 ? "Strong Bullish" : total >= 1 ? "Mild Bullish" : total === 0 ? "Neutral" : total >= -2 ? "Mild Bearish" : "Strong Bearish";
+    bs.textContent = label;
+  }
+}
+
+function renderFOBan(data) {
+  const banner = document.getElementById("foBanBanner");
+  const chips  = document.getElementById("foBanChips");
+  const syms   = data.symbols || [];
+  if (!syms.length) { banner.classList.remove("show"); return; }
+  banner.classList.add("show");
+  chips.innerHTML = syms.map(s => `<span class="ban-chip">${s}</span>`).join("");
 }
 
 function renderSummary(data) {
@@ -849,7 +1086,11 @@ function renderStockCard(s, i) {
         ${s.setup?`<span class="tag t-setup">${s.setup.replace(/_/g," ")}</span>`:""}
         ${rsi?`<span class="tag t-rsi" style="color:${rsiCol}">RSI ${rsi.toFixed(0)}</span>`:""}
         ${vol?`<span class="tag t-vol">${vol}</span>`:""}
+        ${s.near_52w_high?`<span class="tag t-52w" title="Within 5% of 52W High (${fmtP(s.high_52w)})">Near 52W High</span>`:""}
+        ${s.ema9_cross_ema21==="golden"?`<span class="tag t-golden">9/21 Cross ▲</span>`:""}
+        ${s.ema9_cross_ema21==="death" ?`<span class="tag t-death">9/21 Cross ▼</span>`:""}
         <button class="buy-btn" onclick="openBuyModal(${i})">+ Watchlist</button>
+        <button class="tv-btn" onclick="tvAddToWatchlist('NSE:${s.symbol}',this)" title="Add to TradingView watchlist">📺 TV</button>
       </div>
     </div>`;
 }
@@ -1111,9 +1352,12 @@ async function confirmBuy() {
   }
 }
 
-// Close modal on backdrop click
+// Close modals on backdrop click
 document.getElementById("buyModal").addEventListener("click", e => {
   if (e.target === document.getElementById("buyModal")) closeBuyModal();
+});
+document.getElementById("tvModal").addEventListener("click", e => {
+  if (e.target === document.getElementById("tvModal")) closeTVModal();
 });
 
 /* ── Add all stocks to positions ─────────────────────────── */
@@ -1148,7 +1392,198 @@ async function loadMarket() {
   try {
     const d = await apiFetch("/api/market");
     renderMarket(d);
+    _updateBiasScore();
   } catch { /* silent */ }
+}
+
+async function loadGlobal() {
+  if (!BASE) return;
+  try {
+    const d = await apiFetch("/api/global");
+    renderGlobal(d);
+  } catch { /* silent */ }
+}
+
+async function loadFOBan() {
+  if (!BASE) return;
+  try {
+    const d = await apiFetch("/api/fo-ban");
+    renderFOBan(d);
+  } catch { /* silent */ }
+}
+
+/* ── TradingView ─────────────────────────────────────────── */
+
+/* 1. Add to TV Watchlist (stock card button) */
+async function tvAddToWatchlist(symbol, btn) {
+  if (!BASE) { toast("Start the server first", "error"); return; }
+  btn.disabled = true;
+  btn.textContent = "…";
+  try {
+    const d = await apiFetch("/api/tv/watchlist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol }),
+    });
+    if (d.error) {
+      toast(`TV: ${d.error}`, "error");
+      btn.textContent = "📺 TV";
+    } else if (d.status === "already_in_watchlist") {
+      toast(`${symbol} already in TV watchlist`, "info", 2500);
+      btn.textContent = "✓ TV";
+    } else {
+      toast(`${symbol} added to TradingView watchlist`, "success", 3000);
+      btn.textContent = "✓ TV";
+    }
+  } catch (e) {
+    toast(`TV error: ${e.message}`, "error");
+    btn.textContent = "📺 TV";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* 2. TV Alerts panel */
+async function loadTVAlerts() {
+  if (!BASE) return;
+  const btn = document.getElementById("tvAlertsRefreshBtn");
+  if (btn) btn.classList.add("loading");
+  try {
+    const d = await apiFetch("/api/tv/alerts");
+    renderTVAlerts(d);
+  } catch (e) {
+    document.getElementById("tvAlertsWrap").innerHTML =
+      `<div style="padding:16px;text-align:center;color:var(--red);font-size:13px">Error: ${e.message}</div>`;
+  } finally {
+    if (btn) btn.classList.remove("loading");
+  }
+}
+
+function renderTVAlerts(data) {
+  const wrap = document.getElementById("tvAlertsWrap");
+  const pill = document.getElementById("tvAlertPill");
+  if (data.error) {
+    wrap.innerHTML = `<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">${data.error}</div>`;
+    if (pill) pill.textContent = "—";
+    return;
+  }
+  // TV returns {alerts: [...]} or [{...}, ...]
+  const alerts = Array.isArray(data) ? data : (data.alerts || data.data || []);
+  if (pill) pill.textContent = `${alerts.length} alert${alerts.length !== 1 ? "s" : ""}`;
+  if (!alerts.length) {
+    wrap.innerHTML = `<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">No active alerts on TradingView</div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="tv-alert-list">${alerts.map(a => {
+    const sym  = a.symbol || a.name || a.ticker || "—";
+    const desc = a.message || a.description || a.name || "";
+    const id   = a.id || a.alert_id || "";
+    return `<div class="tv-alert-item">
+      <span class="tv-alert-sym">${sym}</span>
+      <span class="tv-alert-desc" title="${desc}">${desc || "—"}</span>
+      ${id ? `<button class="tv-del-btn" onclick="tvDeleteAlert(${id},this)">✕ Delete</button>` : ""}
+    </div>`;
+  }).join("")}</div>`;
+}
+
+async function tvDeleteAlert(id, btn) {
+  btn.disabled = true;
+  btn.textContent = "…";
+  try {
+    const d = await apiFetch(`/api/tv/alert/${id}`, { method: "DELETE" });
+    if (d.error) { toast(`TV: ${d.error}`, "error"); btn.disabled = false; btn.textContent = "✕ Delete"; return; }
+    toast("Alert deleted", "success", 2000);
+    btn.closest(".tv-alert-item").remove();
+    // Update count pill
+    const remaining = document.querySelectorAll(".tv-alert-item").length;
+    const pill = document.getElementById("tvAlertPill");
+    if (pill) pill.textContent = `${remaining} alert${remaining !== 1 ? "s" : ""}`;
+  } catch (e) {
+    toast(`TV error: ${e.message}`, "error");
+    btn.disabled = false;
+    btn.textContent = "✕ Delete";
+  }
+}
+
+/* 3. TV Screener modal */
+function openTVModal() {
+  document.getElementById("tvModal").classList.add("open");
+  document.getElementById("tvScreenerResults").classList.remove("show");
+  document.getElementById("tvScreenerResults").innerHTML = "";
+}
+
+function closeTVModal() {
+  document.getElementById("tvModal").classList.remove("open");
+}
+
+async function runTVScreener() {
+  const btn = document.getElementById("tvScanBtn");
+  btn.disabled = true;
+  btn.textContent = "Scanning…";
+  const resDiv = document.getElementById("tvScreenerResults");
+  resDiv.classList.remove("show");
+
+  const market = document.getElementById("tvMarket").value;
+  const limit  = parseInt(document.getElementById("tvLimit").value) || 50;
+  const conds  = [];
+  if (document.getElementById("tvc_rsi").checked) {
+    const rMin = parseFloat(document.getElementById("tvc_rsi_min").value) || 40;
+    const rMax = parseFloat(document.getElementById("tvc_rsi_max").value) || 70;
+    conds.push({ indicator: "RSI", op: "between", value: [rMin, rMax] });
+  }
+  if (document.getElementById("tvc_ema").checked)
+    conds.push({ indicator: "close", op: "above", value: "EMA20" });
+  if (document.getElementById("tvc_ema_align").checked)
+    conds.push({ indicator: "EMA20", op: "above", value: "EMA50" });
+  if (document.getElementById("tvc_vol").checked)
+    conds.push({ indicator: "volume", op: "above", value: 1000000 });
+  if (document.getElementById("tvc_positive_day").checked)
+    conds.push({ indicator: "change", op: "above", value: 0 });
+
+  try {
+    const d = await apiFetch("/api/tv/screener", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ market, conditions: conds, limit }),
+    });
+    if (d.error) { toast(`TV Screener: ${d.error}`, "error"); return; }
+    renderTVScreenerResults(d, resDiv);
+  } catch (e) {
+    toast(`TV Screener error: ${e.message}`, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "📺 Run Screener";
+  }
+}
+
+function renderTVScreenerResults(data, container) {
+  const results = data.results || [];
+  container.classList.add("show");
+  if (!results.length) {
+    container.innerHTML = `<div style="color:var(--muted);font-size:13px;text-align:center;padding:12px">No results matched</div>`;
+    return;
+  }
+  container.innerHTML = `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
+      ${data.total || results.length} matches from TradingView
+    </div>
+    <table class="tv-result-table">
+      <thead><tr>
+        <th>Symbol</th><th>Price</th><th>Chg%</th><th>RSI</th><th>EMA20</th><th>Vol</th>
+      </tr></thead>
+      <tbody>${results.map(r => {
+        const chg = r.change || 0;
+        const cls = chg >= 0 ? "up" : "down";
+        return `<tr>
+          <td><b>${r.symbol || ""}</b><span class="tv-badge">TV</span><br><span style="font-size:10px;color:var(--muted)">${(r.description||"").substring(0,20)}</span></td>
+          <td>${r.close ? fmt(r.close, 2) : "—"}</td>
+          <td class="${cls}">${chg >= 0 ? "▲" : "▼"} ${Math.abs(chg).toFixed(2)}%</td>
+          <td>${r.RSI ? (+r.RSI).toFixed(0) : "—"}</td>
+          <td>${r.EMA20 ? fmt(+r.EMA20, 0) : "—"}</td>
+          <td style="color:var(--muted)">${r.volume ? fmtVol(r.volume) : "—"}</td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table>`;
 }
 
 /* ── Sector Pulse ────────────────────────────────────────── */
@@ -1250,6 +1685,9 @@ async function init() {
     } catch { /* no brief yet — that's fine */ }
 
     loadMarket();
+    loadGlobal();
+    loadFOBan();
+    loadTVAlerts();
     loadSectors();
     loadPositions();
     checkKiteStatus();
@@ -1258,6 +1696,8 @@ async function init() {
 
     // Refresh market + sectors every 5 minutes
     setInterval(loadMarket,    5 * 60 * 1000);
+    setInterval(loadGlobal,    5 * 60 * 1000);
+    setInterval(loadFOBan,    15 * 60 * 1000);
     setInterval(loadSectors,   5 * 60 * 1000);
     // Refresh watchlist (live P&L + alerts) every 2 minutes
     setInterval(loadPositions, 2 * 60 * 1000);

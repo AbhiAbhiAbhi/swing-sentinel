@@ -117,9 +117,119 @@ goodSetup     = inUptrend and pullbackZone
 bgcolor(goodSetup ? color.new(color.blue, 85) : na)`,
         },
       },
-      { id: "wl6", text: "Mark exact breakout level and stop-loss zone on each chart" },
-      { id: "wl7", text: "Set price alerts on TradingView / broker app" },
+      {
+        id: "wl6",
+        text: "Mark exact breakout level and stop-loss zone on each chart",
+        code: {
+          pine: `//@version=5
+indicator("S/R Zone Marker", overlay=true)
+
+// ── Set your levels (update per stock) ──────────────────────
+breakout_price = input.float(500, "Breakout Level (Entry)")
+sl_price       = input.float(480, "Stop-Loss Level")
+target1        = input.float(522, "Target 1 (1.5R)")
+target2        = input.float(540, "Target 2 (2R+)")
+
+// ── Draw key price levels ────────────────────────────────────
+hline(breakout_price, "Breakout",  color=color.new(color.lime,   0), linewidth=2)
+hline(sl_price,       "Stop Loss", color=color.new(color.red,    0), linewidth=2, linestyle=hline.style_dashed)
+hline(target1,        "T1",        color=color.new(color.yellow, 0), linewidth=1, linestyle=hline.style_dotted)
+hline(target2,        "T2",        color=color.new(color.green,  0), linewidth=1, linestyle=hline.style_dotted)
+
+// ── Colour the risk zone (SL → Entry) ───────────────────────
+bgcolor(close >= sl_price and close <= breakout_price
+  ? color.new(color.red, 93) : na, title="Risk Zone")
+
+// ── Risk math label ─────────────────────────────────────────
+risk_pct = (breakout_price - sl_price) / breakout_price * 100
+rr1      = (target1 - breakout_price) / (breakout_price - sl_price)
+rr2      = (target2 - breakout_price) / (breakout_price - sl_price)
+
+if barstate.islast
+    label.new(bar_index + 2, breakout_price,
+      "ENTRY ₹"  + str.tostring(breakout_price, "#.##") + "\\n" +
+      "SL    ₹"  + str.tostring(sl_price,       "#.##") + "\\n" +
+      "Risk   "  + str.tostring(risk_pct, "#.1") + "%" + "\\n" +
+      "T1 R:R 1:" + str.tostring(rr1, "#.1") + "\\n" +
+      "T2 R:R 1:" + str.tostring(rr2, "#.1"),
+      style=label.style_label_left, color=color.new(color.lime, 75),
+      textcolor=color.white, size=size.small)`,
+        },
+      },
+      {
+        id: "wl7",
+        text: "Set price alerts on TradingView / broker app",
+        code: {
+          pine: `//@version=5
+indicator("Alert Condition Templates", overlay=true)
+
+// ── 1) BREAKOUT ALERT ────────────────────────────────────────
+baseHigh = ta.highest(high, 20)[1]          // 20-bar high, excluding today
+volAvg   = ta.sma(volume, 20)
+breakout = close > baseHigh * 1.005 and volume > 1.5 * volAvg
+alertcondition(breakout, "Breakout Alert",
+  "{{ticker}} broke out above base on strong volume — check entry!")
+
+// ── 2) EMA 9/21 GOLDEN CROSS ────────────────────────────────
+ema9     = ta.ema(close, 9)
+ema21    = ta.ema(close, 21)
+emaCross = ta.crossover(ema9, ema21)
+alertcondition(emaCross, "9/21 EMA Cross Up",
+  "{{ticker}} EMA 9 crossed above EMA 21 — entry setup forming")
+
+// ── 3) RSI PULLBACK ENTRY ZONE ──────────────────────────────
+rsi      = ta.rsi(close, 14)
+ema50    = ta.ema(close, 50)
+pullback = ta.crossover(rsi, 40) and close > ema50
+alertcondition(pullback, "RSI Pullback Zone",
+  "{{ticker}} RSI re-entered 40-55 pullback zone above 50 EMA")
+
+// ── How to set in TradingView ────────────────────────────────
+// 1. Add this indicator to your chart
+// 2. Open Alerts: Alt+A → Create Alert
+// 3. Condition: pick this indicator → pick alert name
+// 4. Frequency: "Once Per Bar Close" ← crucial for swing trading
+// 5. Notifications: enable Email + Popup (or TV mobile app push)
+
+plot(baseHigh, "20D High", color=color.red,    style=plot.style_linebr)
+plot(ema9,     "EMA9",     color=color.aqua,   linewidth=1)
+plot(ema21,    "EMA21",    color=color.orange, linewidth=2)
+plotshape(breakout,  style=shape.triangleup, location=location.belowbar,
+  color=color.lime,   size=size.small, text="BO")
+plotshape(emaCross,  style=shape.triangleup, location=location.belowbar,
+  color=color.yellow, size=size.tiny,  text="X")`,
+          formula: `TradingView Alert Setup — Best Practices:
+
+FREQUENCY (most important setting):
+  Once Per Bar Close  →  Fires on confirmed DAILY close only  ← USE THIS
+  Once Per Bar        →  Fires on intraday ticks (very noisy — avoid)
+  Once Per Minute     →  For intraday only
+
+NSE-SPECIFIC FORMAT:
+  Symbol format: NSE:RELIANCE, NSE:INFY, NSE:HDFCBANK
+  Add 0.3–0.5% buffer above breakout to avoid false triggers
+  Set expiry: 30 days (free: 1 alert, Pro: 20, Pro+: 100)
+
+BROKER ALTERNATIVES (if TV alert quota is full):
+  Zerodha Kite  → GTT (Good Till Triggered) — works post-market
+  Groww         → Price alert in stock detail page
+  Sensibull     → Cash + options alerts with SMS / WhatsApp
+
+ALERT MESSAGE TEMPLATE:
+  {{ticker}} breakout above {{plot("20D High")}} | Vol: {{volume}}
+  RSI: {{plot("RSI")}} | Date: {{time}}`,
+        },
+      },
       { id: "wl8", text: "Shortlist 3–5 candidates max — don't overload watchlist" },
+      {
+        id: "wl9",
+        text: "Add shortlisted stocks to TradingView watchlist",
+        tvAction: {
+          type: "watchlist_add",
+          label: "ADD TO TV WATCHLIST",
+          placeholder: "NSE:RELIANCE",
+        },
+      },
     ],
   },
   {
@@ -243,6 +353,14 @@ Existing positions: tighten stops, book partials.`,
         },
       },
       { id: "pm7", text: "Re-check watchlist — still aligned with market direction?" },
+      {
+        id: "pm8",
+        text: "Review TradingView alerts — remove stale ones before market opens",
+        tvAction: {
+          type: "alerts_list",
+          label: "LIST TV ALERTS",
+        },
+      },
     ],
   },
   {
@@ -390,8 +508,69 @@ plotshape(bearDiv, style=shape.triangledown,
   text="DIV")`,
         },
       },
-      { id: "ca7", text: "Stock not in F&O ban list (NSE updates daily)" },
-      { id: "ca8", text: "No upcoming results / dividend / ex-date within 5 days" },
+      {
+        id: "ca7",
+        text: "Stock not in F&O ban list (NSE updates daily)",
+        code: {
+          formula: `How to check NSE F&O ban list (takes 30 seconds):
+
+DAILY LINK:
+  nseindia.com/market-data/securities-in-ban-period
+  Updated every morning by 9:00 AM IST. Download CSV or scan table.
+
+WHAT THE BAN MEANS:
+  A stock enters ban when its Market-Wide Position Limit (MWPL)
+  utilisation exceeds 95%.  It exits ban when MWPL falls below 80%.
+
+  During ban period:
+    ✗  No new F&O positions can be OPENED
+    ✓  Existing F&O positions can be CLOSED only
+    ✓  Cash-market (equity) buying/selling is NOT restricted
+
+WHY SKIP FOR SWING TRADES:
+  1) Highly speculative / crowded — chart patterns unreliable
+  2) F&O-driven price action causes sudden gap reversals
+  3) Short-covering / unwinding spikes can stop you out immediately
+  4) Spreads widen — poor fills on cash-market entries too
+
+RULE: If stock is in today's ban list → SKIP for this session.
+Even if the chart looks perfect. No exceptions.`,
+        },
+      },
+      {
+        id: "ca8",
+        text: "No upcoming results / dividend / ex-date within 5 days",
+        code: {
+          formula: `Where to check upcoming corporate events:
+
+NSE CORPORATE ACTIONS:
+  nseindia.com/companies-listing/corporate-filings/corporate-actions
+  Filter by Ex-Date / Record Date. Export CSV for your watchlist.
+
+SCREENER.IN:
+  screener.in → search stock → scroll to "Quarters" section
+  Upcoming announcement dates shown when declared by company.
+
+TRADINGVIEW:
+  On daily chart: toggle the "E" icon on the price axis timeline
+  to see earnings event markers. Hover for dates.
+  (Coverage for Indian stocks is partial — verify on NSE)
+
+EVENT TYPES — SKIP if within 5 trading days:
+  ✗  Quarterly results announcement
+     Price can gap ±5-15% — risk is undefined before entry
+  ✗  Dividend ex-date
+     Stock drops ~dividend amount on ex-date (guaranteed gap-down)
+  ✗  Bonus / stock split record date
+     Price adjustments cause whipsaws in chart patterns
+  ✗  AGM / EGM
+     Risk of bad-news announcements (pledging, delisting)
+
+EXCEPTION (may hold EXISTING profitable positions through):
+  ✓  Already hit T1, stop moved to breakeven → worst case = 0
+  But NEVER open a fresh position within 5 days of results.`,
+        },
+      },
     ],
   },
   {
@@ -905,6 +1084,198 @@ Example:
   },
 ];
 
+// ---------- TradingView live integration ----------
+const API_BASE =
+  typeof window !== "undefined" && window.location.hostname !== "localhost"
+    ? "http://localhost:5000"
+    : window.location.origin;
+
+async function tvFetch(path, opts = {}) {
+  const r = await fetch(`${API_BASE}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...opts,
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+  return data;
+}
+
+function TVActionPanel({ action, color }) {
+  const [state, setState] = useState("idle");
+  const [result, setResult] = useState(null);
+  const [inputVal, setInputVal] = useState("");
+
+  const run = async () => {
+    setState("loading");
+    setResult(null);
+    try {
+      let data;
+      if (action.type === "watchlist_add") {
+        const sym = inputVal.trim().toUpperCase();
+        if (!sym) { setState("idle"); return; }
+        data = await tvFetch("/api/tv/watchlist", {
+          method: "POST",
+          body: JSON.stringify({ symbol: sym }),
+        });
+      } else if (action.type === "alerts_list") {
+        data = await tvFetch("/api/tv/alerts");
+      }
+      setResult(data);
+      setState("done");
+    } catch (e) {
+      setResult({ error: e.message });
+      setState("error");
+    }
+  };
+
+  const deleteAlert = async (id) => {
+    try {
+      await tvFetch(`/api/tv/alert/${id}`, { method: "DELETE" });
+      setResult((prev) => {
+        const arr = prev?.alert ?? prev?.alerts ?? (Array.isArray(prev) ? prev : []);
+        const filtered = arr.filter((a) => a.id !== id);
+        return Array.isArray(prev) ? filtered : { ...prev, alert: filtered };
+      });
+    } catch (e) {
+      alert("Delete failed: " + e.message);
+    }
+  };
+
+  const btnColor =
+    state === "error" ? "#EF4444" : state === "done" ? "#10B981" : color;
+
+  const alerts =
+    result?.alert ?? result?.alerts ?? (Array.isArray(result) ? result : null);
+
+  return (
+    <div onClick={(e) => e.stopPropagation()} style={{ marginTop: "12px" }}>
+      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+        {action.type === "watchlist_add" && (
+          <input
+            value={inputVal}
+            onChange={(e) => setInputVal(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && run()}
+            placeholder={action.placeholder || "NSE:SYMBOL"}
+            style={{
+              background: "#0D0D18",
+              border: "1px solid #2D2D45",
+              color: "#E2E8F0",
+              padding: "6px 12px",
+              borderRadius: "4px",
+              fontSize: "12px",
+              fontFamily: "inherit",
+              width: "180px",
+            }}
+          />
+        )}
+        <button
+          onClick={run}
+          disabled={state === "loading"}
+          style={{
+            background: btnColor + "22",
+            border: `1px solid ${btnColor}55`,
+            color: btnColor,
+            padding: "6px 14px",
+            borderRadius: "4px",
+            cursor: state === "loading" ? "wait" : "pointer",
+            fontSize: "11px",
+            letterSpacing: "1px",
+            fontFamily: "inherit",
+            transition: "all 0.2s",
+          }}
+        >
+          {state === "loading" ? "…" : state === "done" ? "✓ DONE" : state === "error" ? "✗ ERROR" : action.label}
+        </button>
+        {state !== "idle" && state !== "loading" && (
+          <button
+            onClick={() => { setState("idle"); setResult(null); }}
+            style={{
+              background: "transparent",
+              border: "1px solid #2D2D45",
+              color: "#64748B",
+              padding: "4px 8px",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "10px",
+              fontFamily: "inherit",
+            }}
+          >
+            CLEAR
+          </button>
+        )}
+      </div>
+
+      {result && (
+        <div style={{
+          marginTop: "10px",
+          background: "#08080F",
+          border: "1px solid #1E2035",
+          borderRadius: "6px",
+          padding: "12px 14px",
+          fontSize: "11px",
+          maxHeight: "280px",
+          overflowY: "auto",
+        }}>
+          {result.error ? (
+            <div style={{ color: "#EF4444" }}>
+              {result.error}
+              {result.error.includes("TV_SESSION") && (
+                <div style={{ color: "#64748B", marginTop: "6px" }}>
+                  Set TV_SESSION in your .env file (DevTools → Application →
+                  Cookies → tradingview.com → sessionid).
+                </div>
+              )}
+            </div>
+          ) : action.type === "alerts_list" && alerts ? (
+            <div>
+              <div style={{ color: "#64748B", marginBottom: "8px" }}>
+                {alerts.length} active alert{alerts.length !== 1 ? "s" : ""}
+              </div>
+              {alerts.length === 0 ? (
+                <div style={{ color: "#475569" }}>No active alerts found.</div>
+              ) : alerts.map((a) => (
+                <div key={a.id} style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "5px 0",
+                  borderBottom: "1px solid #1E2035",
+                }}>
+                  <span style={{ color: "#CBD5E1", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span style={{ color: "#475569", marginRight: "6px" }}>#{a.id}</span>
+                    {a.name || a.symbol || JSON.stringify(a).slice(0, 60)}
+                  </span>
+                  <button
+                    onClick={() => deleteAlert(a.id)}
+                    style={{
+                      background: "transparent",
+                      border: "1px solid #EF444455",
+                      color: "#EF4444",
+                      padding: "2px 8px",
+                      borderRadius: "3px",
+                      cursor: "pointer",
+                      fontSize: "10px",
+                      fontFamily: "inherit",
+                      marginLeft: "8px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    DEL
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <pre style={{ margin: 0, color: "#94A3B8", whiteSpace: "pre-wrap", overflowX: "auto" }}>
+              {JSON.stringify(result, null, 2)}
+            </pre>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------- Code block component ----------
 function CodeBlock({ code, color }) {
   const tabs = [];
@@ -1020,12 +1391,17 @@ function CodeBlock({ code, color }) {
 export default function SwingTradingChecklist() {
   const [checked, setChecked] = useState({});
   const [expanded, setExpanded] = useState({});
+  const [tvExpanded, setTvExpanded] = useState({});
   const [activeSection, setActiveSection] = useState("watchlist");
 
   const toggle = (id) => setChecked((prev) => ({ ...prev, [id]: !prev[id] }));
   const toggleExpand = (id, e) => {
     e.stopPropagation();
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+  const toggleTV = (id, e) => {
+    e.stopPropagation();
+    setTvExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const totalItems = sections.reduce((acc, s) => acc + s.items.length, 0);
@@ -1037,7 +1413,7 @@ export default function SwingTradingChecklist() {
     return Math.round((done / section.items.length) * 100);
   };
 
-  const resetAll = () => { setChecked({}); setExpanded({}); };
+  const resetAll = () => { setChecked({}); setExpanded({}); setTvExpanded({}); };
 
   const active = sections.find((s) => s.id === activeSection);
 
@@ -1239,6 +1615,8 @@ export default function SwingTradingChecklist() {
                   const isDone = !!checked[item.id];
                   const isExpanded = !!expanded[item.id];
                   const hasCode = !!item.code;
+                  const hasTVAction = !!item.tvAction;
+                  const isTVExpanded = !!tvExpanded[item.id];
                   return (
                     <div
                       key={item.id}
@@ -1291,31 +1669,58 @@ export default function SwingTradingChecklist() {
                           {item.text}
                         </span>
 
-                        {hasCode && (
-                          <button
-                            onClick={(e) => toggleExpand(item.id, e)}
-                            style={{
-                              background: isExpanded ? active.color + "22" : "transparent",
-                              border: `1px solid ${isExpanded ? active.color + "66" : "#2D2D45"}`,
-                              color: isExpanded ? active.color : "#94A3B8",
-                              padding: "4px 10px",
-                              fontSize: "10px",
-                              letterSpacing: "1px",
-                              cursor: "pointer",
-                              borderRadius: "4px",
-                              fontFamily: "inherit",
-                              whiteSpace: "nowrap",
-                              transition: "all 0.2s",
-                            }}
-                          >
-                            {isExpanded ? "▼ HIDE" : "</> CODE"}
-                          </button>
-                        )}
+                        <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                          {hasCode && (
+                            <button
+                              onClick={(e) => toggleExpand(item.id, e)}
+                              style={{
+                                background: isExpanded ? active.color + "22" : "transparent",
+                                border: `1px solid ${isExpanded ? active.color + "66" : "#2D2D45"}`,
+                                color: isExpanded ? active.color : "#94A3B8",
+                                padding: "4px 10px",
+                                fontSize: "10px",
+                                letterSpacing: "1px",
+                                cursor: "pointer",
+                                borderRadius: "4px",
+                                fontFamily: "inherit",
+                                whiteSpace: "nowrap",
+                                transition: "all 0.2s",
+                              }}
+                            >
+                              {isExpanded ? "▼ HIDE" : "</> CODE"}
+                            </button>
+                          )}
+                          {hasTVAction && (
+                            <button
+                              onClick={(e) => toggleTV(item.id, e)}
+                              style={{
+                                background: isTVExpanded ? "#6366F122" : "transparent",
+                                border: `1px solid ${isTVExpanded ? "#6366F166" : "#2D2D45"}`,
+                                color: isTVExpanded ? "#A5B4FC" : "#64748B",
+                                padding: "4px 10px",
+                                fontSize: "10px",
+                                letterSpacing: "1px",
+                                cursor: "pointer",
+                                borderRadius: "4px",
+                                fontFamily: "inherit",
+                                whiteSpace: "nowrap",
+                                transition: "all 0.2s",
+                              }}
+                            >
+                              {isTVExpanded ? "▼ TV" : "▶ TV LIVE"}
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {hasCode && isExpanded && (
                         <div style={{ padding: "0 18px 16px 18px" }}>
                           <CodeBlock code={item.code} color={active.color} />
+                        </div>
+                      )}
+                      {hasTVAction && isTVExpanded && (
+                        <div style={{ padding: "0 18px 16px 18px" }}>
+                          <TVActionPanel action={item.tvAction} color={active.color} />
                         </div>
                       )}
                     </div>

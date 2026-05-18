@@ -3,11 +3,13 @@ Swing Sentinel — Local Server
 Run : python server.py
 Open: http://localhost:5000
 """
-import csv
 import json
 import logging
 import os
 from datetime import datetime
+
+# Resolve paths relative to the project root (one level up from core/)
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 import requests as _requests
 from flask import Flask, jsonify, redirect, request, send_from_directory
@@ -22,7 +24,7 @@ except ImportError:
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__, static_folder="dashboard")
+app = Flask(__name__, static_folder=os.path.join(_ROOT, "dashboard"))
 
 # ── Telegram ──────────────────────────────────────────────────────────────────
 
@@ -82,6 +84,7 @@ try:
     from core.chartink_fetcher import fetch_chartink_stocks
     from core.data_fetcher import (
         fetch_fii_dii_flow,
+        fetch_global_markets,
         fetch_nifty_levels,
         fetch_prices_bulk,
         fetch_stock_technicals,
@@ -91,6 +94,7 @@ except ImportError:
     from core_chartink_fetcher import fetch_chartink_stocks
     from core_data_fetcher import (
         fetch_fii_dii_flow,
+        fetch_global_markets,
         fetch_nifty_levels,
         fetch_prices_bulk,
         fetch_stock_technicals,
@@ -103,7 +107,17 @@ except ImportError:
 @app.route("/")
 def index():
     """Serve the dashboard with no-cache headers so the browser can't pin a stale build."""
-    resp = send_from_directory("dashboard", "swing_agent_app.html")
+    resp = send_from_directory(os.path.join(_ROOT, "dashboard"), "swing_agent_app.html")
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"]        = "no-cache"
+    resp.headers["Expires"]       = "0"
+    return resp
+
+
+@app.route("/checklist")
+def checklist():
+    """Serve the interactive swing-trading checklist."""
+    resp = send_from_directory(os.path.join(_ROOT, "dashboard"), "checklist.html")
     resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     resp.headers["Pragma"]        = "no-cache"
     resp.headers["Expires"]       = "0"
@@ -176,6 +190,39 @@ def api_market():
     except Exception as exc:
         logger.error("[market] %s", exc)
         return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route("/api/global")
+def api_global():
+    """US indices + USD/INR with 5-min cache."""
+    try:
+        return jsonify({"status": "ok", **fetch_global_markets()})
+    except Exception as exc:
+        logger.error("[global] %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route("/api/fo-ban")
+def api_fo_ban():
+    """NSE F&O securities currently in ban period (scrapes NSE website)."""
+    try:
+        r = _requests.get(
+            "https://www.nseindia.com/api/fo-banlist",
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "application/json",
+                "Referer": "https://www.nseindia.com/",
+            },
+            timeout=10,
+        )
+        r.raise_for_status()
+        data = r.json()
+        # NSE returns {"data": [{"symbol": "X", ...}, ...]}
+        symbols = [item.get("symbol", "") for item in data.get("data", []) if item.get("symbol")]
+        return jsonify({"status": "ok", "count": len(symbols), "symbols": symbols})
+    except Exception as exc:
+        logger.warning("[fo-ban] %s", exc)
+        return jsonify({"status": "error", "count": 0, "symbols": [], "message": str(exc)})
 
 
 @app.route("/api/news")
@@ -311,6 +358,11 @@ def api_scan():
                     "setup":      plan.get("setup_type", "—"),
                     "sector":     get_sector(symbol),
                     "verdict":    "entry",
+                    # checklist-derived tags
+                    "near_52w_high":    tech.get("near_52w_high", False),
+                    "dist_52w_pct":     tech.get("dist_52w_pct", 0),
+                    "ema9_cross_ema21": tech.get("ema9_cross_ema21", "none"),
+                    "high_52w":         tech.get("high_52w", 0),
                 })
             except Exception as exc:
                 logger.warning("[scan] %s skipped: %s", symbol, exc)
@@ -350,7 +402,7 @@ def api_telegram_test():
 def api_brief_latest():
     """Return today's saved scan result (fast, no external calls)."""
     today = _now_date()
-    path  = f"data/daily_briefs/{today}.json"
+    path  = os.path.join(_ROOT, "data", "daily_briefs", f"{today}.json")
     if os.path.exists(path):
         with open(path) as f:
             return jsonify({"found": True, "data": json.load(f)})
@@ -401,8 +453,8 @@ def api_positions_add():
         if not data or not data.get("symbol"):
             return jsonify({"status": "error", "message": "symbol required"}), 400
 
-        path = "data/positions.csv"
-        os.makedirs("data", exist_ok=True)
+        path = os.path.join(_ROOT, "data", "positions.csv")
+        os.makedirs(os.path.join(_ROOT, "data"), exist_ok=True)
 
         row = {
             "Symbol":       data["symbol"],
@@ -452,8 +504,8 @@ def api_positions_add_all():
         if not stocks:
             return jsonify({"status": "error", "message": "no stocks provided"}), 400
 
-        path = "data/positions.csv"
-        os.makedirs("data", exist_ok=True)
+        path = os.path.join(_ROOT, "data", "positions.csv")
+        os.makedirs(os.path.join(_ROOT, "data"), exist_ok=True)
 
         rows = []
         for s in stocks:
@@ -510,10 +562,10 @@ def api_positions():
 @app.route("/data/backtest_results.json")
 def api_backtest():
     """Serve the JSON file produced by `python backtest.py`."""
-    path = "data/backtest_results.json"
+    path = os.path.join(_ROOT, "data", "backtest_results.json")
     if not os.path.exists(path):
         return jsonify({"error": "Run `python backtest.py` to generate."}), 404
-    return send_from_directory("data", "backtest_results.json")
+    return send_from_directory(os.path.join(_ROOT, "data"), "backtest_results.json")
 
 
 @app.route("/api/results")
@@ -524,7 +576,7 @@ def api_results():
       - Open trades drive live unrealized P&L + active counts
       - by_setup breaks down both
     """
-    path = "data/positions.csv"
+    path = os.path.join(_ROOT, "data", "positions.csv")
     if not os.path.exists(path):
         return jsonify(_empty_results())
     try:
@@ -751,6 +803,193 @@ def api_results():
         return jsonify({**_empty_results(), "error": str(exc)})
 
 
+# ── TradingView proxy ────────────────────────────────────────────────────────
+_TV_BASE    = "https://www.tradingview.com"
+_TV_SCANNER = "https://scanner.tradingview.com"
+
+def _tv_h(extra: dict | None = None) -> dict:
+    h = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Origin":  _TV_BASE,
+        "Referer": _TV_BASE + "/",
+    }
+    sess = os.getenv("TV_SESSION", "").strip()
+    if sess:
+        h["Cookie"] = f"sessionid={sess}"
+    if extra:
+        h.update(extra)
+    return h
+
+
+def _tv_csrf() -> str:
+    try:
+        r = _requests.get(_TV_BASE + "/", headers=_tv_h(), timeout=10)
+        for k, v in r.cookies.items():
+            if "csrf" in k.lower():
+                return v
+    except Exception:
+        pass
+    return ""
+
+
+@app.route("/api/tv/alerts")
+def api_tv_alerts():
+    """List active TradingView alerts for the authenticated user."""
+    if not os.getenv("TV_SESSION", "").strip():
+        return jsonify({"error": "TV_SESSION not set in .env"}), 401
+    try:
+        r = _requests.get(
+            f"{_TV_BASE}/api/v1/alerts/",
+            headers=_tv_h({"Accept": "application/json"}),
+            timeout=15,
+        )
+        r.raise_for_status()
+        return jsonify(r.json())
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/tv/alert/<int:alert_id>", methods=["DELETE"])
+def api_tv_delete_alert(alert_id):
+    """Delete a TradingView alert by ID."""
+    if not os.getenv("TV_SESSION", "").strip():
+        return jsonify({"error": "TV_SESSION not set in .env"}), 401
+    csrf = _tv_csrf()
+    try:
+        r = _requests.delete(
+            f"{_TV_BASE}/api/v1/alerts/{alert_id}/",
+            headers=_tv_h({"X-CSRFToken": csrf, "Referer": f"{_TV_BASE}/chart/"}),
+            timeout=15,
+        )
+        r.raise_for_status()
+        return jsonify({"status": "deleted", "alert_id": alert_id})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/tv/watchlist", methods=["GET", "POST"])
+def api_tv_watchlist():
+    """GET: list TV watchlists. POST {symbol}: add symbol to default watchlist."""
+    if not os.getenv("TV_SESSION", "").strip():
+        return jsonify({"error": "TV_SESSION not set in .env"}), 401
+
+    if request.method == "GET":
+        try:
+            r = _requests.get(
+                f"{_TV_BASE}/api/v1/symbols_list/custom/",
+                headers=_tv_h({"Accept": "application/json"}),
+                timeout=15,
+            )
+            r.raise_for_status()
+            return jsonify(r.json())
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+
+    # POST — add a symbol
+    body   = request.get_json(force=True, silent=True) or {}
+    symbol = body.get("symbol", "").strip().upper()
+    wl_id  = body.get("watchlist_id", "")
+    if not symbol:
+        return jsonify({"error": "symbol required"}), 400
+    try:
+        if not wl_id:
+            r = _requests.get(
+                f"{_TV_BASE}/api/v1/symbols_list/custom/",
+                headers=_tv_h({"Accept": "application/json"}),
+                timeout=15,
+            )
+            r.raise_for_status()
+            lists = r.json()
+            arr = lists if isinstance(lists, list) else lists.get("data", lists.get("results", []))
+            if not arr:
+                return jsonify({"error": "No watchlists found. Create one on TradingView first."}), 404
+            wl_id = str(arr[0].get("id", ""))
+
+        csrf = _tv_csrf()
+        r = _requests.get(
+            f"{_TV_BASE}/api/v1/symbols_list/custom/{wl_id}/",
+            headers=_tv_h({"Accept": "application/json"}),
+            timeout=15,
+        )
+        r.raise_for_status()
+        current = r.json()
+        syms = current.get("symbols", []) if isinstance(current, dict) else []
+        if symbol in syms:
+            return jsonify({"status": "already_in_watchlist", "symbol": symbol})
+        syms.append(symbol)
+        put_r = _requests.put(
+            f"{_TV_BASE}/api/v1/symbols_list/custom/{wl_id}/",
+            json={"symbols": syms},
+            headers=_tv_h({
+                "Content-Type": "application/json",
+                "X-CSRFToken":  csrf,
+                "Referer":      f"{_TV_BASE}/chart/",
+            }),
+            timeout=15,
+        )
+        put_r.raise_for_status()
+        return jsonify({"status": "added", "symbol": symbol, "watchlist_id": wl_id, "total": len(syms)})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/tv/screener", methods=["POST"])
+def api_tv_screener():
+    """Run TradingView screener with conditions. No auth required."""
+    body   = request.get_json(force=True, silent=True) or {}
+    market = body.get("market", "india")
+    conds  = body.get("conditions", [])
+    limit  = min(int(body.get("limit", 50)), 200)
+
+    _mkts = {
+        "india": "india", "nse": "india", "bse": "india",
+        "us": "america", "usa": "america",
+    }
+    _ops = {
+        "above": "greater", ">": "greater",
+        "below": "less",    "<": "less",
+        "equal": "equal",   "between": "in_range",
+        "cross_above": "crosses_above", "cross_below": "crosses_below",
+    }
+    tv_filters = [
+        {"left": c.get("indicator", ""), "operation": _ops.get(str(c.get("op", "above")).lower(), "greater"), "right": c.get("value")}
+        for c in conds
+    ]
+    columns = ["name", "description", "close", "volume", "change", "RSI", "EMA20", "EMA50", "EMA200", "market_cap_basic", "sector"]
+    payload = {
+        "filter":  tv_filters,
+        "columns": columns,
+        "sort":    {"sortBy": "volume", "sortOrder": "desc"},
+        "range":   [0, limit],
+    }
+    try:
+        r = _requests.post(
+            f"{_TV_SCANNER}/{_mkts.get(market.lower(), 'india')}/scan",
+            json=payload,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Origin":  _TV_BASE,
+                "Referer": _TV_BASE + "/",
+            },
+            timeout=20,
+        )
+        r.raise_for_status()
+        data = r.json()
+        rows = []
+        for item in data.get("data", []):
+            row = {"symbol": item.get("s", "")}
+            for i, col in enumerate(columns):
+                row[col] = item["d"][i] if i < len(item.get("d", [])) else None
+            rows.append(row)
+        return jsonify({"total": data.get("totalCount", len(rows)), "results": rows})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 def _empty_results():
     return {
         "total": 0, "open": 0, "closed": 0,
@@ -772,7 +1011,7 @@ def check_positions_and_notify() -> list:
       - GET /api/positions (on-demand from dashboard)
       - Background scheduler (every minute during market hours)
     """
-    path = "data/positions.csv"
+    path = os.path.join(_ROOT, "data", "positions.csv")
     if not os.path.exists(path):
         return []
 
@@ -795,6 +1034,10 @@ def check_positions_and_notify() -> list:
     today_str = _now_date()
     csv_dirty = False
     positions = []
+    # Buffer alerts and only send them AFTER the CSV write succeeds — otherwise
+    # a locked/unwritable positions.csv (Excel, OneDrive sync) would let Telegram
+    # fire every poll cycle while the notified-flag never persists.
+    pending_alerts: list[str] = []
 
     # ── Bulk-fetch live prices for all OPEN positions (one yfinance call) ──
     open_symbols = (
@@ -854,7 +1097,7 @@ def check_positions_and_notify() -> list:
         # ── Entry alert always fires independently ───────────────────────
         entry_done = _truthy(pos.get("Entry_Notified"))
         if entry_hit and not entry_done:
-            _tg_send(
+            pending_alerts.append(
                 f"🎯 <b>ENTRY READY — {sym}</b>\n"
                 f"{name}\n"
                 f"Now ₹{cur:.2f} (entry zone ≈ ₹{ep:.2f})\n"
@@ -874,7 +1117,7 @@ def check_positions_and_notify() -> list:
             continue
 
         if t1_hit and not _truthy(pos.get("T1_Notified")):
-            _tg_send(
+            pending_alerts.append(
                 f"🟡 <b>T1 HIT — {sym}</b>\n"
                 f"{name}\n"
                 f"Entry ₹{ep:.2f} → Now ₹{cur:.2f} (+{pct}%)\n"
@@ -888,7 +1131,7 @@ def check_positions_and_notify() -> list:
             csv_dirty = True
 
         if t2_hit and not _truthy(pos.get("T2_Notified")):
-            _tg_send(
+            pending_alerts.append(
                 f"🟢 <b>T2 HIT — {sym}</b>\n"
                 f"{name}\n"
                 f"Entry ₹{ep:.2f} → Now ₹{cur:.2f} (+{pct}%)\n"
@@ -903,7 +1146,7 @@ def check_positions_and_notify() -> list:
             csv_dirty = True
 
         if sl_hit and not _truthy(pos.get("SL_Notified")):
-            _tg_send(
+            pending_alerts.append(
                 f"🔴 <b>SL HIT — {sym}</b>\n"
                 f"{name}\n"
                 f"Entry ₹{ep:.2f} → Now ₹{cur:.2f} ({pct:+}%)\n"
@@ -919,8 +1162,16 @@ def check_positions_and_notify() -> list:
 
         positions.append(pos)
 
+    # Persist state BEFORE firing Telegram. If the write raises (e.g., the file
+    # is locked by Excel or OneDrive), the exception propagates, no alerts go
+    # out, and the next poll retries — preventing the per-minute alert spam.
     if csv_dirty:
-        df.to_csv(path, index=False)
+        tmp_path = f"{path}.tmp"
+        df.to_csv(tmp_path, index=False)
+        os.replace(tmp_path, path)
+
+    for msg in pending_alerts:
+        _tg_send(msg)
 
     return positions
 
@@ -1034,13 +1285,14 @@ def _write_gtt_id(csv_path: str, symbol: str, gtt_id: int):
 
 
 def _persist(result: dict):
-    os.makedirs("data/daily_briefs", exist_ok=True)
-    with open(f"data/daily_briefs/{result['date']}.json", "w") as f:
+    _briefs = os.path.join(_ROOT, "data", "daily_briefs")
+    os.makedirs(_briefs, exist_ok=True)
+    with open(os.path.join(_briefs, f"{result['date']}.json"), "w") as f:
         json.dump(result, f, indent=2)
 
 
 def _load_latest_brief():
-    folder = "data/daily_briefs"
+    folder = os.path.join(_ROOT, "data", "daily_briefs")
     if not os.path.exists(folder):
         return None
     files = sorted([f for f in os.listdir(folder) if f.endswith(".json")], reverse=True)
@@ -1102,9 +1354,12 @@ def _start_scheduler():
 if __name__ == "__main__":
     print("\n=== Swing Sentinel - Local Server ===")
     print("  Dashboard : http://localhost:5000")
+    print("  Checklist : http://localhost:5000/checklist")
     print("  Scan API  : POST /api/scan")
     print("  Market    : GET  /api/market")
     print("  Positions : GET  /api/positions")
+    print("  TV Alerts : GET  /api/tv/alerts")
+    print("  TV Watch  : GET  /api/tv/watchlist")
     print("  Poller    : every 1 min during market hours")
     print("=" * 38 + "\n")
     _start_scheduler()

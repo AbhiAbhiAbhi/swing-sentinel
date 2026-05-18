@@ -15,7 +15,7 @@ Conservative thresholds (block obvious risks, don't over-prune):
   - Sector index below its EMA20          → skip (weak sector)
 """
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
