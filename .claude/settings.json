@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "tradingview": {
+      "command": "python",
+      "args": ["mcp_tradingview/server.py"],
+      "env": {
+        "TV_USERNAME": "sufficientHunt88897",
+        "TV_SESSION": "",
+        "TV_PASSWORD": "",
+        "TV_HEADLESS": "true"
+      }
+    }
+  }
+}
