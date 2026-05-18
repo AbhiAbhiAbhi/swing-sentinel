@@ -215,6 +215,99 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .pos-table tr.t2-reached td{background:rgba(63,185,80,.06)}
 .pos-table tr.t1-reached td{background:rgba(210,153,34,.06)}
 
+/* ── Filter Panel ───────────────────────────────────────── */
+#filterPanel{background:var(--surface);border-bottom:1px solid var(--border);display:none}
+#filterPanel.open{display:block}
+.filter-inner{max-width:1400px;margin:0 auto;padding:16px 24px}
+.filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:14px}
+.filter-group-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);margin-bottom:10px}
+.frow{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(48,54,61,.5)}
+.frow:last-child{border:none}
+.flbl{font-size:12px;color:var(--text);flex:1}
+.flbl small{color:var(--muted);font-size:10px;display:block;margin-top:1px}
+.f-inp{background:var(--card);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-size:12px;font-weight:600;width:68px;text-align:right}
+.f-inp:focus{outline:none;border-color:var(--blue)}
+.f-inp-wide{width:90px}
+.f-range{display:flex;align-items:center;gap:4px}
+.f-range span{color:var(--muted);font-size:11px}
+.f-check{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;color:var(--text);user-select:none}
+.f-check input[type=checkbox]{cursor:pointer;accent-color:var(--green);width:14px;height:14px;flex-shrink:0}
+.filter-foot{display:flex;align-items:center;gap:8px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}
+.filter-foot label{font-size:11px;color:var(--muted);white-space:nowrap}
+.f-preset-sel{background:var(--card);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:5px;font-size:12px;cursor:pointer}
+.f-preset-sel:focus{outline:none;border-color:var(--blue)}
+.f-preset-inp{background:var(--card);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:5px;font-size:12px;width:130px}
+.f-preset-inp:focus{outline:none;border-color:var(--blue)}
+.f-btn{border:none;padding:5px 12px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer}
+.f-btn-save{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue)!important}
+.f-btn-reset{background:var(--card);color:var(--muted);border:1px solid var(--border)!important}
+.f-btn-del{background:var(--red-bg);color:var(--red);border:1px solid var(--red)!important}
+.f-dirty-badge{display:none;background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow);border-radius:10px;font-size:10px;font-weight:700;padding:2px 8px;white-space:nowrap}
+.f-dirty-badge.show{display:inline-block}
+
+/* filter toggle button in header */
+#filterToggleBtn{display:flex;align-items:center;gap:6px;background:var(--card);color:var(--muted);border:1px solid var(--border);border-radius:7px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+#filterToggleBtn:hover{border-color:var(--border-hi);color:var(--text)}
+#filterToggleBtn.active{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
+#filterToggleBtn .f-dot{width:7px;height:7px;border-radius:50%;background:var(--yellow);display:none;flex-shrink:0}
+#filterToggleBtn .f-dot.show{display:block}
+
+/* ── Pre-Market News ───────────────────────────────────── */
+.news-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:18px}
+.news-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.news-tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:3px}
+.news-tabs button{background:transparent;border:none;color:var(--muted);padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+.news-tabs button.active{background:var(--surface);color:var(--text)}
+.news-tabs button:hover:not(.active){color:var(--text)}
+.news-trend{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:18px;border:1px solid var(--border);background:var(--card)}
+.news-trend.positive{color:var(--green);border-color:var(--green);background:var(--green-bg)}
+.news-trend.negative{color:var(--red);border-color:var(--red);background:var(--red-bg)}
+.news-trend.neutral {color:var(--yellow);border-color:var(--yellow);background:var(--yellow-bg)}
+.news-trend .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.news-bar{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--card);margin:0 14px 10px 14px}
+.news-bar .seg-p{background:var(--green)}
+.news-bar .seg-n{background:var(--red)}
+.news-bar .seg-u{background:var(--muted)}
+.news-meta{font-size:11px;color:var(--muted);padding:0 14px 8px 14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.news-body{max-height:540px;overflow-y:auto;padding:6px 14px 14px 14px}
+.news-empty{padding:24px 12px;text-align:center;color:var(--muted);font-size:13px}
+.news-bucket{margin-bottom:14px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--card)}
+.news-bucket-head{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+.news-bucket-head .name{font-size:12px;font-weight:700;letter-spacing:.4px;display:flex;align-items:center;gap:8px}
+.news-bucket-head .meta{font-size:11px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.news-bucket-head .caret{color:var(--muted);font-size:10px;transition:transform .2s}
+.news-bucket.collapsed .caret{transform:rotate(-90deg)}
+.news-bucket.collapsed .news-items{display:none}
+.news-items{display:flex;flex-direction:column}
+.news-item{display:flex;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);align-items:flex-start}
+.news-item:last-child{border:none}
+.news-item:hover{background:rgba(255,255,255,.02)}
+.news-sent{flex-shrink:0;width:6px;align-self:stretch;border-radius:3px;background:var(--muted)}
+.news-sent.positive{background:var(--green)}
+.news-sent.negative{background:var(--red)}
+.news-sent.neutral {background:var(--yellow)}
+.news-text{flex:1;min-width:0}
+.news-title{font-size:13px;line-height:1.45;color:var(--text)}
+.news-title a{color:inherit;text-decoration:none}
+.news-title a:hover{color:var(--blue);text-decoration:underline}
+.news-sub{font-size:10.5px;color:var(--muted);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap}
+.news-sub .sent-chip{font-weight:700;padding:1px 6px;border-radius:4px;letter-spacing:.3px}
+.news-sub .sent-chip.positive{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
+.news-sub .sent-chip.negative{background:var(--red-bg);  color:var(--red);  border:1px solid var(--red)}
+.news-sub .sent-chip.neutral {background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
+#newsRefreshBtn{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer}
+#newsRefreshBtn:hover{color:var(--text);border-color:var(--border-hi)}
+#newsRefreshBtn.loading{opacity:.5;cursor:wait}
+
+/* News section in filter panel */
+.news-cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:900px){.news-cfg-grid{grid-template-columns:1fr}}
+.news-feed-list{display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px;background:var(--card)}
+.news-feed-list .f-check{padding:2px 0;font-size:11.5px}
+.news-feed-list .f-check small{color:var(--muted);font-size:9.5px;margin-left:4px}
+.news-tag-input{background:var(--card);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:5px;font-size:11.5px;width:100%}
+.news-tag-input:focus{outline:none;border-color:var(--blue)}
+
 /* ── Responsive ─────────────────────────────────────────── */
 @media(max-width:600px){
   header{padding:10px 14px}
@@ -222,6 +315,10 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
   .market-row{grid-template-columns:1fr 1fr}
   .stocks-grid{grid-template-columns:1fr}
   #scanBtn span.last-upd{display:none}
+  .filter-grid{grid-template-columns:1fr}
+}
+@media(max-width:900px){
+  .filter-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -260,6 +357,9 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     </span>
     <div class="status-dot" id="statusDot"></div>
     <span class="last-upd" id="lastUpd">Not loaded</span>
+    <button id="filterToggleBtn" onclick="toggleFilterPanel()" title="Configure scan filters">
+      <span class="f-dot" id="filterDirtyDot"></span>&#9881; Filters
+    </button>
     <button id="scanBtn" onclick="runScan()">
       <div class="spinner"></div>
       <span class="btn-icon">⚡</span>
@@ -267,6 +367,143 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     </button>
   </div>
 </header>
+
+<!-- Filter Panel -->
+<div id="filterPanel">
+  <div class="filter-inner">
+    <div class="filter-grid">
+
+      <!-- Left: Chartink DSL conditions -->
+      <div>
+        <div class="filter-group-title">Chartink Screener Conditions</div>
+
+        <div class="frow">
+          <label class="flbl">Min Price (&#8377;)<small>Exclude penny stocks</small></label>
+          <input id="f_min_price" class="f-inp" type="number" min="1" step="1" value="50" onchange="markFiltersDirty()">
+        </div>
+        <div class="frow">
+          <label class="flbl">RSI(14) Range<small>Momentum, not extreme</small></label>
+          <div class="f-range">
+            <input id="f_rsi_min" class="f-inp" type="number" min="1" max="99" step="1" value="40" onchange="markFiltersDirty()" style="width:52px">
+            <span>&#8211;</span>
+            <input id="f_rsi_max" class="f-inp" type="number" min="1" max="99" step="1" value="70" onchange="markFiltersDirty()" style="width:52px">
+          </div>
+        </div>
+        <div class="frow">
+          <label class="flbl">ADX(14) Min<small>Trend strength gate</small></label>
+          <input id="f_adx_min" class="f-inp" type="number" min="5" max="50" step="1" value="20" onchange="markFiltersDirty()">
+        </div>
+        <div class="frow">
+          <label class="flbl">Min Volume (Lakhs)<small>5 L = 500 000 shares</small></label>
+          <input id="f_min_vol" class="f-inp f-inp-wide" type="number" min="0.1" step="0.5" value="5" onchange="markFiltersDirty()">
+        </div>
+        <div class="frow">
+          <label class="f-check"><input type="checkbox" id="f_require_macd" checked onchange="markFiltersDirty()"> MACD line &gt; Signal (bullish crossover)</label>
+        </div>
+        <div class="frow">
+          <label class="f-check"><input type="checkbox" id="f_ema_align" checked onchange="markFiltersDirty()"> EMA20 &gt; EMA50 (uptrend alignment)</label>
+        </div>
+        <div class="frow">
+          <label class="f-check"><input type="checkbox" id="f_ema200" checked onchange="markFiltersDirty()"> Price &gt; EMA200 (long-term uptrend)</label>
+        </div>
+      </div>
+
+      <!-- Right: Risk filters -->
+      <div>
+        <div class="filter-group-title">Post-scan Risk Filters</div>
+
+        <div class="frow">
+          <label class="flbl">Max ATR %<small>Reject hyper-volatile stocks</small></label>
+          <input id="f_max_atr" class="f-inp" type="number" min="1" max="25" step="0.5" value="5" onchange="markFiltersDirty()">
+        </div>
+        <div class="frow">
+          <label class="flbl">Crash depth (%)<small>Block if any 1-day drop &gt; this in 60d</small></label>
+          <input id="f_crash_depth" class="f-inp" type="number" min="2" max="30" step="1" value="8" onchange="markFiltersDirty()">
+        </div>
+        <div class="frow">
+          <label class="flbl">Min IPO age (bars)<small>Skip recently listed stocks</small></label>
+          <input id="f_min_ipo" class="f-inp f-inp-wide" type="number" min="0" max="1000" step="10" value="180" onchange="markFiltersDirty()">
+        </div>
+        <div class="frow">
+          <label class="flbl">Earnings window (days)<small>Skip if results due within N days</small></label>
+          <input id="f_earn_window" class="f-inp" type="number" min="0" max="30" step="1" value="3" onchange="markFiltersDirty()">
+        </div>
+        <div class="frow">
+          <label class="f-check"><input type="checkbox" id="f_block_sectors" checked onchange="markFiltersDirty()"> Block weak sectors (index below EMA20)</label>
+        </div>
+        <div class="frow">
+          <label class="flbl">Top N stocks<small>Cap after volume sort</small></label>
+          <input id="f_top_n" class="f-inp" type="number" min="5" max="100" step="5" value="30" onchange="markFiltersDirty()">
+        </div>
+      </div>
+
+    </div><!-- /filter-grid -->
+
+    <!-- News config block -->
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
+      <div class="filter-group-title">📰 News & Sentiment</div>
+      <div class="news-cfg-grid">
+        <div>
+          <div class="frow">
+            <label class="flbl">Time window (hours)<small>How recent must headlines be</small></label>
+            <input id="n_window" class="f-inp" type="number" min="1" max="168" step="1" value="24" onchange="markNewsDirty()">
+          </div>
+          <div class="frow">
+            <label class="flbl">Refresh interval (min)<small>Aggregate cache TTL</small></label>
+            <input id="n_refresh" class="f-inp" type="number" min="1" max="240" step="1" value="15" onchange="markNewsDirty()">
+          </div>
+          <div class="frow">
+            <label class="flbl">Max headlines<small>FinBERT runtime guard</small></label>
+            <input id="n_max" class="f-inp" type="number" min="20" max="500" step="10" value="150" onchange="markNewsDirty()">
+          </div>
+          <div class="frow">
+            <label class="flbl">Positive threshold<small>FinBERT score ≥ this → positive</small></label>
+            <input id="n_pos_thr" class="f-inp" type="number" min="0.3" max="0.95" step="0.05" value="0.55" onchange="markNewsDirty()">
+          </div>
+          <div class="frow">
+            <label class="flbl">Negative threshold<small>FinBERT score ≥ this → negative</small></label>
+            <input id="n_neg_thr" class="f-inp" type="number" min="0.3" max="0.95" step="0.05" value="0.55" onchange="markNewsDirty()">
+          </div>
+          <div class="frow">
+            <label class="f-check"><input type="checkbox" id="n_watchlist_only" onchange="markNewsDirty()"> Match watchlist symbols only (skip full universe)</label>
+          </div>
+          <div class="frow">
+            <label class="flbl">Sectors filter<small>Comma-separated, e.g. BANK,IT,PHARMA (blank = all)</small></label>
+            <input id="n_sectors" class="news-tag-input" type="text" placeholder="BANK, IT, PHARMA…" onchange="markNewsDirty()">
+          </div>
+          <div class="frow">
+            <label class="flbl">Stocks filter<small>Symbols, e.g. RELIANCE,TCS (blank = all)</small></label>
+            <input id="n_stocks" class="news-tag-input" type="text" placeholder="RELIANCE, TCS, HDFCBANK…" onchange="markNewsDirty()">
+          </div>
+        </div>
+        <div>
+          <label class="flbl" style="margin-bottom:6px;display:block">RSS Feeds<small>Tick to enable. Disabled feeds are skipped entirely.</small></label>
+          <div class="news-feed-list" id="n_feeds_list">
+            <small style="color:var(--muted)">Loading feeds…</small>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <button class="f-btn f-btn-save" onclick="saveNewsConfig()" id="newsSaveBtn">Save News Config</button>
+            <button class="f-btn f-btn-reset" onclick="resetNewsConfig()">Reset</button>
+            <span class="f-dirty-badge" id="newsDirtyBadge">⚠ Save + Refresh to apply</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer: preset management -->
+    <div class="filter-foot">
+      <label>Presets:</label>
+      <select id="f_preset_sel" class="f-preset-sel" onchange="loadPreset(this.value)">
+        <option value="">Load preset&#8230;</option>
+      </select>
+      <input id="f_preset_name" class="f-preset-inp" type="text" placeholder="Preset name&#8230;" maxlength="30">
+      <button class="f-btn f-btn-save"  onclick="savePreset()">Save</button>
+      <button class="f-btn f-btn-del"   onclick="deletePreset()">Delete</button>
+      <button class="f-btn f-btn-reset" onclick="resetFilters()">Reset to Defaults</button>
+      <span class="f-dirty-badge" id="filterDirtyBadge">&#9888; Re-scan to apply</span>
+    </div>
+  </div>
+</div>
 
 <div class="page">
 
@@ -296,6 +533,34 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <div class="lbl">Best R:R Today</div>
       <div class="val up" id="bestRR">—</div>
       <div class="sub" id="bestRRSym">—</div>
+    </div>
+  </div>
+
+  <!-- Pre-Market News -->
+  <div class="sec-head">
+    <span class="sec-title">📰 Pre-Market News</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="pill" id="newsPill">loading…</span>
+      <button id="newsRefreshBtn" onclick="loadNews(true)" title="Force-refresh news (skip cache)">↻ Refresh</button>
+    </div>
+  </div>
+  <div class="news-wrap">
+    <div class="news-head">
+      <div class="news-tabs" id="newsTabs">
+        <button class="active" data-tab="overall" onclick="switchNewsTab('overall')">Overall</button>
+        <button data-tab="sectors" onclick="switchNewsTab('sectors')">Sectors</button>
+        <button data-tab="stocks"  onclick="switchNewsTab('stocks')">Stocks</button>
+      </div>
+      <span class="news-trend neutral" id="newsTrend"><span class="dot"></span><span id="newsTrendLabel">—</span></span>
+    </div>
+    <div class="news-bar" id="newsBar" style="display:none">
+      <div class="seg-p" style="width:0%"></div>
+      <div class="seg-n" style="width:0%"></div>
+      <div class="seg-u" style="width:0%"></div>
+    </div>
+    <div class="news-meta" id="newsMeta"><span>—</span><span></span></div>
+    <div class="news-body" id="newsBody">
+      <div class="news-empty">Loading news headlines…</div>
     </div>
   </div>
 
@@ -739,10 +1004,11 @@ async function runScan() {
   btn.classList.add("loading");
   btn.querySelector(".btn-text").textContent = "Scanning…";
   showSkeletons(6);
-  toast("Chartink scan started — fetching top 30 stocks, ~20–40 seconds…", "info", 10000);
+  const f = getFilters();
+  toast(`Chartink scan — top ${f.top_n} stocks, RSI ${f.rsi_min}–${f.rsi_max}, ADX>${f.adx_min}…`, "info", 10000);
 
   try {
-    const data = await apiFetch("/api/scan", { method: "POST" });
+    const data = await apiFetch("/api/scan", { method: "POST", body: JSON.stringify({ filters: f }) });
     renderAll(data);
     if (data.source === "last_session") {
       toast(`Market closed — showing last session (${data.date})`, "info", 6000);
@@ -966,6 +1232,8 @@ function kiteLogin() {
 
 /* ── Init ────────────────────────────────────────────────── */
 async function init() {
+  refreshPresetList();
+
   // Try static fallback first (fast, works on GitHub Pages)
   if (STATIC_STOCKS.length || STATIC_BRIEF.date) {
     renderAll({ ...STATIC_BRIEF, stocks: STATIC_STOCKS });
@@ -985,6 +1253,8 @@ async function init() {
     loadSectors();
     loadPositions();
     checkKiteStatus();
+    loadNewsConfig();
+    loadNews();
 
     // Refresh market + sectors every 5 minutes
     setInterval(loadMarket,    5 * 60 * 1000);
@@ -992,12 +1262,388 @@ async function init() {
     // Refresh watchlist (live P&L + alerts) every 2 minutes
     setInterval(loadPositions, 2 * 60 * 1000);
     setInterval(checkKiteStatus, 10 * 60 * 1000);
+    // Refresh news every 10 minutes
+    setInterval(loadNews, 10 * 60 * 1000);
   } else {
     // Static / GitHub Pages mode
     if (!STATIC_STOCKS.length) {
       document.getElementById("statusDot").style.background = "var(--yellow)";
       document.getElementById("lastUpd").textContent = "Static mode — run server for live data";
     }
+  }
+}
+
+/* == Filter Panel ============================================================
+   All scan parameters are driven from the filter panel UI.
+   Values are sent as { filters: {...} } in the POST body of /api/scan.
+   Named presets are stored in localStorage.
+   ============================================================================ */
+const FILTER_DEFAULTS = {
+  min_price:             50,
+  rsi_min:               40,
+  rsi_max:               70,
+  adx_min:               20,
+  min_volume_lakh:        5,
+  require_macd:           true,
+  require_ema_alignment:  true,
+  require_ema200:         true,
+  max_atr_pct:            5,
+  crash_depth_pct:        8,
+  min_ipo_days:         180,
+  earnings_window_days:   3,
+  block_weak_sectors:     true,
+  top_n:                 30,
+};
+
+const LS_PRESETS_KEY = "swingSentinel_filterPresets_v1";
+
+function getFilters() {
+  return {
+    min_price:             parseFloat(document.getElementById("f_min_price").value)    || 50,
+    rsi_min:               parseFloat(document.getElementById("f_rsi_min").value)      || 40,
+    rsi_max:               parseFloat(document.getElementById("f_rsi_max").value)      || 70,
+    adx_min:               parseFloat(document.getElementById("f_adx_min").value)      || 20,
+    min_volume_lakh:       parseFloat(document.getElementById("f_min_vol").value)      || 5,
+    require_macd:          document.getElementById("f_require_macd").checked,
+    require_ema_alignment: document.getElementById("f_ema_align").checked,
+    require_ema200:        document.getElementById("f_ema200").checked,
+    max_atr_pct:           parseFloat(document.getElementById("f_max_atr").value)      || 5,
+    // crash_depth is shown as a positive number in the UI;
+    // the server expects a negative value (e.g. -8 = reject if any day dropped 8%+)
+    max_1d_drop_pct:      -(parseFloat(document.getElementById("f_crash_depth").value) || 8),
+    min_ipo_days:          parseInt(document.getElementById("f_min_ipo").value)         || 180,
+    earnings_window_days:  parseInt(document.getElementById("f_earn_window").value)    || 3,
+    block_weak_sectors:    document.getElementById("f_block_sectors").checked,
+    top_n:                 parseInt(document.getElementById("f_top_n").value)           || 30,
+  };
+}
+
+function setFilters(f) {
+  document.getElementById("f_min_price").value   = f.min_price             ?? 50;
+  document.getElementById("f_rsi_min").value     = f.rsi_min               ?? 40;
+  document.getElementById("f_rsi_max").value     = f.rsi_max               ?? 70;
+  document.getElementById("f_adx_min").value     = f.adx_min               ?? 20;
+  document.getElementById("f_min_vol").value     = f.min_volume_lakh       ?? 5;
+  document.getElementById("f_require_macd").checked         = f.require_macd            ?? true;
+  document.getElementById("f_ema_align").checked            = f.require_ema_alignment   ?? true;
+  document.getElementById("f_ema200").checked               = f.require_ema200          ?? true;
+  document.getElementById("f_max_atr").value     = f.max_atr_pct           ?? 5;
+  const cd = f.crash_depth_pct != null
+    ? f.crash_depth_pct
+    : (f.max_1d_drop_pct != null ? Math.abs(f.max_1d_drop_pct) : 8);
+  document.getElementById("f_crash_depth").value = cd;
+  document.getElementById("f_min_ipo").value     = f.min_ipo_days          ?? 180;
+  document.getElementById("f_earn_window").value = f.earnings_window_days  ?? 3;
+  document.getElementById("f_block_sectors").checked        = f.block_weak_sectors      ?? true;
+  document.getElementById("f_top_n").value       = f.top_n                 ?? 30;
+}
+
+function resetFilters() {
+  setFilters(FILTER_DEFAULTS);
+  clearFilterDirty();
+  toast("Filters reset to defaults", "info");
+}
+
+function markFiltersDirty() {
+  document.getElementById("filterDirtyDot").classList.add("show");
+  document.getElementById("filterDirtyBadge").classList.add("show");
+}
+
+function clearFilterDirty() {
+  document.getElementById("filterDirtyDot").classList.remove("show");
+  document.getElementById("filterDirtyBadge").classList.remove("show");
+}
+
+function toggleFilterPanel() {
+  const panel = document.getElementById("filterPanel");
+  const btn   = document.getElementById("filterToggleBtn");
+  const open  = panel.classList.toggle("open");
+  btn.classList.toggle("active", open);
+}
+
+/* ---- Presets (localStorage) ---------------------------------------------- */
+function _getPresets() {
+  try { return JSON.parse(localStorage.getItem(LS_PRESETS_KEY) || "{}"); } catch { return {}; }
+}
+function _savePresets(p) { localStorage.setItem(LS_PRESETS_KEY, JSON.stringify(p)); }
+
+function refreshPresetList() {
+  const sel     = document.getElementById("f_preset_sel");
+  const current = sel.value;
+  const presets = _getPresets();
+  sel.innerHTML = '<option value="">Load preset…</option>' +
+    Object.keys(presets).map(n =>
+      `<option value="${n}"${n === current ? " selected" : ""}>${n}</option>`
+    ).join("");
+}
+
+function savePreset() {
+  const name = document.getElementById("f_preset_name").value.trim();
+  if (!name) { toast("Enter a preset name first", "error"); return; }
+  const presets = _getPresets();
+  presets[name] = getFilters();
+  _savePresets(presets);
+  refreshPresetList();
+  document.getElementById("f_preset_sel").value  = name;
+  document.getElementById("f_preset_name").value = "";
+  toast(`Preset "${name}" saved`, "success");
+}
+
+function loadPreset(name) {
+  if (!name) return;
+  const presets = _getPresets();
+  if (!presets[name]) { toast(`Preset "${name}" not found`, "error"); return; }
+  setFilters(presets[name]);
+  markFiltersDirty();
+  toast(`Loaded "${name}" — click Scan Now to apply`, "info");
+}
+
+function deletePreset() {
+  const sel  = document.getElementById("f_preset_sel");
+  const name = sel.value;
+  if (!name) { toast("Select a preset to delete", "error"); return; }
+  const presets = _getPresets();
+  delete presets[name];
+  _savePresets(presets);
+  refreshPresetList();
+  toast(`Preset "${name}" deleted`, "info");
+}
+
+/* ══════════════════════════════════════════════════════════
+   Pre-Market News (FinBERT-powered)
+   ══════════════════════════════════════════════════════════ */
+let _newsData    = null;
+let _newsTab     = "overall";
+let _newsConfig  = null;
+
+function escapeHtml(s) {
+  return String(s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+function fmtAgo(iso) {
+  try {
+    const t = new Date(iso).getTime();
+    const sec = Math.max(0, (Date.now() - t) / 1000);
+    if (sec < 60)    return `${Math.round(sec)}s ago`;
+    if (sec < 3600)  return `${Math.round(sec/60)}m ago`;
+    if (sec < 86400) return `${Math.round(sec/3600)}h ago`;
+    return `${Math.round(sec/86400)}d ago`;
+  } catch { return ""; }
+}
+
+function trendClass(t) { return (t === "positive" || t === "negative") ? t : "neutral"; }
+function trendLabel(t) {
+  if (t === "positive") return "BULLISH";
+  if (t === "negative") return "BEARISH";
+  return "NEUTRAL";
+}
+
+function renderNewsHeadlines(items) {
+  if (!items || !items.length) {
+    return `<div class="news-empty">No headlines in this window. Widen the time window or enable more feeds.</div>`;
+  }
+  return items.map(h => {
+    const sent = (h.sentiment && h.sentiment.label) || "neutral";
+    const score = h.sentiment ? Math.round((h.sentiment.score||0)*100) : 0;
+    const link = h.link ? `<a href="${escapeHtml(h.link)}" target="_blank" rel="noopener">${escapeHtml(h.title)}</a>` : escapeHtml(h.title);
+    return `<div class="news-item">
+      <div class="news-sent ${sent}"></div>
+      <div class="news-text">
+        <div class="news-title">${link}</div>
+        <div class="news-sub">
+          <span class="sent-chip ${sent}">${sent.toUpperCase()}${score?` ${score}%`:""}</span>
+          <span>${escapeHtml(h.source||"")}</span>
+          <span>${fmtAgo(h.published)}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderNewsBuckets(buckets, headingPrefix) {
+  const keys = Object.keys(buckets);
+  if (!keys.length) {
+    return `<div class="news-empty">No matched ${headingPrefix.toLowerCase()} news in this window.</div>`;
+  }
+  return keys.map(key => {
+    const b = buckets[key];
+    const trend = trendClass(b.trend);
+    const subtitle = b.name && b.name !== key ? `<small style="color:var(--muted);font-weight:400">· ${escapeHtml(b.name)}</small>` : "";
+    return `<div class="news-bucket">
+      <div class="news-bucket-head" onclick="this.parentElement.classList.toggle('collapsed')">
+        <span class="name">${headingPrefix === '📍' ? '📍' : '🏷️'} ${escapeHtml(key)} ${subtitle}</span>
+        <span class="meta">
+          <span class="news-trend ${trend}" style="padding:2px 8px;font-size:10.5px"><span class="dot"></span>${trendLabel(b.trend)}</span>
+          <span>+${b.positive} / -${b.negative} / =${b.neutral}</span>
+          <span class="caret">▼</span>
+        </span>
+      </div>
+      <div class="news-items">${renderNewsHeadlines(b.headlines)}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderNews() {
+  const body  = document.getElementById("newsBody");
+  const trend = document.getElementById("newsTrend");
+  const trendLabelEl = document.getElementById("newsTrendLabel");
+  const bar   = document.getElementById("newsBar");
+  const meta  = document.getElementById("newsMeta");
+  const pill  = document.getElementById("newsPill");
+
+  if (!_newsData || !_newsData.overall) {
+    body.innerHTML = `<div class="news-empty">No news loaded yet.</div>`;
+    return;
+  }
+
+  const o = _newsData.overall;
+  const total = (o.positive + o.negative + o.neutral) || 1;
+  const tcls = trendClass(o.trend);
+  trend.className = `news-trend ${tcls}`;
+  trendLabelEl.textContent = `Overall: ${trendLabel(o.trend)}`;
+
+  bar.style.display = "flex";
+  bar.children[0].style.width = (o.positive / total * 100).toFixed(1) + "%";
+  bar.children[1].style.width = (o.negative / total * 100).toFixed(1) + "%";
+  bar.children[2].style.width = (o.neutral  / total * 100).toFixed(1) + "%";
+
+  const model = _newsData.model_loaded ? "FinBERT" : (_newsData.model || "fallback");
+  meta.innerHTML = `
+    <span>${_newsData.headlines_total} headlines · last ${_newsData.time_window_hours}h · ${model}</span>
+    <span>+${o.positive} positive · −${o.negative} negative · =${o.neutral} neutral</span>`;
+  pill.textContent = `${_newsData.headlines_total} headlines`;
+
+  if (_newsTab === "overall") {
+    body.innerHTML = renderNewsHeadlines(o.headlines);
+  } else if (_newsTab === "sectors") {
+    body.innerHTML = renderNewsBuckets(_newsData.sectors || {}, "📍");
+  } else {
+    body.innerHTML = renderNewsBuckets(_newsData.stocks || {}, "🏷️");
+  }
+}
+
+function switchNewsTab(tab) {
+  _newsTab = tab;
+  document.querySelectorAll("#newsTabs button").forEach(b => {
+    b.classList.toggle("active", b.dataset.tab === tab);
+  });
+  renderNews();
+}
+
+async function loadNews(force = false) {
+  if (!BASE) return;
+  const btn = document.getElementById("newsRefreshBtn");
+  if (btn) btn.classList.add("loading");
+  try {
+    const data = await apiFetch("/api/news" + (force ? "?force=1" : ""));
+    if (data.status === "error") throw new Error(data.message || "news error");
+    _newsData = data;
+    renderNews();
+    if (force) toast("News refreshed", "success", 2000);
+  } catch (err) {
+    document.getElementById("newsBody").innerHTML =
+      `<div class="news-empty">Could not load news: ${escapeHtml(err.message)}<br><small>Check that <code>feedparser</code> + <code>transformers</code> are installed</small></div>`;
+    document.getElementById("newsPill").textContent = "unavailable";
+  } finally {
+    if (btn) btn.classList.remove("loading");
+  }
+}
+
+/* ── News config (filter panel block) ─────────────────────────────────────── */
+function markNewsDirty() {
+  document.getElementById("newsDirtyBadge").classList.add("show");
+}
+function clearNewsDirty() {
+  document.getElementById("newsDirtyBadge").classList.remove("show");
+}
+
+function renderFeedList() {
+  const list = document.getElementById("n_feeds_list");
+  if (!_newsConfig || !Array.isArray(_newsConfig.feeds)) {
+    list.innerHTML = `<small style="color:var(--muted)">No feeds configured.</small>`;
+    return;
+  }
+  list.innerHTML = _newsConfig.feeds.map((f, i) => `
+    <label class="f-check">
+      <input type="checkbox" data-feed-idx="${i}" ${f.enabled ? "checked" : ""} onchange="markNewsDirty()">
+      ${escapeHtml(f.name || f.url)}
+      <small>${escapeHtml(new URL(f.url).hostname.replace(/^www\./,''))}</small>
+    </label>`).join("");
+}
+
+function getNewsConfigFromUI() {
+  const cfg = JSON.parse(JSON.stringify(_newsConfig || {}));
+  cfg.time_window_hours  = parseInt(document.getElementById("n_window").value)   || 24;
+  cfg.refresh_minutes    = parseInt(document.getElementById("n_refresh").value)  || 15;
+  cfg.max_headlines      = parseInt(document.getElementById("n_max").value)      || 150;
+  cfg.positive_threshold = parseFloat(document.getElementById("n_pos_thr").value)|| 0.55;
+  cfg.negative_threshold = parseFloat(document.getElementById("n_neg_thr").value)|| 0.55;
+  cfg.use_watchlist_only = document.getElementById("n_watchlist_only").checked;
+  cfg.enabled_sectors    = (document.getElementById("n_sectors").value || "")
+                            .split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
+  cfg.enabled_stocks     = (document.getElementById("n_stocks").value || "")
+                            .split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
+  // Feeds: copy enabled flags from checkboxes
+  document.querySelectorAll("#n_feeds_list input[type=checkbox]").forEach(cb => {
+    const idx = parseInt(cb.dataset.feedIdx);
+    if (!isNaN(idx) && cfg.feeds[idx]) cfg.feeds[idx].enabled = cb.checked;
+  });
+  return cfg;
+}
+
+function setNewsConfigUI(cfg) {
+  _newsConfig = cfg;
+  document.getElementById("n_window").value   = cfg.time_window_hours   ?? 24;
+  document.getElementById("n_refresh").value  = cfg.refresh_minutes     ?? 15;
+  document.getElementById("n_max").value      = cfg.max_headlines       ?? 150;
+  document.getElementById("n_pos_thr").value  = cfg.positive_threshold  ?? 0.55;
+  document.getElementById("n_neg_thr").value  = cfg.negative_threshold  ?? 0.55;
+  document.getElementById("n_watchlist_only").checked = !!cfg.use_watchlist_only;
+  document.getElementById("n_sectors").value  = (cfg.enabled_sectors || []).join(", ");
+  document.getElementById("n_stocks").value   = (cfg.enabled_stocks || []).join(", ");
+  renderFeedList();
+}
+
+async function loadNewsConfig() {
+  if (!BASE) return;
+  try {
+    const r = await apiFetch("/api/news/config");
+    if (r.status === "ok" && r.config) setNewsConfigUI(r.config);
+  } catch (err) {
+    console.warn("News config load failed:", err);
+  }
+}
+
+async function saveNewsConfig() {
+  if (!BASE) { toast("No server running", "error"); return; }
+  const btn = document.getElementById("newsSaveBtn");
+  btn.disabled = true;
+  try {
+    const cfg = getNewsConfigFromUI();
+    const r = await apiFetch("/api/news/config", { method: "POST", body: JSON.stringify(cfg) });
+    if (r.status !== "ok") throw new Error(r.message || "save failed");
+    _newsConfig = r.config;
+    clearNewsDirty();
+    toast("News config saved — refreshing…", "success", 2000);
+    await loadNews(true);
+  } catch (err) {
+    toast(`Save failed: ${err.message}`, "error");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function resetNewsConfig() {
+  if (!BASE) return;
+  try {
+    const r = await apiFetch("/api/news/config");
+    if (r.defaults) {
+      setNewsConfigUI(JSON.parse(JSON.stringify(r.defaults)));
+      markNewsDirty();
+      toast("News defaults loaded — click Save to persist", "info");
+    }
+  } catch (err) {
+    toast(`Reset failed: ${err.message}`, "error");
   }
 }
 

@@ -25,29 +25,47 @@ BASE_HEADERS = {
     "Accept-Encoding": "gzip, deflate",  # exclude br — requests can't decode brotli
 }
 
+# Default swing-trade scan conditions — must stay in sync with FILTER_DEFAULTS in swing_agent_app.html
+DEFAULT_SCAN_PARAMS: dict = {
+    "min_price":            50,
+    "rsi_min":              40,
+    "rsi_max":              70,
+    "adx_min":              20,
+    "min_volume_lakh":       5,
+    "require_macd":         True,
+    "require_ema_alignment": True,
+    "require_ema200":       True,
+}
 
-def build_scan_clause() -> str:
+
+def build_scan_clause(params: dict = None) -> str:
     """
-    Chartink DSL for swing trade candidates — 8 core conditions:
-      - Price above EMA20, EMA20 > EMA50, Price above EMA200  (uptrend structure)
-      - RSI(14) between 40 and 70                              (momentum, not extreme)
-      - MACD line above signal line                            (bullish crossover)
-      - ADX(14) > 20                                           (trend is strong)
-      - Volume > 5 lakh                                        (liquid stock)
-      - Price >= 50                                            (exclude penny stocks)
+    Chartink DSL for swing trade candidates. All thresholds are driven by
+    the `params` dict so the UI can override them without touching this code.
+    Missing keys fall back to DEFAULT_SCAN_PARAMS.
     """
-    return (
-        "( {cash} ( "
-        "latest close >= 50 and "
-        "latest close > latest ema(close,20) and "
-        "latest ema(close,20) > latest ema(close,50) and "
-        "latest close > latest ema(close,200) and "
-        "latest rsi(14) > 40 and latest rsi(14) < 70 and "
-        "latest macd line(26,12,9) > latest macd signal(26,12,9) and "
-        "latest adx(14) > 20 and "
-        "latest volume > 500000 "
-        ") )"
-    )
+    p = {**DEFAULT_SCAN_PARAMS, **(params or {})}
+    min_price   = p["min_price"]
+    rsi_min     = p["rsi_min"]
+    rsi_max     = p["rsi_max"]
+    adx_min     = p["adx_min"]
+    min_vol     = int(p["min_volume_lakh"] * 100_000)
+
+    conds = [
+        f"latest close >= {min_price}",
+        "latest close > latest ema(close,20)",
+    ]
+    if p["require_ema_alignment"]:
+        conds.append("latest ema(close,20) > latest ema(close,50)")
+    if p["require_ema200"]:
+        conds.append("latest close > latest ema(close,200)")
+    conds.append(f"latest rsi(14) > {rsi_min} and latest rsi(14) < {rsi_max}")
+    if p["require_macd"]:
+        conds.append("latest macd line(26,12,9) > latest macd signal(26,12,9)")
+    conds.append(f"latest adx(14) > {adx_min}")
+    conds.append(f"latest volume > {min_vol}")
+
+    return "( {cash} ( " + " and ".join(conds) + " ) )"
 
 
 def _make_session() -> tuple:
@@ -86,7 +104,7 @@ def _make_session() -> tuple:
     return session, csrf_token
 
 
-def fetch_chartink_stocks() -> List[Dict]:
+def fetch_chartink_stocks(params: dict = None) -> List[Dict]:
     """
     Run the Chartink screener scan and return matching stocks.
 
@@ -115,7 +133,7 @@ def fetch_chartink_stocks() -> List[Dict]:
         resp = session.post(
             CHARTINK_PROCESS_URL,
             headers=post_headers,
-            data={"scan_clause": build_scan_clause()},
+            data={"scan_clause": build_scan_clause(params)},
             timeout=30,
         )
 

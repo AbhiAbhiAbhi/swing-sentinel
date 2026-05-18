@@ -30,37 +30,37 @@ WORST_60D_DROP_PCT    = -0.08  # -8%
 
 # ── Individual filters ──────────────────────────────────────────────────────
 
-def filter_volatility(tech: dict) -> Tuple[bool, str]:
-    """Reject if ATR is more than MAX_ATR_PCT of the current price."""
+def filter_volatility(tech: dict, max_atr_pct: float = MAX_ATR_PCT) -> Tuple[bool, str]:
+    """Reject if ATR is more than max_atr_pct of the current price."""
     price = tech.get("price", 0)
     atr   = tech.get("atr", 0)
     if not price or not atr:
         return True, ""
     ratio = atr / price
-    if ratio > MAX_ATR_PCT:
+    if ratio > max_atr_pct:
         return False, f"high volatility (ATR {ratio*100:.1f}% of price)"
     return True, ""
 
 
-def filter_recent_crash(tech: dict) -> Tuple[bool, str]:
-    """Reject if any single-day return in the last 60 daily bars was <= -8%."""
+def filter_recent_crash(tech: dict, worst_pct: float = WORST_60D_DROP_PCT) -> Tuple[bool, str]:
+    """Reject if any single-day return in the last 60 daily bars was <= worst_pct."""
     worst = tech.get("worst_60d_pct", 0)
-    if worst and worst <= WORST_60D_DROP_PCT:
+    if worst and worst <= worst_pct:
         return False, f"recent crash ({worst*100:.1f}% drop in last 60d)"
     return True, ""
 
 
-def filter_ipo_age(tech: dict) -> Tuple[bool, str]:
-    """Reject if the stock has fewer than IPO_MIN_AGE_DAYS of trading history."""
+def filter_ipo_age(tech: dict, min_days: int = IPO_MIN_AGE_DAYS) -> Tuple[bool, str]:
+    """Reject if the stock has fewer than min_days of trading history."""
     bars = tech.get("bars_count", 999)
-    if bars < IPO_MIN_AGE_DAYS:
+    if bars < min_days:
         first_bar = tech.get("first_bar", "")
         return False, f"recent IPO ({bars} bars{', since '+first_bar if first_bar else ''})"
     return True, ""
 
 
-def filter_earnings_soon(symbol: str) -> Tuple[bool, str]:
-    """Reject if earnings announcement is scheduled in the next 3 trading days."""
+def filter_earnings_soon(symbol: str, window_days: int = EARNINGS_WINDOW_DAYS) -> Tuple[bool, str]:
+    """Reject if earnings announcement is scheduled within window_days trading days."""
     try:
         import yfinance as yf
         cal = yf.Ticker(f"{symbol}.NS").calendar
@@ -92,7 +92,7 @@ def filter_earnings_soon(symbol: str) -> Tuple[bool, str]:
 
         today      = datetime.now().date()
         days_until = (edate - today).days if hasattr(edate, "__sub__") else 999
-        if 0 <= days_until <= EARNINGS_WINDOW_DAYS:
+        if 0 <= days_until <= window_days:
             return False, f"earnings in {days_until}d ({edate})"
     except Exception as exc:
         logger.debug("[filter_earnings_soon] %s: %s", symbol, exc)
@@ -116,22 +116,34 @@ def filter_weak_sector(symbol: str, sector_pulse: Optional[dict] = None) -> Tupl
 # ── Master filter ───────────────────────────────────────────────────────────
 
 def apply_risk_filters(symbol: str, tech: dict,
-                       sector_pulse: Optional[dict] = None) -> Tuple[bool, list]:
+                       sector_pulse: Optional[dict] = None,
+                       thresholds: Optional[dict] = None) -> Tuple[bool, list]:
     """
     Run all 5 filters. Returns (passed_all, reasons_failed).
-    `tech` is the dict from fetch_stock_technicals (must include
-    'worst_60d_pct', 'bars_count' fields added in core_data_fetcher.py).
-    `sector_pulse` is the cached sector dict (pass-through to avoid
-    re-fetching per stock).
+
+    `thresholds` is an optional dict from the UI with any of:
+      max_atr_pct (float %, e.g. 5.0), max_1d_drop_pct (float %, e.g. -8.0),
+      min_ipo_days (int), earnings_window_days (int), block_weak_sectors (bool).
+    Missing keys fall back to the module-level constants.
     """
+    t = thresholds or {}
+    max_atr  = t.get("max_atr_pct",          MAX_ATR_PCT * 100) / 100
+    worst_60 = t.get("max_1d_drop_pct",       WORST_60D_DROP_PCT * 100) / 100
+    min_ipo  = int(t.get("min_ipo_days",       IPO_MIN_AGE_DAYS))
+    earn_win = int(t.get("earnings_window_days", EARNINGS_WINDOW_DAYS))
+    block_sec = bool(t.get("block_weak_sectors", True))
+
+    checks = [
+        (filter_volatility,    (tech, max_atr)),
+        (filter_recent_crash,  (tech, worst_60)),
+        (filter_ipo_age,       (tech, min_ipo)),
+        (filter_earnings_soon, (symbol, earn_win)),
+    ]
+    if block_sec:
+        checks.append((filter_weak_sector, (symbol, sector_pulse)))
+
     reasons = []
-    for fn, args in [
-        (filter_volatility,    (tech,)),
-        (filter_recent_crash,  (tech,)),
-        (filter_ipo_age,       (tech,)),
-        (filter_earnings_soon, (symbol,)),
-        (filter_weak_sector,   (symbol, sector_pulse)),
-    ]:
+    for fn, args in checks:
         passed, reason = fn(*args)
         if not passed and reason:
             reasons.append(reason)

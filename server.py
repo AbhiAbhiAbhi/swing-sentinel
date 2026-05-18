@@ -65,6 +65,18 @@ except ImportError:
         def get_kite():   return None
         def place_gtt(*a, **kw): return None
 
+# ── News pipeline ────────────────────────────────────────────────────────────
+try:
+    from core.news_pipeline import get_news as _news_get, load_config as _news_load_cfg, save_config as _news_save_cfg, DEFAULT_CONFIG as _news_defaults
+except ImportError:
+    try:
+        from core_news_pipeline import get_news as _news_get, load_config as _news_load_cfg, save_config as _news_save_cfg, DEFAULT_CONFIG as _news_defaults
+    except ImportError:
+        _news_get = None
+        _news_load_cfg = None
+        _news_save_cfg = None
+        _news_defaults = {}
+
 # ── Import helpers (flat dev layout OR deployed core/ folder) ──────────────
 try:
     from core.chartink_fetcher import fetch_chartink_stocks
@@ -166,19 +178,67 @@ def api_market():
         return jsonify({"status": "error", "message": str(exc)}), 500
 
 
+@app.route("/api/news")
+def api_news():
+    """Aggregated pre-market news: overall / sectors / stocks with FinBERT sentiment."""
+    if _news_get is None:
+        return jsonify({"status": "error", "message": "news pipeline not installed"}), 501
+    try:
+        force = request.args.get("force", "").lower() in ("1", "true", "yes")
+        data = _news_get(force=force)
+        return jsonify({"status": "ok", **data})
+    except Exception as exc:
+        logger.error("[news] %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route("/api/news/config", methods=["GET", "POST"])
+def api_news_config():
+    """GET current news config; POST { ...config } to update + invalidate cache."""
+    if _news_load_cfg is None:
+        return jsonify({"status": "error", "message": "news pipeline not installed"}), 501
+    try:
+        if request.method == "POST":
+            body = request.get_json(force=True, silent=True) or {}
+            cfg  = _news_load_cfg()
+            # Whitelist editable keys to avoid clients writing arbitrary data
+            editable = {
+                "feeds", "time_window_hours", "refresh_minutes", "max_headlines",
+                "positive_threshold", "negative_threshold",
+                "enabled_sectors", "enabled_stocks", "use_watchlist_only", "model",
+            }
+            for k, v in body.items():
+                if k in editable:
+                    cfg[k] = v
+            _news_save_cfg(cfg)
+            logger.info("[news] config updated: keys=%s", sorted(body.keys()))
+            return jsonify({"status": "ok", "config": cfg})
+        return jsonify({"status": "ok", "config": _news_load_cfg(), "defaults": _news_defaults})
+    except Exception as exc:
+        logger.error("[news/config] %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
 @app.route("/api/scan", methods=["POST"])
 def api_scan():
     """
     Full scan: Chartink (works intraday and EOD) → yfinance trade plans.
+    Accepts an optional JSON body: { "filters": { ... } } — all Chartink DSL
+    thresholds and post-scan risk-filter thresholds are driven from this dict.
     If Chartink returns 0 matches, falls back to the last saved scan.
     """
     try:
         logger.info("[scan] Starting…")
 
+        body    = request.get_json(force=True, silent=True) or {}
+        filters = body.get("filters", {})
+        top_n   = int(filters.get("top_n", 30))
+        logger.info("[scan] filters=%s top_n=%d", filters, top_n)
+
         nifty = fetch_nifty_levels()
         fii   = fetch_fii_dii_flow(days=5)
 
-        chartink_stocks = fetch_chartink_stocks()
+        chartink_stocks = fetch_chartink_stocks(params=filters)
 
         if not chartink_stocks:
             brief = _load_latest_brief()
@@ -198,9 +258,9 @@ def api_scan():
                 "market":        {"nifty": nifty, "fii_dii": fii, "sentiment": _sentiment(nifty, fii)},
             })
 
-        # Sort by volume (descending) and take top 30 to keep yfinance calls fast
+        # Sort by volume (descending) and cap at top_n to keep yfinance calls fast
         chartink_stocks.sort(key=lambda x: x.get("volume", 0), reverse=True)
-        chartink_stocks = chartink_stocks[:30]
+        chartink_stocks = chartink_stocks[:top_n]
         logger.info("[scan] Processing top %d stocks via yfinance…", len(chartink_stocks))
 
         # Pre-fetch sector pulse once (cached for 5min) — passed to every risk-filter call
@@ -220,7 +280,7 @@ def api_scan():
                     continue
 
                 # ── Risk gating ───────────────────────────────────────────────
-                passed, reasons = apply_risk_filters(symbol, tech, sector_pulse=sector_pulse)
+                passed, reasons = apply_risk_filters(symbol, tech, sector_pulse=sector_pulse, thresholds=filters)
                 if not passed:
                     logger.info("[scan]   %s skipped → %s", symbol, "; ".join(reasons))
                     filtered_out.append({
