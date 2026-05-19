@@ -359,6 +359,7 @@ def api_scan():
                     "sector":     get_sector(symbol),
                     "verdict":    "entry",
                     # checklist-derived tags
+                    "atr_pct":          tech.get("atr_pct", 0),
                     "near_52w_high":    tech.get("near_52w_high", False),
                     "dist_52w_pct":     tech.get("dist_52w_pct", 0),
                     "ema9_cross_ema21": tech.get("ema9_cross_ema21", "none"),

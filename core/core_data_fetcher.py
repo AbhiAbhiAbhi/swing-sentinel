@@ -86,7 +86,7 @@ def fetch_stock_technicals(symbol: str) -> Dict:
             'ema20': round(ema20, 2), 'ema50': round(ema50, 2), 'ema200': round(ema200, 2),
             'rsi': round(rsi, 2), 'macd': round(macd_d['macd'], 2),
             'macd_signal': round(macd_d['signal'], 2), 'macd_histogram': round(macd_d['histogram'], 2),
-            'atr': round(atr, 2), 'obv': round(obv, 0),
+            'atr': round(atr, 2), 'atr_pct': round(atr / price * 100, 2) if price else 0, 'obv': round(obv, 0),
             'volume': int(volume.iloc[-1]), 'avg_volume_20d': int(avg_vol_20),
             'volume_ratio': round(vol_ratio, 2),
             'high_52w': round(high_52w, 2), 'low_52w': round(low_52w, 2),

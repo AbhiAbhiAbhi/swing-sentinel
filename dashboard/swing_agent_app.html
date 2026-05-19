@@ -507,6 +507,7 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
 .ca-check-icon.fail{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
 .ca-check-icon.warn{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
 .ca-check-icon.info{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue)}
+.ca-check-icon.na{background:transparent;color:var(--muted);border:1px solid var(--muted)}
 .ca-check-label{flex:1;color:var(--text)}
 .ca-check-val{font-weight:600;font-size:11px;text-align:right;min-width:70px}
 .ca-vcard-foot{padding:8px 14px;background:var(--surface);border-top:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:space-between}
@@ -3388,10 +3389,14 @@ function getStockValidation(s) {
     val: hasPattern ? setup.replace(/_/g," ") : "—" };
 
   // ca4: Volatility contraction (VCP) — proxy: ATR% < 3.5 = tight base
-  const atrPct = parseFloat(s.atr_pct) || 0;
-  const vcp = atrPct > 0 && atrPct < 3.5;
-  const ca4 = { label: "Volatility contracting (VCP)", ..._caCheck(vcp, atrPct < 5),
-    val: atrPct ? `ATR ${atrPct.toFixed(1)}%` : "—" };
+  const atrRaw = s.atr_pct;
+  const hasAtr = atrRaw !== undefined && atrRaw !== null && parseFloat(atrRaw) > 0;
+  const atrPct = hasAtr ? parseFloat(atrRaw) : 0;
+  const ca4 = hasAtr
+    ? { label: "Volatility contracting (VCP)", ..._caCheck(atrPct < 3.5, atrPct < 5),
+        val: `ATR ${atrPct.toFixed(1)}%` }
+    : { label: "Volatility contracting (VCP)", cls: "na", icon: "?",
+        val: "N/A" };
 
   // ca5: Sector strength
   const sector = s.sector || "OTHERS";
@@ -3419,11 +3424,13 @@ function getStockValidation(s) {
     val: earningsNear ? "Events near!" : "Clear ✓" };
 
   const checks = [ca1, ca2, ca3, ca4, ca5, ca6, ca7, ca8];
-  const passCount = checks.filter(c => c.cls === "pass").length;
-  const scoreClass = passCount >= 7 ? "strong" : passCount >= 5 ? "moderate" : "weak";
-  const scoreLabel = passCount >= 7 ? "STRONG" : passCount >= 5 ? "MODERATE" : "WEAK";
+  const scored = checks.filter(c => c.cls !== "na");
+  const passCount = scored.filter(c => c.cls === "pass").length;
+  const total = scored.length;
+  const scoreClass = passCount >= total - 1 ? "strong" : passCount >= Math.ceil(total * 0.6) ? "moderate" : "weak";
+  const scoreLabel = passCount >= total - 1 ? "STRONG" : passCount >= Math.ceil(total * 0.6) ? "MODERATE" : "WEAK";
 
-  return { checks, passCount, total: checks.length, scoreClass, scoreLabel };
+  return { checks, passCount, total, scoreClass, scoreLabel };
 }
 
 function renderStockValidation() {
@@ -3460,7 +3467,7 @@ function renderStockValidation() {
         ${v.checks.map(c => `<div class="ca-check-row">
           <span class="ca-check-icon ${c.cls}">${c.icon}</span>
           <span class="ca-check-label">${c.label}</span>
-          <span class="ca-check-val" style="color:${c.cls==='pass'?'var(--green)':c.cls==='warn'?'var(--yellow)':'var(--red)'}">${c.val}</span>
+          <span class="ca-check-val" style="color:${c.cls==='pass'?'var(--green)':c.cls==='warn'?'var(--yellow)':c.cls==='na'?'var(--muted)':'var(--red)'}">${c.val}</span>
         </div>`).join("")}
       </div>
       <div class="ca-vcard-foot">
