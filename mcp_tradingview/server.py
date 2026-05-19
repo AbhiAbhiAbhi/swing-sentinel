@@ -1039,22 +1039,22 @@ async def add_to_watchlist(
             if symbol.upper() in current_syms:
                 return json.dumps({"status": "already_in_watchlist", "symbol": symbol.upper()})
 
-            current_syms.append(symbol.upper())
-            put_r = await c.put(
-                f"{TV_BASE}/api/v1/symbols_list/custom/{watchlist_id}/",
-                json={"symbols": current_syms},
+            post_r = await c.post(
+                f"{TV_BASE}/api/v1/symbols_list/custom/{watchlist_id}/append/",
+                json=[symbol.upper()],
                 headers=_tv_headers({
-                    "Content-Type": "application/json",
-                    "X-CSRFToken":  csrf,
-                    "Referer":      f"{TV_BASE}/chart/",
+                    "Content-Type":     "application/json",
+                    "X-CSRFToken":      csrf,
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Referer":          f"{TV_BASE}/chart/",
                 }),
             )
-            put_r.raise_for_status()
+            post_r.raise_for_status()
             return json.dumps({
                 "status":       "added",
                 "symbol":       symbol.upper(),
                 "watchlist_id": watchlist_id,
-                "total_symbols": len(current_syms),
+                "total_symbols": len(current_syms) + 1,
             })
     except Exception as e:
         return json.dumps({"error": str(e)})

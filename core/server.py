@@ -920,19 +920,19 @@ def api_tv_watchlist():
         syms = current.get("symbols", []) if isinstance(current, dict) else []
         if symbol in syms:
             return jsonify({"status": "already_in_watchlist", "symbol": symbol})
-        syms.append(symbol)
-        put_r = _requests.put(
-            f"{_TV_BASE}/api/v1/symbols_list/custom/{wl_id}/",
-            json={"symbols": syms},
+        post_r = _requests.post(
+            f"{_TV_BASE}/api/v1/symbols_list/custom/{wl_id}/append/",
+            json=[symbol],
             headers=_tv_h({
-                "Content-Type": "application/json",
-                "X-CSRFToken":  csrf,
-                "Referer":      f"{_TV_BASE}/chart/",
+                "Content-Type":     "application/json",
+                "X-CSRFToken":      csrf,
+                "X-Requested-With": "XMLHttpRequest",
+                "Referer":          f"{_TV_BASE}/chart/",
             }),
             timeout=15,
         )
-        put_r.raise_for_status()
-        return jsonify({"status": "added", "symbol": symbol, "watchlist_id": wl_id, "total": len(syms)})
+        post_r.raise_for_status()
+        return jsonify({"status": "added", "symbol": symbol, "watchlist_id": wl_id, "total": len(syms) + 1})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 

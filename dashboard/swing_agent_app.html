@@ -39,7 +39,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 @keyframes fadeOut{to{opacity:0;transform:translateX(20px)}}
 
 /* ── Header ────────────────────────────────────────────── */
-header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:12px;flex-wrap:wrap}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:12px;flex-wrap:wrap;min-height:55px}
 .logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;letter-spacing:-.3px;white-space:nowrap}
 .logo-mark{width:30px;height:30px;background:linear-gradient(135deg,#3fb950,#58a6ff);border-radius:7px;display:grid;place-items:center;font-size:15px;flex-shrink:0}
 .header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -74,6 +74,14 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .sec-head{display:flex;align-items:center;justify-content:space-between;margin:22px 0 10px}
 .sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--muted)}
 .pill{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:2px 10px;border-radius:20px;font-size:11px}
+
+/* ── Collapsible sections ────────────────────────────────── */
+.sec-toggle{background:none;border:1px solid var(--border);color:var(--muted);width:26px;height:26px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .2s;flex-shrink:0;line-height:1}
+.sec-toggle:hover{background:var(--card);color:var(--text);border-color:var(--border-hi)}
+.sec-toggle .chevron{transition:transform .25s ease;display:inline-block}
+.collapsed .sec-toggle .chevron{transform:rotate(-90deg)}
+.sec-body{overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1),opacity .25s ease,margin .25s ease;max-height:3000px;opacity:1}
+.collapsed .sec-body{max-height:0!important;opacity:0;margin-top:0!important;margin-bottom:0!important;pointer-events:none}
 
 /* ── Actions ────────────────────────────────────────────── */
 .actions-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:10px;margin-bottom:4px}
@@ -368,9 +376,169 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 #tvScanBtn:hover{opacity:.88}
 #tvScanBtn:disabled{opacity:.5;cursor:not-allowed}
 
+/* ── Pine Script modal ──────────────────────────────────── */
+#pineModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:600;align-items:center;justify-content:center}
+#pineModal.open{display:flex}
+.pine-code{background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-family:'Consolas','Courier New',monospace;font-size:11px;color:#c9d1d9;line-height:1.45;max-height:200px;overflow:auto;white-space:pre;margin-bottom:6px;user-select:all}
+.tv-copy-btn{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue);padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer}
+.tv-copy-btn:hover{background:var(--blue);color:#0d1117}
+.tv-copy-btn.copied{background:var(--green);color:#0d1117;border-color:var(--green)}
+.pine-status-ok  {background:var(--green-bg);border:1px solid var(--green);color:var(--green)}
+.pine-status-err {background:var(--red-bg);  border:1px solid var(--red);  color:var(--red)}
+.pine-status-info{background:var(--blue-bg); border:1px solid var(--blue); color:var(--blue)}
+kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px;font-family:'Consolas',monospace}
+
 /* ── TV button in header ────────────────────────────────── */
 #tvBtn{display:flex;align-items:center;gap:6px;background:rgba(255,166,87,.1);color:var(--orange);border:1px solid var(--orange);border-radius:7px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s}
 #tvBtn:hover{background:var(--orange);color:#0d1117}
+
+/* ── Tab navigation (4 organized sections) ─────────────── */
+.tab-nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;overflow-x:auto;position:sticky;top:55px;z-index:90;scrollbar-width:thin}
+.tab-nav::-webkit-scrollbar{height:4px}
+.tab-nav::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:2px}
+.tab-btn{background:transparent;border:none;color:var(--muted);padding:14px 22px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;display:flex;align-items:center;gap:8px;transition:all .15s;font-family:inherit;position:relative}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--text)}
+.tab-btn .tab-num{font-size:10px;font-weight:700;color:var(--muted);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1px 7px;min-width:22px;text-align:center}
+.tab-btn.active .tab-num{color:#0d1117;background:currentColor;border-color:currentColor}
+.tab-btn.tab-watchlist.active   {color:#A5B4FC;border-bottom-color:#A5B4FC}
+.tab-btn.tab-analysis.active    {color:#F59E0B;border-bottom-color:#F59E0B}
+.tab-btn.tab-trading.active     {color:#3B82F6;border-bottom-color:#3B82F6}
+.tab-btn.tab-portfolio.active   {color:#10B981;border-bottom-color:#10B981}
+.tab-content{display:none}
+.tab-content.active{display:block;animation:tabFadeIn .2s ease}
+@keyframes tabFadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.tab-head{display:flex;align-items:flex-start;justify-content:space-between;margin:6px 0 18px;flex-wrap:wrap;gap:12px}
+.tab-head h2{font-size:20px;font-weight:700;color:var(--text);margin:0;display:flex;align-items:center;gap:10px}
+.tab-head .tab-sub{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.5;max-width:680px}
+.tab-time-chip{display:inline-block;font-size:10px;letter-spacing:1.5px;font-weight:700;text-transform:uppercase;padding:3px 10px;border-radius:4px;background:var(--card);border:1px solid var(--border);color:var(--muted)}
+
+/* Checklist item card (used in all tabs) */
+.cli-list{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+.cli-item{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:11px 14px;display:flex;align-items:flex-start;gap:12px;transition:border-color .15s,background .15s}
+.cli-item:hover{border-color:var(--border-hi)}
+.cli-item.done{background:rgba(63,185,80,.05);border-color:rgba(63,185,80,.35)}
+.cli-check{width:18px;height:18px;border:2px solid var(--border-hi);border-radius:4px;display:grid;place-items:center;flex-shrink:0;cursor:pointer;transition:all .15s;margin-top:1px;background:transparent}
+.cli-item.done .cli-check{background:var(--green);border-color:var(--green)}
+.cli-item.done .cli-check::after{content:"✓";color:#0d1117;font-weight:700;font-size:12px}
+.cli-num{font-size:10px;font-weight:700;color:var(--muted);min-width:18px}
+.cli-text{font-size:13px;color:var(--text);line-height:1.5;flex:1}
+.cli-item.done .cli-text{color:var(--muted);text-decoration:line-through}
+
+/* Tools/calculators block */
+.tool-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px}
+.tool-card h3{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.tool-card h3 .tool-tag{font-size:10px;font-weight:600;color:var(--muted);background:var(--card);border:1px solid var(--border);border-radius:4px;padding:2px 8px;letter-spacing:.5px}
+.tool-card h3 .sec-toggle{margin-left:auto}
+.tool-card.collapsed h3{margin-bottom:0}
+.tool-card .tool-body{overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1),opacity .25s ease;max-height:2000px;opacity:1}
+.tool-card.collapsed .tool-body{max-height:0;opacity:0;pointer-events:none}
+.tool-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.tool-grid label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.tool-grid input{background:var(--card);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-size:13px;font-weight:600}
+.tool-grid input:focus{outline:none;border-color:var(--blue)}
+.tool-out{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+.tool-out-card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px}
+.tool-out-card .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+.tool-out-card .val{font-size:18px;font-weight:700;color:var(--text)}
+
+/* Chart Analysis: scanned stock rows with Pine push */
+.ca-list{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.ca-row{display:grid;grid-template-columns:auto 1fr auto auto auto auto;gap:14px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--border);font-size:13px}
+.ca-row:last-child{border-bottom:none}
+.ca-row:hover{background:rgba(255,255,255,.02)}
+.ca-sym{font-weight:700;font-size:14px;color:var(--text);min-width:90px}
+.ca-name{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ca-meta{font-size:11px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+.ca-meta b{color:var(--text);font-weight:600}
+.ca-actions{display:flex;gap:6px}
+.ca-btn{background:var(--card);color:var(--text);border:1px solid var(--border);padding:5px 10px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s}
+.ca-btn:hover{border-color:var(--border-hi)}
+.ca-btn.pine{background:rgba(255,166,87,.12);color:var(--orange);border-color:var(--orange)}
+.ca-btn.pine:hover{background:var(--orange);color:#0d1117}
+.ca-btn.tv-push{background:rgba(99,102,241,.12);color:#A5B4FC;border-color:#A5B4FC}
+.ca-btn.tv-push:hover{background:#A5B4FC;color:#0d1117}
+
+/* Bias score builder (Pre-Market tab) */
+.bias-builder{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.bias-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
+.bias-card .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.bias-card .val{font-size:18px;font-weight:700}
+.bias-card .score{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;margin-top:6px;border:1px solid currentColor}
+.bias-card .score.pos{color:var(--green);background:var(--green-bg)}
+.bias-card .score.neg{color:var(--red);background:var(--red-bg)}
+.bias-card .score.zero{color:var(--muted);background:var(--card)}
+.bias-final{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--blue);border-radius:var(--radius);padding:14px 18px;margin-top:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.bias-final .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.bias-final .total{font-size:30px;font-weight:700}
+.bias-final .verdict{font-size:14px;font-weight:600}
+
+/* Journal / Review entry card */
+.journal-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px}
+.journal-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:12px}
+.journal-form label{display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.journal-form input,.journal-form select,.journal-form textarea{background:var(--card);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-size:13px;font-family:inherit}
+.journal-form textarea{min-height:60px;resize:vertical;font-family:inherit;grid-column:span 2}
+.journal-form input:focus,.journal-form select:focus,.journal-form textarea:focus{outline:none;border-color:var(--blue)}
+.journal-list{margin-top:12px;display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto}
+.journal-entry{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:12px;display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center}
+.journal-entry .je-sym{font-weight:700;font-size:13px}
+.journal-entry .je-meta{color:var(--muted);font-size:11px}
+.journal-entry .je-del{background:transparent;border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer}
+.journal-entry .je-del:hover{color:var(--red);border-color:var(--red)}
+
+/* Section block within a tab */
+.tab-section-head{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:22px 0 10px;display:flex;align-items:center;justify-content:space-between}
+.tab-section-head:first-child{margin-top:0}
+
+/* ── Chart Analysis Validation Cards ────────────────────── */
+.ca-validate-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;margin-bottom:18px}
+.ca-vcard{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .2s,transform .15s}
+.ca-vcard:hover{border-color:var(--blue);transform:translateY(-2px)}
+.ca-vcard-head{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.ca-vcard-head .sym{font-size:16px;font-weight:700}
+.ca-vcard-head .px{font-size:14px;font-weight:700;text-align:right}
+.ca-vcard-head .chg{font-size:11px;margin-top:2px}
+.ca-vcard-body{padding:10px 14px}
+.ca-check-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(48,54,61,.4);font-size:12px}
+.ca-check-row:last-child{border:none}
+.ca-check-icon{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;flex-shrink:0}
+.ca-check-icon.pass{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
+.ca-check-icon.fail{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
+.ca-check-icon.warn{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
+.ca-check-icon.info{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue)}
+.ca-check-label{flex:1;color:var(--text)}
+.ca-check-val{font-weight:600;font-size:11px;text-align:right;min-width:70px}
+.ca-vcard-foot{padding:8px 14px;background:var(--surface);border-top:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.ca-score{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:3px 10px;border-radius:6px}
+.ca-score.strong{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
+.ca-score.moderate{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
+.ca-score.weak{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
+
+/* ── Entry Checklist (Trading Tools) ───────────────────── */
+.entry-cl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
+.entry-cl-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
+.entry-cl-head h3{font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;margin:0}
+.entry-cl-head .entry-score{font-size:12px;font-weight:700;padding:3px 10px;border-radius:6px}
+.entry-cl-body{padding:8px 0}
+.entry-cl-item{display:flex;align-items:center;gap:12px;padding:8px 16px;border-bottom:1px solid rgba(48,54,61,.3);font-size:13px;transition:background .15s}
+.entry-cl-item:last-child{border:none}
+.entry-cl-item:hover{background:rgba(255,255,255,.02)}
+.entry-cl-item .num{font-size:10px;font-weight:700;color:var(--muted);min-width:18px}
+.entry-cl-item .icon{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;flex-shrink:0}
+.entry-cl-item .icon.pass{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
+.entry-cl-item .icon.fail{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
+.entry-cl-item .icon.warn{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
+.entry-cl-item .icon.neutral{background:var(--card);color:var(--muted);border:1px solid var(--border)}
+.entry-cl-item .text{flex:1;color:var(--text);line-height:1.4}
+.entry-cl-item .text small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.entry-cl-item .value{font-weight:700;font-size:12px;text-align:right;min-width:80px}
+
+/* ── Stock Selector (for per-stock analysis) ────────────── */
+.stock-sel-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
+.stock-sel-chip{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:18px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;user-select:none}
+.stock-sel-chip:hover{border-color:var(--border-hi);color:var(--text)}
+.stock-sel-chip.active{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
 
 /* ── Responsive ─────────────────────────────────────────── */
 @media(max-width:600px){
@@ -380,6 +548,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
   .stocks-grid{grid-template-columns:1fr}
   #scanBtn span.last-upd{display:none}
   .filter-grid{grid-template-columns:1fr}
+  .ca-validate-grid{grid-template-columns:1fr}
 }
 @media(max-width:900px){
   .filter-grid{grid-template-columns:1fr}
@@ -421,6 +590,36 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
   </div>
 </div>
 
+<!-- Pine Script (post add-to-watchlist) Modal -->
+<div id="pineModal">
+  <div class="tv-modal-box" style="width:560px">
+    <h3 id="pineModalTitle">📺 TradingView Setup</h3>
+    <div id="pineTVStatus" style="font-size:12px;padding:8px 12px;border-radius:6px;margin-bottom:14px"></div>
+
+    <div class="tv-modal-section" style="display:flex;justify-content:space-between;align-items:center">
+      <span>1. S/R Zone Marker (paste into Pine Editor)</span>
+      <button class="tv-copy-btn" onclick="copyPineCode('pineCodeSR',this)">📋 Copy</button>
+    </div>
+    <pre id="pineCodeSR" class="pine-code"></pre>
+
+    <div class="tv-modal-section" style="display:flex;justify-content:space-between;align-items:center">
+      <span>2. Alert Conditions (Breakout · 9/21 Cross · RSI Pullback)</span>
+      <button class="tv-copy-btn" onclick="copyPineCode('pineCodeAlerts',this)">📋 Copy</button>
+    </div>
+    <pre id="pineCodeAlerts" class="pine-code"></pre>
+
+    <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5">
+      <b>How to apply:</b> Open the TradingView chart → press <kbd>Alt+E</kbd> for Pine Editor →
+      paste → Save → "Add to chart". For alerts: <kbd>Alt+A</kbd> → Condition: this indicator → pick the alert name.
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button style="flex:1;padding:9px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text)" onclick="closePineModal()">Close</button>
+      <a id="pineOpenTV" href="#" target="_blank" style="flex:1;padding:9px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;border:none;background:var(--orange);color:#0d1117;text-align:center;text-decoration:none">📺 Open TradingView Chart</a>
+    </div>
+  </div>
+</div>
+
 <!-- Add to Watchlist Modal -->
 <div id="buyModal">
   <div class="modal-box">
@@ -452,13 +651,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     </span>
     <div class="status-dot" id="statusDot"></div>
     <span class="last-upd" id="lastUpd">Not loaded</span>
-    <button id="filterToggleBtn" onclick="toggleFilterPanel()" title="Configure scan filters">
-      <span class="f-dot" id="filterDirtyDot"></span>&#9881; Filters
-    </button>
     <button id="tvBtn" onclick="openTVModal()" title="TradingView Screener">📺 TV</button>
-    <a href="/checklist" target="_blank" style="display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:7px 14px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;transition:border-color .15s" onmouseover="this.style.borderColor='var(--border-hi)'" onmouseout="this.style.borderColor='var(--border)'">
-      ☑ Checklist
-    </a>
     <button id="scanBtn" onclick="runScan()">
       <div class="spinner"></div>
       <span class="btn-icon">⚡</span>
@@ -466,6 +659,22 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     </button>
   </div>
 </header>
+
+<!-- Tab Navigation (4 organized sections) -->
+<nav class="tab-nav" id="tabNav">
+  <button class="tab-btn tab-watchlist active" data-tab="watchlist" onclick="switchTab('watchlist')">
+    📋 Watchlist
+  </button>
+  <button class="tab-btn tab-analysis" data-tab="analysis" onclick="switchTab('analysis')">
+    📊 Analysis
+  </button>
+  <button class="tab-btn tab-trading" data-tab="trading" onclick="switchTab('trading')">
+    🎯 Trading Tools
+  </button>
+  <button class="tab-btn tab-portfolio" data-tab="portfolio" onclick="switchTab('portfolio')">
+    💼 Portfolio
+  </button>
+</nav>
 
 <!-- Filter Panel -->
 <div id="filterPanel">
@@ -606,6 +815,24 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 
 <div class="page">
 
+<!-- ════════════════════════════════════════════════════════════════
+     TAB 01 — WATCHLIST BUILDING (previous evening)
+     Hosts: market widgets, scan results, sector pulse, F&O ban, watchlist
+     ════════════════════════════════════════════════════════════════ -->
+<section class="tab-content active" data-tab="watchlist">
+
+  <div class="tab-head">
+    <div>
+      <h2>📋 Watchlist</h2>
+      <div class="tab-sub">Run today's scan, review market context, and shortlist candidates. You add stocks every day — scan and filter here.</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <button id="filterToggleBtn" onclick="toggleFilterPanel()" title="Configure scan filters" style="display:flex;align-items:center;gap:6px;background:var(--card);color:var(--muted);border:1px solid var(--border);border-radius:7px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap">
+        <span class="f-dot" id="filterDirtyDot"></span>&#9881; Filters
+      </button>
+    </div>
+  </div>
+
   <!-- Market -->
   <div class="market-row">
     <div class="mcard">
@@ -638,6 +865,88 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <div class="val" id="regimeVal" style="font-size:16px">—</div>
       <div class="sub" id="regimeSub">EMA 50 / 200</div>
     </div>
+  </div>
+
+  <!-- F&O Ban Banner -->
+  <div id="foBanBanner">
+    <span class="ban-label">F&amp;O Ban</span>
+    <div class="ban-chips" id="foBanChips"></div>
+  </div>
+
+  <!-- Sector Pulse -->
+  <div id="sec_sectors">
+  <div class="sec-head">
+    <span class="sec-title">🌡️ Sector Pulse</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="pill" id="sectorPill">— sectors</span>
+      <button class="sec-toggle" onclick="toggleSection('sec_sectors')" title="Expand / Shrink"><span class="chevron">▼</span></button>
+    </div>
+  </div>
+  <div class="sec-body">
+  <div id="sectorPulseWrap" class="sector-row">
+    <div class="empty" style="padding:14px">
+      <div class="empty-sub">Loading sectors…</div>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <!-- Actions -->
+  <div id="sec_actions">
+  <div class="sec-head">
+    <span class="sec-title">🎯 Priority Actions</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="pill" id="actionPill">0 actions</span>
+      <button class="sec-toggle" onclick="toggleSection('sec_actions')" title="Expand / Shrink"><span class="chevron">▼</span></button>
+    </div>
+  </div>
+  <div class="sec-body">
+  <div class="actions-grid" id="actionsGrid">
+    <div class="empty"><div class="empty-sub">Hit <b>Scan Now</b> to load today's actions.</div></div>
+  </div>
+  </div>
+  </div>
+
+  <!-- Stocks (Scan Output) -->
+  <div id="sec_setups">
+  <div class="sec-head">
+    <span class="sec-title">📊 Trade Setups <small style="font-weight:400;color:var(--muted);letter-spacing:0;text-transform:none;margin-left:8px">— Chartink → yfinance filtered</small></span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button id="addAllBtn" onclick="addAllToPositions()" style="display:none;background:var(--green-bg);color:var(--green);border:1px solid var(--green);padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer" onmouseover="this.style.background='var(--green)';this.style.color='#0d1117'" onmouseout="this.style.background='var(--green-bg)';this.style.color='var(--green)'">+ Add All to Watchlist</button>
+      <button onclick="switchTab('analysis')" style="background:rgba(16,185,129,.12);color:#10B981;border:1px solid #10B981;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">→ Analysis</button>
+      <span class="pill" id="stockPill">0 stocks</span>
+      <button class="sec-toggle" onclick="toggleSection('sec_setups')" title="Expand / Shrink"><span class="chevron">▼</span></button>
+    </div>
+  </div>
+  <div class="sec-body">
+  <div id="stocksGrid">
+    <div class="empty">
+      <div class="empty-icon">📭</div>
+      <div class="empty-title">No setups yet</div>
+      <div class="empty-sub">Click <b>Scan Now</b> or run <code>python server.py</code></div>
+    </div>
+  </div>
+  </div>
+  </div>
+
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     TAB 02 — ANALYSIS (Pre-Market + Chart Analysis combined)
+     ════════════════════════════════════════════════════════════════ -->
+<section class="tab-content" data-tab="analysis">
+  <div class="tab-head">
+    <div>
+      <h2>📊 Analysis</h2>
+      <div class="tab-sub">Pre-market cues, global context, composite bias score, and chart-level stock validation.</div>
+    </div>
+  </div>
+
+  <!-- Global market widgets -->
+  <div id="sec_global">
+  <div class="tab-section-head"><span>Global Cues &amp; FX</span><button class="sec-toggle" onclick="toggleSection('sec_global')" title="Expand / Shrink"><span class="chevron">▼</span></button></div>
+  <div class="sec-body">
+  <div class="market-row">
     <div class="mcard">
       <div class="lbl">S&amp;P 500</div>
       <div class="val" id="sp500Val">—</div>
@@ -659,21 +968,43 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <div class="sub" id="biasSub">−5 bearish → +5 bullish</div>
     </div>
   </div>
-
-  <!-- F&O Ban Banner -->
-  <div id="foBanBanner">
-    <span class="ban-label">F&amp;O Ban</span>
-    <div class="ban-chips" id="foBanChips"></div>
+  </div>
   </div>
 
-  <!-- TradingView Alerts -->
-  <div class="sec-head">
-    <span class="sec-title">📺 TradingView Alerts</span>
+  <!-- Composite Bias Builder -->
+  <div id="sec_bias">
+  <div class="tab-section-head"><span>Composite Market Bias</span><button class="sec-toggle" onclick="toggleSection('sec_bias')" title="Expand / Shrink"><span class="chevron">▼</span></button></div>
+  <div class="sec-body">
+  <div class="bias-builder" id="biasBuilder">
+    <!-- populated by renderBiasBuilder() -->
+  </div>
+  <div class="bias-final" id="biasFinal">
+    <div>
+      <div class="label">Final Score</div>
+      <div class="total" id="biasFinalTotal">0</div>
+    </div>
+    <div>
+      <div class="label">Verdict</div>
+      <div class="verdict" id="biasFinalVerdict">—</div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);max-width:340px;text-align:right">
+      <b>≥+3</b> Strong Bullish · <b>+1/+2</b> Mild · <b>0</b> Neutral (half-size) · <b>≤−2</b> No fresh longs
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <!-- TradingView Alerts (review stale before market opens) -->
+  <div id="sec_tv_alerts">
+  <div class="tab-section-head">
+    <span>📺 TradingView Alerts <small style="font-weight:400;text-transform:none;letter-spacing:0;margin-left:6px">Remove stale ones</small></span>
     <div style="display:flex;align-items:center;gap:8px">
       <span class="pill" id="tvAlertPill">—</span>
       <button id="tvAlertsRefreshBtn" onclick="loadTVAlerts()" title="Refresh TV alerts">↻ Refresh</button>
+      <button class="sec-toggle" onclick="toggleSection('sec_tv_alerts')" title="Expand / Shrink"><span class="chevron">▼</span></button>
     </div>
   </div>
+  <div class="sec-body">
   <div class="tv-wrap" id="tvAlertsWrap">
     <div class="tv-alert-list">
       <div class="news-empty" style="padding:18px;text-align:center;color:var(--muted);font-size:13px">
@@ -681,15 +1012,20 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       </div>
     </div>
   </div>
+  </div>
+  </div>
 
   <!-- Pre-Market News -->
-  <div class="sec-head">
-    <span class="sec-title">📰 Pre-Market News</span>
+  <div id="sec_news">
+  <div class="tab-section-head">
+    <span>📰 Pre-Market News</span>
     <div style="display:flex;align-items:center;gap:8px">
       <span class="pill" id="newsPill">loading…</span>
       <button id="newsRefreshBtn" onclick="loadNews(true)" title="Force-refresh news (skip cache)">↻ Refresh</button>
+      <button class="sec-toggle" onclick="toggleSection('sec_news')" title="Expand / Shrink"><span class="chevron">▼</span></button>
     </div>
   </div>
+  <div class="sec-body">
   <div class="news-wrap">
     <div class="news-head">
       <div class="news-tabs" id="newsTabs">
@@ -709,59 +1045,255 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <div class="news-empty">Loading news headlines…</div>
     </div>
   </div>
-
-  <!-- Sector Pulse -->
-  <div class="sec-head">
-    <span class="sec-title">🌡️ Sector Pulse</span>
-    <span class="pill" id="sectorPill">— sectors</span>
   </div>
-  <div id="sectorPulseWrap" class="sector-row">
-    <div class="empty" style="padding:14px">
-      <div class="empty-sub">Loading sectors…</div>
-    </div>
   </div>
 
-  <!-- Actions -->
-  <div class="sec-head">
-    <span class="sec-title">🎯 Priority Actions</span>
-    <span class="pill" id="actionPill">0 actions</span>
-  </div>
-  <div class="actions-grid" id="actionsGrid">
-    <div class="empty"><div class="empty-sub">Hit <b>Scan Now</b> to load today's actions.</div></div>
-  </div>
-
-  <!-- Stocks -->
-  <div class="sec-head">
-    <span class="sec-title">📊 Trade Setups</span>
+  <!-- Chart Analysis Checklist -->
+  <div id="sec_chart_checklist">
+  <div class="tab-section-head">
+    <span>📊 Chart Analysis Checklist <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">Before Entry — validate each stock</small></span>
     <div style="display:flex;align-items:center;gap:8px">
-      <button id="addAllBtn" onclick="addAllToPositions()" style="display:none;background:var(--green-bg);color:var(--green);border:1px solid var(--green);padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer" onmouseover="this.style.background='var(--green)';this.style.color='#0d1117'" onmouseout="this.style.background='var(--green-bg)';this.style.color='var(--green)'">+ Add All to Watchlist</button>
-      <span class="pill" id="stockPill">0 stocks</span>
+      <span class="pill" id="caChecklistPill">8 checks</span>
+      <button class="sec-toggle" onclick="toggleSection('sec_chart_checklist')" title="Expand / Shrink"><span class="chevron">▼</span></button>
     </div>
   </div>
-  <div id="stocksGrid">
-    <div class="empty">
+  <div class="sec-body">
+  <div class="cli-list" id="caChecklist"></div>
+  </div>
+  </div>
+
+  <!-- Per-Stock Chart Validation -->
+  <div id="sec_chart_validate">
+  <div class="tab-section-head">
+    <span>🔬 Stock Validation Matrix <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">Auto-checked from scan data</small></span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="pill" id="caValidatePill">0 stocks</span>
+      <button class="sec-toggle" onclick="toggleSection('sec_chart_validate')" title="Expand / Shrink"><span class="chevron">▼</span></button>
+    </div>
+  </div>
+  <div class="sec-body">
+  <div id="caValidateGrid">
+    <div class="empty" style="padding:30px 20px">
+      <div class="empty-icon">📊</div>
+      <div class="empty-title">No stocks to validate</div>
+      <div class="empty-sub">Run <b>Scan Now</b> in Watchlist first, then come here to validate each stock's chart</div>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <!-- Chart Analysis: Scanned Stocks (TV Push) -->
+  <div id="sec_chart_stocks">
+  <div class="tab-section-head">
+    <span>Scanned Stocks <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">Pine S/R marker + Alerts → TradingView</small></span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button onclick="caPushAll()" id="caPushAllBtn" style="background:rgba(255,166,87,.12);color:var(--orange);border:1px solid var(--orange);padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">📺 Add All to TV Watchlist</button>
+      <span class="pill" id="caPill">0 stocks</span>
+      <button class="sec-toggle" onclick="toggleSection('sec_chart_stocks')" title="Expand / Shrink"><span class="chevron">▼</span></button>
+    </div>
+  </div>
+  <div class="sec-body">
+  <div id="caList">
+    <div class="empty" style="padding:30px 20px">
       <div class="empty-icon">📭</div>
-      <div class="empty-title">No setups yet</div>
-      <div class="empty-sub">Click <b>Scan Now</b> or run <code>python server.py</code></div>
+      <div class="empty-title">No scanned stocks</div>
+      <div class="empty-sub">Run <b>Scan Now</b> in Watchlist first</div>
+    </div>
+  </div>
+  </div>
+  </div>
+  </div>
+
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     TAB 03 — TRADING TOOLS (Position Sizing + Risk Management)
+     ════════════════════════════════════════════════════════════════ -->
+<section class="tab-content" data-tab="trading">
+  <div class="tab-head">
+    <div>
+      <h2>🎯 Trading Tools</h2>
+      <div class="tab-sub">Position sizing, entry gates, SL/target calculators, and trail-stop — all in one place.</div>
     </div>
   </div>
 
-  <!-- Watchlist — full performance tracking lives here -->
-  <div class="sec-head">
-    <span class="sec-title">💼 Watchlist & Performance</span>
+  <!-- Stock Selector for auto-fill -->
+  <div id="sec_stock_selector">
+  <div class="tab-section-head">
+    <span>📌 Quick Stock Select <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">click a scanned stock to auto-fill calculators</small></span>
+    <button class="sec-toggle" onclick="toggleSection('sec_stock_selector')" title="Expand / Shrink"><span class="chevron">▼</span></button>
+  </div>
+  <div class="sec-body">
+  <div class="stock-sel-bar" id="stockSelBar">
+    <span style="color:var(--muted);font-size:12px">No scanned stocks — run Scan Now first</span>
+  </div>
+  </div>
+  </div>
+
+  <!-- Position Entry Checklist (pe1-pe10 from the checklist) -->
+  <div id="sec_entry_checklist">
+  <div class="tab-section-head">
+    <span>✅ Entry Checklist <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">all gates must pass before entering</small></span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="pill" id="entryClPill">10 checks</span>
+      <button class="sec-toggle" onclick="toggleSection('sec_entry_checklist')" title="Expand / Shrink"><span class="chevron">▼</span></button>
+    </div>
+  </div>
+  <div class="sec-body">
+  <div class="entry-cl-wrap" id="entryChecklistWrap">
+    <div class="entry-cl-head">
+      <h3>🎯 Position Entry Gates</h3>
+      <span class="entry-score" id="entryScoreBadge" style="background:var(--card);color:var(--muted);border:1px solid var(--border)">— / 10</span>
+    </div>
+    <div class="entry-cl-body" id="entryChecklistBody">
+      <!-- Populated by renderEntryChecklist() -->
+    </div>
+  </div>
+  </div>
+  </div>
+
+
+  <div class="tool-card" id="tc_pos_sizer">
+    <h3 onclick="toggleSection('tc_pos_sizer')">📐 Position Size Calculator <span class="tool-tag">1% RULE</span><button class="sec-toggle"><span class="chevron">▼</span></button></h3>
+    <div class="tool-body">
+    <div class="tool-grid">
+      <label>Capital (₹)<input id="ps_capital" type="number" value="500000" oninput="recalcPosSize()"></label>
+      <label>Risk per trade (%)<input id="ps_risk_pct" type="number" step="0.1" value="1" oninput="recalcPosSize()"></label>
+      <label>Entry Price (₹)<input id="ps_entry" type="number" step="0.05" value="500" oninput="recalcPosSize()"></label>
+      <label>Stop Loss (₹)<input id="ps_sl" type="number" step="0.05" value="485" oninput="recalcPosSize()"></label>
+      <label>Target (₹)<input id="ps_target" type="number" step="0.05" value="540" oninput="recalcPosSize()"></label>
+    </div>
+    <div class="tool-out">
+      <div class="tool-out-card"><div class="lbl">Rupee Risk</div><div class="val" id="ps_out_risk">₹0</div></div>
+      <div class="tool-out-card"><div class="lbl">Risk / Share</div><div class="val" id="ps_out_per_share">₹0</div></div>
+      <div class="tool-out-card"><div class="lbl">Quantity</div><div class="val" id="ps_out_qty">0</div></div>
+      <div class="tool-out-card"><div class="lbl">Capital Deployed</div><div class="val" id="ps_out_deployed">₹0</div></div>
+      <div class="tool-out-card"><div class="lbl">R:R Ratio</div><div class="val" id="ps_out_rr">—</div></div>
+      <div class="tool-out-card"><div class="lbl">Chase %</div><div class="val" id="ps_out_chase">—</div></div>
+    </div>
+    </div>
+  </div>
+
+  <div class="tool-card" id="tc_entry_gates">
+    <h3 onclick="toggleSection('tc_entry_gates')">🚦 Entry Gate Status <span class="tool-tag">SKIP IF RED</span><button class="sec-toggle"><span class="chevron">▼</span></button></h3>
+    <div class="tool-body">
+    <div id="entryGates" class="bias-builder"></div>
+    </div>
+  </div>
+
+  <div class="tool-card" id="tc_sl_calc">
+    <h3 onclick="toggleSection('tc_sl_calc')">🛡️ SL &amp; Target Calculator <span class="tool-tag">STRUCTURE + ATR</span><button class="sec-toggle"><span class="chevron">▼</span></button></h3>
+    <div class="tool-body">
+    <div class="tool-grid">
+      <label>Entry Price (₹)<input id="rm_entry" type="number" step="0.05" value="500" oninput="recalcRiskTargets()"></label>
+      <label>Base Low (₹)<input id="rm_base_low" type="number" step="0.05" value="482" oninput="recalcRiskTargets()"></label>
+      <label>Base High (₹)<input id="rm_base_high" type="number" step="0.05" value="500" oninput="recalcRiskTargets()"></label>
+      <label>ATR(14) (₹)<input id="rm_atr" type="number" step="0.05" value="8" oninput="recalcRiskTargets()"></label>
+    </div>
+    <div class="tool-out">
+      <div class="tool-out-card"><div class="lbl">SL · Structure (base low − 0.5%)</div><div class="val" id="rm_sl_struct">—</div></div>
+      <div class="tool-out-card"><div class="lbl">SL · Volatility (2 × ATR)</div><div class="val" id="rm_sl_atr">—</div></div>
+      <div class="tool-out-card"><div class="lbl">Recommended SL</div><div class="val" id="rm_sl_final" style="color:var(--red)">—</div></div>
+      <div class="tool-out-card"><div class="lbl">Target 1 (1.5R · book 50%)</div><div class="val" id="rm_t1" style="color:var(--yellow)">—</div></div>
+      <div class="tool-out-card"><div class="lbl">Target 2 (base projection)</div><div class="val" id="rm_t2" style="color:var(--green)">—</div></div>
+      <div class="tool-out-card"><div class="lbl">Risk %</div><div class="val" id="rm_risk_pct">—</div></div>
+    </div>
+    </div>
+  </div>
+
+  <div class="tool-card" id="tc_trail">
+    <h3 onclick="toggleSection('tc_trail')">📈 Stop-Loss Ladder &amp; Trail <span class="tool-tag">ONE-WAY RATCHET</span><button class="sec-toggle"><span class="chevron">▼</span></button></h3>
+    <div class="tool-body">
+    <div class="tool-grid">
+      <label>Entry (₹)<input id="ts_entry" type="number" step="0.05" value="500" oninput="recalcTrail()"></label>
+      <label>Initial SL (₹)<input id="ts_sl" type="number" step="0.05" value="485" oninput="recalcTrail()"></label>
+      <label>Current Price (₹)<input id="ts_cur" type="number" step="0.05" value="520" oninput="recalcTrail()"></label>
+      <label>21 EMA (₹)<input id="ts_ema21" type="number" step="0.05" value="505" oninput="recalcTrail()"></label>
+    </div>
+    <div class="tool-out">
+      <div class="tool-out-card"><div class="lbl">R-Multiple Now</div><div class="val" id="ts_r_mult">—</div></div>
+      <div class="tool-out-card"><div class="lbl">Trade State</div><div class="val" id="ts_state" style="font-size:14px">—</div></div>
+      <div class="tool-out-card"><div class="lbl">Recommended SL</div><div class="val" id="ts_new_sl" style="color:var(--red)">—</div></div>
+      <div class="tool-out-card"><div class="lbl">21-EMA Trail (−1.5%)</div><div class="val" id="ts_ema_trail">—</div></div>
+    </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     TAB 04 — PORTFOLIO (Positions + Journal + Review)
+     ════════════════════════════════════════════════════════════════ -->
+<section class="tab-content" data-tab="portfolio">
+  <div class="tab-head">
+    <div>
+      <h2>💼 Portfolio</h2>
+      <div class="tab-sub">Active positions, performance tracking, trade journal, and edge metrics.</div>
+    </div>
+  </div>
+
+  <div id="sec_positions">
+  <div class="tab-section-head">
+    <span>Positions &amp; Performance</span>
     <div style="display:flex;align-items:center;gap:8px">
       <div class="results-toggle">
-        <button id="rtForward"  class="active" onclick="switchResults('forward')">Live</button>
-        <button id="rtBacktest"                onclick="switchResults('backtest')">Backtest (6mo)</button>
+        <button id="rtForward" class="active" onclick="switchResults('forward')">Live</button>
+        <button id="rtBacktest" onclick="switchResults('backtest')">Backtest (6mo)</button>
       </div>
       <span class="pill" id="posPill">— positions</span>
+      <button class="sec-toggle" onclick="toggleSection('sec_positions')" title="Expand / Shrink"><span class="chevron">▼</span></button>
     </div>
   </div>
+  <div class="sec-body">
   <div id="posWrap">
     <div class="empty" style="padding:30px 20px">
       <div class="empty-sub">Loading watchlist…</div>
     </div>
   </div>
+  </div>
+  </div>
+
+  <div id="sec_metrics">
+  <div class="tab-section-head"><span>Edge Metrics <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">last 20+ closed trades</small></span><button class="sec-toggle" onclick="toggleSection('sec_metrics')" title="Expand / Shrink"><span class="chevron">▼</span></button></div>
+  <div class="sec-body">
+  <div class="results-summary" id="reviewMetrics">
+    <div class="rsum-card"><div class="lbl">Win Rate</div><div class="val" id="rev_wr">—</div><div class="sub" id="rev_wr_sub">—</div></div>
+    <div class="rsum-card"><div class="lbl">Profit Factor</div><div class="val" id="rev_pf">—</div><div class="sub" id="rev_pf_sub">> 1.5 healthy</div></div>
+    <div class="rsum-card"><div class="lbl">Expectancy / ₹1 risked</div><div class="val" id="rev_exp">—</div><div class="sub" id="rev_exp_sub">—</div></div>
+    <div class="rsum-card"><div class="lbl">Avg Hold</div><div class="val" id="rev_hold">—</div><div class="sub">days · closed</div></div>
+  </div>
+  </div>
+  </div>
+
+  <div id="sec_journal">
+  <div class="tab-section-head"><span>Trade Journal <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">stored locally</small></span><button class="sec-toggle" onclick="toggleSection('sec_journal')" title="Expand / Shrink"><span class="chevron">▼</span></button></div>
+  <div class="sec-body">
+  <div class="journal-wrap">
+    <div class="journal-form">
+      <label>Symbol<input id="jr_sym" type="text" placeholder="RELIANCE"></label>
+      <label>Setup<select id="jr_setup">
+        <option>flat-base</option><option>bull-flag</option><option>asc-triangle</option>
+        <option>52w-high</option><option>pullback</option><option>other</option>
+      </select></label>
+      <label>Entry (₹)<input id="jr_entry" type="number" step="0.05"></label>
+      <label>Exit (₹)<input id="jr_exit" type="number" step="0.05"></label>
+      <label>Qty<input id="jr_qty" type="number" min="1" value="1"></label>
+      <label>Days held<input id="jr_days" type="number" min="0"></label>
+      <label>Exit reason<select id="jr_reason">
+        <option>T2 hit</option><option>T1 + trail</option><option>SL hit</option>
+        <option>Trail (21 EMA)</option><option>Time stop</option><option>Discretionary</option>
+      </select></label>
+      <label>Regime at entry<select id="jr_regime">
+        <option>GREEN</option><option>AMBER</option><option>RED</option>
+      </select></label>
+      <label style="grid-column:span 2">Notes<textarea id="jr_notes" placeholder="One line of learning — what would I do differently?"></textarea></label>
+    </div>
+    <button onclick="addJournalEntry()" style="background:var(--green);color:#0d1117;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">+ Save Journal Entry</button>
+    <div class="journal-list" id="journalList"></div>
+  </div>
+  </div>
+  </div>
+
+</section>
 
 </div>
 
@@ -781,7 +1313,14 @@ const BASE = window.location.origin.includes("localhost") || window.location.ori
 async function apiFetch(path, opts = {}) {
   if (!BASE) throw new Error("No server");
   const r = await fetch(BASE + path, { ...opts, headers: { "Content-Type": "application/json", ...(opts.headers||{}) } });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try {
+      const body = await r.json();
+      if (body && body.error) msg = body.error;
+    } catch {}
+    throw new Error(msg);
+  }
   return r.json();
 }
 
@@ -1316,16 +1855,17 @@ async function confirmBuy() {
 
   // Snapshot stock info BEFORE closeBuyModal() nulls _buyStock —
   // otherwise the toast + refresh code crashes with "null.symbol"
-  const symbol  = _buyStock.symbol;
+  const stock = { ..._buyStock, entry };
+  const symbol  = stock.symbol;
   const payload = {
     symbol,
-    name:        _buyStock.name || symbol,
+    name:        stock.name || symbol,
     entry_price: entry,
     quantity:    qty,
-    target_1:    _buyStock.target_1,
-    target_2:    _buyStock.target_2,
-    sl:          _buyStock.sl,
-    setup:       _buyStock.setup,
+    target_1:    stock.target_1,
+    target_2:    stock.target_2,
+    sl:          stock.sl,
+    setup:       stock.setup,
   };
 
   const btn = document.querySelector(".btn-confirm");
@@ -1343,12 +1883,141 @@ async function confirmBuy() {
       toast(`${symbol} added to watchlist`, "success");
     }
     await loadPositions();
-    document.getElementById("posWrap").scrollIntoView({ behavior: "smooth", block: "start" });
+
+    // ── TradingView setup: add to watchlist + show Pine Scripts ──
+    let tvStatus = { ok: false, label: "Not attempted" };
+    try {
+      const tv = await apiFetch("/api/tv/watchlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbol: `NSE:${symbol}` }),
+      });
+      if (tv.error) {
+        tvStatus = { ok: false, label: `TV watchlist: ${tv.error}` };
+      } else if (tv.status === "already_in_watchlist") {
+        tvStatus = { ok: true, label: `Already in TradingView watchlist`, info: true };
+      } else {
+        tvStatus = { ok: true, label: `Added to TradingView watchlist ✓` };
+      }
+    } catch (e) {
+      tvStatus = { ok: false, label: `TV watchlist failed: ${e.message}` };
+    }
+    showPineModal(stock, tvStatus);
   } catch(err) {
     toast(`Failed: ${err.message}`, "error");
   } finally {
     btn.disabled = false;
     btn.textContent = "Add to Watchlist";
+  }
+}
+
+/* ── Pine Script generation + modal ──────────────────────── */
+function generatePineScripts(stock) {
+  const sym = stock.symbol || "STOCK";
+  const entry = +(stock.entry || stock.entry_min || stock.price || 0).toFixed(2);
+  const sl    = +(stock.sl || 0).toFixed(2);
+  const t1    = +(stock.target_1 || 0).toFixed(2);
+  const t2    = +(stock.target_2 || 0).toFixed(2);
+  const tvSym = `NSE:${sym}`;
+
+  const srMarker = `//@version=5
+indicator("S/R Zone — ${sym}", overlay=true)
+
+// Pre-filled from Swing Sentinel scan (${new Date().toISOString().slice(0,10)})
+breakout_price = ${entry}
+sl_price       = ${sl}
+target1        = ${t1}
+target2        = ${t2}
+
+hline(breakout_price, "Entry",  color=color.new(color.lime,   0), linewidth=2)
+hline(sl_price,       "Stop",   color=color.new(color.red,    0), linewidth=2, linestyle=hline.style_dashed)
+hline(target1,        "T1",     color=color.new(color.yellow, 0), linewidth=1, linestyle=hline.style_dotted)
+hline(target2,        "T2",     color=color.new(color.green,  0), linewidth=1, linestyle=hline.style_dotted)
+
+bgcolor(close >= sl_price and close <= breakout_price
+  ? color.new(color.red, 93) : na, title="Risk Zone")
+
+risk_pct = (breakout_price - sl_price) / breakout_price * 100
+rr1      = (target1 - breakout_price) / (breakout_price - sl_price)
+rr2      = (target2 - breakout_price) / (breakout_price - sl_price)
+
+if barstate.islast
+    label.new(bar_index + 2, breakout_price,
+      "ENTRY ₹" + str.tostring(breakout_price, "#.##") + "\\n" +
+      "SL    ₹" + str.tostring(sl_price,       "#.##") + "\\n" +
+      "Risk   "  + str.tostring(risk_pct, "#.1") + "%" + "\\n" +
+      "T1 R:R 1:" + str.tostring(rr1, "#.1") + "\\n" +
+      "T2 R:R 1:" + str.tostring(rr2, "#.1"),
+      style=label.style_label_left, color=color.new(color.lime, 75),
+      textcolor=color.white, size=size.small)`;
+
+  const alerts = `//@version=5
+indicator("Alerts — ${sym}", overlay=true)
+
+// ── 1) BREAKOUT (price > 20-day high + 1.5× avg vol) ──
+baseHigh = ta.highest(high, 20)[1]
+volAvg   = ta.sma(volume, 20)
+breakout = close > baseHigh * 1.005 and volume > 1.5 * volAvg
+alertcondition(breakout, "Breakout ${sym}",
+  "${sym} broke out above base on strong volume — check entry!")
+
+// ── 2) EMA 9/21 GOLDEN CROSS ──
+ema9     = ta.ema(close, 9)
+ema21    = ta.ema(close, 21)
+emaCross = ta.crossover(ema9, ema21)
+alertcondition(emaCross, "9/21 Cross ${sym}",
+  "${sym} EMA 9 crossed above EMA 21 — entry setup forming")
+
+// ── 3) RSI PULLBACK ENTRY ZONE ──
+rsi      = ta.rsi(close, 14)
+ema50    = ta.ema(close, 50)
+pullback = ta.crossover(rsi, 40) and close > ema50
+alertcondition(pullback, "RSI Pullback ${sym}",
+  "${sym} RSI re-entered 40-55 pullback zone above 50 EMA")
+
+// ── 4) TARGET / STOP ALERTS (pre-filled from scan) ──
+t1Hit = ta.crossover(close, ${t1})
+slHit = ta.crossunder(close, ${sl})
+alertcondition(t1Hit, "T1 Hit ${sym}", "${sym} crossed above T1 ₹${t1}")
+alertcondition(slHit, "SL Hit ${sym}", "${sym} broke below stop ₹${sl}")
+
+plot(baseHigh, "20D High", color=color.red,    style=plot.style_linebr)
+plot(ema9,     "EMA9",     color=color.aqua,   linewidth=1)
+plot(ema21,    "EMA21",    color=color.orange, linewidth=2)`;
+
+  return { srMarker, alerts, tvSym };
+}
+
+function showPineModal(stock, tvStatus) {
+  const { srMarker, alerts, tvSym } = generatePineScripts(stock);
+  document.getElementById("pineModalTitle").textContent = `📺 TradingView Setup — ${stock.symbol}`;
+  const statusEl = document.getElementById("pineTVStatus");
+  const cls = tvStatus.ok
+    ? (tvStatus.info ? "pine-status-info" : "pine-status-ok")
+    : "pine-status-err";
+  statusEl.className = cls;
+  statusEl.textContent = tvStatus.label;
+  document.getElementById("pineCodeSR").textContent     = srMarker;
+  document.getElementById("pineCodeAlerts").textContent = alerts;
+  document.getElementById("pineOpenTV").href =
+    `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSym)}`;
+  document.getElementById("pineModal").classList.add("open");
+}
+
+function closePineModal() {
+  document.getElementById("pineModal").classList.remove("open");
+}
+
+async function copyPineCode(blockId, btn) {
+  const txt = document.getElementById(blockId).textContent;
+  try {
+    await navigator.clipboard.writeText(txt);
+    const orig = btn.textContent;
+    btn.classList.add("copied");
+    btn.textContent = "✓ Copied";
+    setTimeout(() => { btn.classList.remove("copied"); btn.textContent = orig; }, 1500);
+  } catch {
+    toast("Copy failed — select & copy manually", "error");
   }
 }
 
@@ -1358,6 +2027,9 @@ document.getElementById("buyModal").addEventListener("click", e => {
 });
 document.getElementById("tvModal").addEventListener("click", e => {
   if (e.target === document.getElementById("tvModal")) closeTVModal();
+});
+document.getElementById("pineModal").addEventListener("click", e => {
+  if (e.target === document.getElementById("pineModal")) closePineModal();
 });
 
 /* ── Add all stocks to positions ─────────────────────────── */
@@ -1378,6 +2050,24 @@ async function addAllToPositions() {
       toast(`Added ${d.added} stocks to watchlist`, "success");
     }
     loadPositions();
+
+    // ── Bulk-push to TradingView watchlist (one symbol at a time, parallel) ──
+    const newStocks = _currentStocks.filter(s => !(d.skipped_symbols || []).includes(s.symbol));
+    if (newStocks.length) {
+      let tvAdded = 0, tvFailed = 0;
+      await Promise.all(newStocks.map(async s => {
+        try {
+          const tv = await apiFetch("/api/tv/watchlist", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ symbol: `NSE:${s.symbol}` }),
+          });
+          if (tv.error) tvFailed++; else tvAdded++;
+        } catch { tvFailed++; }
+      }));
+      if (tvAdded) toast(`📺 ${tvAdded} added to TradingView watchlist${tvFailed ? ` · ${tvFailed} failed` : ""}`, "success", 4000);
+      else if (tvFailed) toast(`📺 TV watchlist add failed for ${tvFailed} stocks (TV_SESSION?)`, "error", 5000);
+    }
   } catch(err) {
     toast(`Failed: ${err.message}`, "error");
   } finally {
@@ -2087,6 +2777,950 @@ async function resetNewsConfig() {
   }
 }
 
+/* ══════════════════════════════════════════════════════════
+   TAB NAVIGATION + CHECKLIST ITEMS (7 sections)
+   ══════════════════════════════════════════════════════════ */
+
+const CHECKLIST_ITEMS = {
+  watchlist: [
+    "Run Chartink screener for breakout candidates",
+    "Filter: Price > ₹100, Avg Volume > 5 lakh shares/day",
+    "Identify stocks near 52-week highs or key resistance",
+    "Look for 9 EMA crossing above 21 EMA on daily chart",
+    "Note stocks with RSI 40–55 in uptrends (continuation setups)",
+    "Mark exact breakout level and stop-loss zone on each chart",
+    "Set price alerts on TradingView / broker app",
+    "Shortlist 3–5 candidates max — don't overload watchlist",
+    "Add shortlisted stocks to TradingView watchlist",
+  ],
+  premarket: [
+    "Check GIFT Nifty direction (live from 6:30 AM)",
+    "Check US market close (Dow, Nasdaq, S&P)",
+    "Check USD/INR — weakness signals FII outflows",
+    "Review FII/DII data from previous session",
+    "Note major news: RBI, budget, geopolitical events",
+    "Determine market bias: bullish / bearish / neutral",
+    "Re-check watchlist — still aligned with market direction?",
+    "Review TradingView alerts — remove stale ones before market opens",
+  ],
+  chart: [
+    "Check weekly chart first — confirm key S/R zones",
+    "Switch to daily — confirm trend direction",
+    "Identify pattern: flat base / bull flag / ascending triangle",
+    "Base should be 5–15 days long (longer = more powerful)",
+    "Check sector index — is the sector also trending up?",
+    "Confirm RSI: no bearish divergence, not overbought (>75)",
+    "Stock not in F&O ban list (NSE updates daily)",
+    "No upcoming results / dividend / ex-date within 5 days",
+  ],
+  entry: [
+    "Calculate risk per share: Entry price − Stop-loss price",
+    "Position size: Max 1–2% of total capital at risk per trade",
+    "Quantity = (Capital × Risk %) ÷ Risk per share",
+    "Risk:reward is at least 1:2 before entering",
+    "Price has broken above resistance / base clearly",
+    "Volume is 1.5x–2x the 20-day average volume",
+    "Nifty is not in a strong downtrend",
+    "Not entering during F&O expiry day (Thursday)",
+    "Entry price is within 3% of breakout level (no chasing)",
+    "Max 3–5 open positions total — am I within limit?",
+  ],
+  risk: [
+    "Stop-loss order placed below base / key S/R level (2–4%)",
+    "GTT order set on Zerodha / Groww — not a mental stop",
+    "Target 1 set at 1.5x risk (book 50% here)",
+    "Target 2 set using base height projection",
+    "Trade logged in journal: entry, SL, targets, thesis",
+  ],
+  manage: [
+    "Review open positions after market close (3:30 PM)",
+    "If price closes back inside base — exit, no overrides",
+    "Move stop to breakeven after Target 1 is hit",
+    "Trail stop-loss using 21 EMA on daily as guide",
+    "Don't average down on a losing trade — ever",
+    "Check if broader market thesis still holds",
+    "Avoid holding through scheduled results announcements",
+  ],
+  review: [
+    "Update trade journal: actual exit, P&L, holding period",
+    "Was the setup valid? Did I follow the checklist?",
+    "What did I do well? What could be improved?",
+    "Review weekly P&L — am I overtrading?",
+    "Win rate and avg risk:reward over last 20 trades?",
+    "Update watchlist for next session",
+  ],
+};
+
+const LS_CHECKED_KEY = "swingSentinel_checklistChecked_v1";
+let _checkedItems = (() => {
+  try { return JSON.parse(localStorage.getItem(LS_CHECKED_KEY) || "{}"); } catch { return {}; }
+})();
+
+function persistChecked() { localStorage.setItem(LS_CHECKED_KEY, JSON.stringify(_checkedItems)); }
+
+function renderChecklist(tabId, containerId) {
+  const items = CHECKLIST_ITEMS[tabId] || [];
+  const cont  = document.getElementById(containerId);
+  if (!cont) return;
+  cont.innerHTML = items.map((text, i) => {
+    const key = `${tabId}_${i}`;
+    const done = !!_checkedItems[key];
+    return `<div class="cli-item ${done?"done":""}" data-key="${key}" onclick="toggleCli('${key}',this)">
+      <div class="cli-check"></div>
+      <span class="cli-num">${String(i+1).padStart(2,"0")}</span>
+      <span class="cli-text">${text}</span>
+    </div>`;
+  }).join("");
+}
+
+function toggleCli(key, el) {
+  _checkedItems[key] = !_checkedItems[key];
+  el.classList.toggle("done", _checkedItems[key]);
+  persistChecked();
+}
+
+function switchTab(tabId) {
+  document.querySelectorAll(".tab-content").forEach(s => s.classList.toggle("active", s.dataset.tab === tabId));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tabId));
+  // Trigger tab-specific refresh
+  if (tabId === "analysis")   { renderBiasBuilder(); renderChartAnalysis(); renderCAChecklist(); renderStockValidation(); }
+  if (tabId === "trading")    { renderEntryGates(); renderEntryChecklist(); renderStockSelector(); recalcPosSize(); recalcRiskTargets(); recalcTrail(); }
+  if (tabId === "portfolio")  { renderReviewMetrics(); renderJournalList(); }
+  // Scroll to top of tab
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/* ══════════════════════════════════════════════════════════
+   PRE-MARKET — Composite Bias Builder (5 inputs → score)
+   ══════════════════════════════════════════════════════════ */
+
+function _scoreSign(v) { return v > 0 ? "+1" : v < 0 ? "−1" : "0"; }
+function _scoreCls(v)  { return v > 0 ? "pos" : v < 0 ? "neg" : "zero"; }
+
+function renderBiasBuilder() {
+  const wrap = document.getElementById("biasBuilder");
+  if (!wrap) return;
+
+  // Read live state from DOM that the loaders populated
+  const sp500Txt  = document.getElementById("sp500Sub")?.textContent || "";
+  const nasdaqTxt = document.getElementById("nasdaqSub")?.textContent || "";
+  const usdinrTxt = document.getElementById("usdinrSub")?.textContent || "";
+  const fiiTxt    = document.getElementById("fiiVal")?.textContent || "";
+  const regimeTxt = document.getElementById("regimeVal")?.textContent || "";
+
+  const parsePct = txt => {
+    const m = String(txt).match(/(-?\d+(?:\.\d+)?)/);
+    if (!m) return 0;
+    const v = parseFloat(m[1]);
+    return /▼|down|-/.test(txt) && v > 0 ? -v : v;
+  };
+  const parseFII = txt => {
+    const m = String(txt).match(/(-?\d+(?:,\d{3})*(?:\.\d+)?)/);
+    return m ? parseFloat(m[1].replace(/,/g, "")) : 0;
+  };
+
+  // 5 inputs per the checklist composite-bias formula
+  const gift = 0;        // not collected yet — treat as 0
+  const sp   = parsePct(sp500Txt);
+  const usd  = parsePct(usdinrTxt);   // RISING usd weakens INR → bearish
+  const fii  = parseFII(fiiTxt);
+  const reg  = regimeTxt;
+
+  const items = [
+    { lbl: "GIFT Nifty",        val: gift ? `${gift>0?"+":""}${gift.toFixed(2)}%` : "—",
+      score: gift > 0.3 ? 1 : gift < -0.3 ? -1 : 0,
+      detail: ">+0.3% bullish · <-0.3% bearish" },
+    { lbl: "US (S&P 500)",      val: sp ? `${sp>0?"+":""}${sp.toFixed(2)}%` : "—",
+      score: sp > 0.5 ? 1 : sp < -0.5 ? -1 : 0,
+      detail: ">+0.5% bullish · <-0.5% bearish" },
+    { lbl: "USD/INR",           val: usd ? `${usd>0?"+":""}${usd.toFixed(2)}%` : "—",
+      score: usd < -0.2 ? 1 : usd > 0.2 ? -1 : 0,
+      detail: "INR strong (USD falling) bullish" },
+    { lbl: "FII Flow (prev)",   val: fii ? `${fii>=0?"+":""}${fmt(fii,0)} cr` : "—",
+      score: fii > 1000 ? 1 : fii < -1000 ? -1 : 0,
+      detail: ">+1000 cr bullish · <-1000 cr bearish" },
+    { lbl: "Nifty Regime",      val: reg || "—",
+      score: reg === "GREEN" ? 1 : reg === "RED" ? -1 : 0,
+      detail: "Close > 21 EMA on daily" },
+  ];
+
+  let total = items.reduce((s, x) => s + x.score, 0);
+  total = Math.max(-5, Math.min(5, total));
+
+  wrap.innerHTML = items.map(it => `
+    <div class="bias-card">
+      <div class="lbl">${it.lbl}</div>
+      <div class="val">${it.val}</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px">${it.detail}</div>
+      <span class="score ${_scoreCls(it.score)}">${_scoreSign(it.score)}</span>
+    </div>`).join("");
+
+  const verdict =
+    total >=  3 ? { txt: "STRONG BULLISH — full size",        cls: "up" } :
+    total >=  1 ? { txt: "MILD BULLISH — full size, selective", cls: "up" } :
+    total === 0 ? { txt: "NEUTRAL — half size, A+ only",      cls: "neutral" } :
+    total >= -2 ? { txt: "MILD BEARISH — quarter size",       cls: "down" } :
+                  { txt: "STRONG BEARISH — no fresh longs",    cls: "down" };
+
+  const totalEl   = document.getElementById("biasFinalTotal");
+  const verdictEl = document.getElementById("biasFinalVerdict");
+  if (totalEl)   { totalEl.textContent = (total >= 0 ? "+" : "") + total; totalEl.className = `total ${verdict.cls}`; }
+  if (verdictEl) { verdictEl.textContent = verdict.txt; verdictEl.className = `verdict ${verdict.cls}`; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   CHART ANALYSIS — scanned stocks → Pine push per stock
+   ══════════════════════════════════════════════════════════ */
+
+function renderChartAnalysis() {
+  const list = document.getElementById("caList");
+  const pill = document.getElementById("caPill");
+  if (!list) return;
+  const stocks = _currentStocks || [];
+  pill.textContent = `${stocks.length} stock${stocks.length !== 1 ? "s" : ""}`;
+
+  if (!stocks.length) {
+    list.innerHTML = `<div class="empty" style="padding:30px 20px">
+      <div class="empty-icon">📭</div>
+      <div class="empty-title">No scanned stocks</div>
+      <div class="empty-sub">Run <b>Scan Now</b> in Watchlist Building first</div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = `<div class="ca-list">${stocks.map((s, i) => {
+    const chgCls = (s.change_pct || 0) >= 0 ? "up" : "down";
+    return `<div class="ca-row">
+      <div>
+        <div class="ca-sym">${s.symbol}</div>
+        <div class="ca-name">${s.name || s.symbol}</div>
+      </div>
+      <div class="ca-meta">
+        <span><b>₹${fmtP(s.price)}</b> <span class="${chgCls}">${(s.change_pct||0)>=0?"▲":"▼"} ${Math.abs(s.change_pct||0).toFixed(2)}%</span></span>
+        <span>Entry <b>₹${fmtP(s.entry_min)}–${fmtP(s.entry_max)}</b></span>
+        <span>SL <b style="color:var(--red)">₹${fmtP(s.sl)}</b></span>
+        <span>T1 <b style="color:var(--yellow)">₹${fmtP(s.target_1)}</b></span>
+        <span>T2 <b style="color:var(--green)">₹${fmtP(s.target_2)}</b></span>
+        <span class="rr-chip ${rrClass(s.rr)}" style="font-size:10px;padding:2px 8px">${String(s.rr).includes(":") ? s.rr : "1:"+rrNum(s.rr).toFixed(1)}</span>
+      </div>
+      <div></div><div></div><div></div>
+      <div class="ca-actions">
+        <button class="ca-btn pine" onclick="caShowPine(${i})">📋 Pine + Open TV</button>
+        <button class="ca-btn tv-push" onclick="caTVAdd(${i}, this)">📺 Add TV</button>
+      </div>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+async function caShowPine(idx) {
+  const s = _currentStocks[idx];
+  if (!s) return;
+  showPineModal({ ...s, entry: s.entry_min || s.price }, { ok: true, info: true, label: "Pine ready — copy into TV Pine editor" });
+}
+
+async function caTVAdd(idx, btn) {
+  const s = _currentStocks[idx];
+  if (!s || !BASE) return;
+  btn.disabled = true;
+  btn.textContent = "…";
+  try {
+    const tv = await apiFetch("/api/tv/watchlist", {
+      method: "POST",
+      body: JSON.stringify({ symbol: `NSE:${s.symbol}` }),
+    });
+    if (tv.error) {
+      toast(`TV: ${tv.error}`, "error");
+      btn.textContent = "📺 Add TV";
+    } else {
+      toast(`${s.symbol} added to TV watchlist`, "success", 2500);
+      btn.textContent = "✓ TV";
+    }
+  } catch (e) {
+    toast(`TV error: ${e.message}`, "error");
+    btn.textContent = "📺 Add TV";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function caPushAll() {
+  if (!BASE || !_currentStocks.length) {
+    toast("No scanned stocks. Run Scan Now first.", "error");
+    return;
+  }
+  const btn = document.getElementById("caPushAllBtn");
+  btn.disabled = true;
+  btn.textContent = "…";
+  let added = 0, failed = 0;
+  await Promise.all(_currentStocks.map(async s => {
+    try {
+      const tv = await apiFetch("/api/tv/watchlist", {
+        method: "POST",
+        body: JSON.stringify({ symbol: `NSE:${s.symbol}` }),
+      });
+      if (tv.error) failed++; else added++;
+    } catch { failed++; }
+  }));
+  toast(`📺 ${added} added · ${failed} failed`, added ? "success" : "error", 4500);
+  btn.disabled = false;
+  btn.textContent = "📺 Add All to TV Watchlist";
+}
+
+/* ══════════════════════════════════════════════════════════
+   POSITION SIZING calculator
+   ══════════════════════════════════════════════════════════ */
+
+function recalcPosSize() {
+  const cap   = parseFloat(document.getElementById("ps_capital").value)  || 0;
+  const rPct  = parseFloat(document.getElementById("ps_risk_pct").value) || 0;
+  const entry = parseFloat(document.getElementById("ps_entry").value)    || 0;
+  const sl    = parseFloat(document.getElementById("ps_sl").value)       || 0;
+  const tgt   = parseFloat(document.getElementById("ps_target").value)   || 0;
+
+  const risk        = cap * rPct / 100;
+  const riskPerShr  = Math.max(0, entry - sl);
+  const qty         = riskPerShr > 0 ? Math.floor(risk / riskPerShr) : 0;
+  const deployed    = qty * entry;
+  const rr          = riskPerShr > 0 ? (tgt - entry) / riskPerShr : 0;
+  const chasePct    = sl > 0 ? ((entry - sl) / entry * 100) : 0;
+
+  const rrCls    = rr >= 2 ? "up" : rr >= 1.5 ? "neutral" : "down";
+  const chaseCls = chasePct <= 3 ? "up" : "down";
+
+  document.getElementById("ps_out_risk").textContent      = `₹${fmt(risk,0)}`;
+  document.getElementById("ps_out_per_share").textContent = `₹${fmt(riskPerShr,2)}`;
+  document.getElementById("ps_out_qty").textContent       = qty.toLocaleString("en-IN");
+  document.getElementById("ps_out_deployed").textContent  = `₹${fmt(deployed,0)}`;
+  const rrEl    = document.getElementById("ps_out_rr");
+  rrEl.textContent = rr > 0 ? `1:${rr.toFixed(2)}` : "—";
+  rrEl.className   = `val ${rrCls}`;
+  const chEl    = document.getElementById("ps_out_chase");
+  chEl.textContent = chasePct ? `${chasePct.toFixed(1)}%` : "—";
+  chEl.className   = `val ${chaseCls}`;
+  // Auto-update the entry checklist
+  try { renderEntryChecklist(); } catch {}
+}
+
+/* Entry gates — reads live page state */
+function renderEntryGates() {
+  const wrap = document.getElementById("entryGates");
+  if (!wrap) return;
+
+  const regime    = document.getElementById("regimeVal")?.textContent || "";
+  const fiiVal    = parseFloat((document.getElementById("fiiVal")?.textContent || "0").replace(/[^\-0-9.]/g, "")) || 0;
+  const dayName   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date().getDay()];
+  const isExpiry  = dayName === "Thu";
+
+  const gates = [
+    { lbl: "Nifty Regime", val: regime || "—",
+      ok: regime === "GREEN", warn: regime === "AMBER",
+      detail: "Skip fresh longs in RED regime" },
+    { lbl: "FII Flow (today)", val: fiiVal ? `${fiiVal>=0?"+":""}${fmt(fiiVal,0)} cr` : "—",
+      ok: fiiVal > 0, warn: fiiVal > -1000 && fiiVal <= 0,
+      detail: "<-1000 cr = no fresh longs" },
+    { lbl: "Day of Week", val: dayName,
+      ok: !isExpiry, warn: false,
+      detail: isExpiry ? "Thursday — F&O expiry, avoid entries" : "Safe entry day" },
+    { lbl: "Open positions", val: `≤ 5 (cap)`,
+      ok: true, warn: false,
+      detail: "Check Trade Mgmt tab for current count" },
+  ];
+
+  wrap.innerHTML = gates.map(g => {
+    const cls = g.ok ? "pos" : g.warn ? "zero" : "neg";
+    const txt = g.ok ? "✓ PASS" : g.warn ? "⚠ AMBER" : "✗ BLOCK";
+    return `<div class="bias-card">
+      <div class="lbl">${g.lbl}</div>
+      <div class="val">${g.val}</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px">${g.detail}</div>
+      <span class="score ${cls}">${txt}</span>
+    </div>`;
+  }).join("");
+}
+
+/* ══════════════════════════════════════════════════════════
+   RISK MANAGEMENT — SL / Target calculator
+   ══════════════════════════════════════════════════════════ */
+
+function recalcRiskTargets() {
+  const entry = parseFloat(document.getElementById("rm_entry").value)     || 0;
+  const bLow  = parseFloat(document.getElementById("rm_base_low").value)  || 0;
+  const bHigh = parseFloat(document.getElementById("rm_base_high").value) || 0;
+  const atr   = parseFloat(document.getElementById("rm_atr").value)       || 0;
+
+  const slStruct = bLow ? bLow * 0.995 : 0;          // base low − 0.5%
+  const slATR    = entry ? entry - 2 * atr : 0;      // entry − 2×ATR
+  const slFinal  = Math.min(slStruct, slATR) || slStruct || slATR;
+  const risk     = Math.max(0, entry - slFinal);
+  const t1       = entry + 1.5 * risk;
+  const t2       = entry + Math.max(0, bHigh - bLow);  // base-projection
+  const riskPct  = entry ? (risk / entry * 100) : 0;
+
+  document.getElementById("rm_sl_struct").textContent = `₹${fmt(slStruct,2)}`;
+  document.getElementById("rm_sl_atr").textContent    = `₹${fmt(slATR,2)}`;
+  document.getElementById("rm_sl_final").textContent  = `₹${fmt(slFinal,2)}`;
+  document.getElementById("rm_t1").textContent        = `₹${fmt(t1,2)}`;
+  document.getElementById("rm_t2").textContent        = `₹${fmt(t2,2)}`;
+  document.getElementById("rm_risk_pct").textContent  = `${riskPct.toFixed(2)}%`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   TRADE MANAGEMENT — Trail-stop ladder
+   ══════════════════════════════════════════════════════════ */
+
+function recalcTrail() {
+  const entry = parseFloat(document.getElementById("ts_entry").value) || 0;
+  const sl    = parseFloat(document.getElementById("ts_sl").value)    || 0;
+  const cur   = parseFloat(document.getElementById("ts_cur").value)   || 0;
+  const ema21 = parseFloat(document.getElementById("ts_ema21").value) || 0;
+
+  const risk = Math.max(0.0001, entry - sl);
+  const r    = (cur - entry) / risk;
+  let state, newSL;
+  if (r < 1.5) {
+    state = "Just entered (< 1.5R)";
+    newSL = sl;
+  } else if (r < 2)   {
+    state = "Hit T1 (1.5R) — book 50%";
+    newSL = entry;   // move to breakeven
+  } else if (r < 3)   {
+    state = "≥ 2R — lock 1.5R";
+    newSL = entry + 1.5 * risk;
+  } else {
+    state = "≥ 3R — switch to 21-EMA trail";
+    newSL = Math.max(entry + 1.5 * risk, ema21 * 0.985);
+  }
+  const emaTrail = ema21 * 0.985;
+
+  const rEl = document.getElementById("ts_r_mult");
+  rEl.textContent = isFinite(r) ? `${r.toFixed(2)}R` : "—";
+  rEl.className   = `val ${r >= 0 ? "up" : "down"}`;
+  document.getElementById("ts_state").textContent     = state;
+  document.getElementById("ts_new_sl").textContent    = `₹${fmt(newSL,2)}`;
+  document.getElementById("ts_ema_trail").textContent = `₹${fmt(emaTrail,2)}`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   EXIT & REVIEW — Local journal + edge metrics
+   ══════════════════════════════════════════════════════════ */
+
+const LS_JOURNAL_KEY = "swingSentinel_journal_v1";
+function _getJournal() {
+  try { return JSON.parse(localStorage.getItem(LS_JOURNAL_KEY) || "[]"); } catch { return []; }
+}
+function _saveJournal(arr) { localStorage.setItem(LS_JOURNAL_KEY, JSON.stringify(arr)); }
+
+function renderJournalList() {
+  const wrap = document.getElementById("journalList");
+  if (!wrap) return;
+  const list = _getJournal();
+  if (!list.length) {
+    wrap.innerHTML = `<div style="text-align:center;color:var(--muted);padding:18px;font-size:12px">No journal entries yet. Add one above after closing a trade.</div>`;
+    return;
+  }
+  wrap.innerHTML = list.slice().reverse().map((j, revIdx) => {
+    const idx = list.length - 1 - revIdx;
+    const pnlAbs = ((j.exit - j.entry) * (j.qty || 1)).toFixed(0);
+    const pnlPct = j.entry ? ((j.exit - j.entry) / j.entry * 100).toFixed(2) : "0";
+    const cls = +pnlAbs >= 0 ? "up" : "down";
+    return `<div class="journal-entry">
+      <div>
+        <div class="je-sym">${j.sym || "?"}</div>
+        <div class="je-meta">${j.setup || "—"} · ${j.regime || "?"} · ${j.reason || ""}</div>
+      </div>
+      <div>
+        <div style="font-size:12px"><b>₹${fmt(j.entry,2)} → ₹${fmt(j.exit,2)}</b> · ${j.qty || 1} qty · ${j.days || 0}d</div>
+        <div class="${cls}" style="font-size:13px;font-weight:700">${+pnlAbs >= 0 ? "+" : ""}₹${pnlAbs} (${+pnlPct >= 0 ? "+" : ""}${pnlPct}%)</div>
+        ${j.notes ? `<div class="je-meta" style="margin-top:3px;font-style:italic">"${escapeHtml(j.notes)}"</div>` : ""}
+      </div>
+      <button class="je-del" onclick="deleteJournalEntry(${idx})">✕</button>
+    </div>`;
+  }).join("");
+}
+
+function addJournalEntry() {
+  const sym   = document.getElementById("jr_sym").value.trim().toUpperCase();
+  const entry = parseFloat(document.getElementById("jr_entry").value);
+  const exit  = parseFloat(document.getElementById("jr_exit").value);
+  if (!sym)                  { toast("Enter symbol", "error"); return; }
+  if (!entry || !exit)       { toast("Enter entry and exit prices", "error"); return; }
+
+  const j = {
+    sym, entry, exit,
+    qty:    parseInt(document.getElementById("jr_qty").value)   || 1,
+    days:   parseInt(document.getElementById("jr_days").value)  || 0,
+    setup:  document.getElementById("jr_setup").value,
+    reason: document.getElementById("jr_reason").value,
+    regime: document.getElementById("jr_regime").value,
+    notes:  document.getElementById("jr_notes").value.trim(),
+    date:   new Date().toISOString().slice(0, 10),
+  };
+  const list = _getJournal();
+  list.push(j);
+  _saveJournal(list);
+  renderJournalList();
+  renderReviewMetrics();
+  // Clear form
+  ["jr_sym","jr_entry","jr_exit","jr_qty","jr_days","jr_notes"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("jr_qty").value = 1;
+  toast(`Journal entry for ${sym} saved`, "success", 2500);
+}
+
+function deleteJournalEntry(idx) {
+  const list = _getJournal();
+  if (idx < 0 || idx >= list.length) return;
+  list.splice(idx, 1);
+  _saveJournal(list);
+  renderJournalList();
+  renderReviewMetrics();
+}
+
+function renderReviewMetrics() {
+  const list = _getJournal();
+  const wrEl    = document.getElementById("rev_wr");
+  const wrSub   = document.getElementById("rev_wr_sub");
+  const pfEl    = document.getElementById("rev_pf");
+  const expEl   = document.getElementById("rev_exp");
+  const expSub  = document.getElementById("rev_exp_sub");
+  const holdEl  = document.getElementById("rev_hold");
+
+  if (!wrEl) return;
+  if (!list.length) {
+    wrEl.textContent = "—"; wrEl.className = "val";
+    wrSub.textContent = "0 trades";
+    pfEl.textContent = "—"; pfEl.className = "val";
+    expEl.textContent = "—"; expEl.className = "val";
+    expSub.textContent = "—";
+    holdEl.textContent = "—";
+    return;
+  }
+
+  let wins = 0, losses = 0, gp = 0, gl = 0, days = 0;
+  list.forEach(j => {
+    const pnl = (j.exit - j.entry) * (j.qty || 1);
+    if (pnl > 0) { wins++; gp += pnl; }
+    else if (pnl < 0) { losses++; gl += -pnl; }
+    days += (j.days || 0);
+  });
+  const total = wins + losses;
+  const wr    = total ? wins / total : 0;
+  const pf    = gl > 0 ? gp / gl : (gp > 0 ? Infinity : 0);
+  const avgWin  = wins ? gp / wins : 0;
+  const avgLoss = losses ? gl / losses : 0;
+  // Expectancy per ₹1 risked — approximate (uses avgLoss as risk unit)
+  const exp = avgLoss > 0 ? (wr * avgWin - (1 - wr) * avgLoss) / avgLoss : 0;
+  const avgHold = list.length ? days / list.length : 0;
+
+  wrEl.textContent  = `${(wr * 100).toFixed(0)}%`;
+  wrEl.className    = `val ${wr >= 0.5 ? "up" : "down"}`;
+  wrSub.textContent = `${wins}W / ${losses}L · ${total} closed`;
+
+  pfEl.textContent = isFinite(pf) ? pf.toFixed(2) : "∞";
+  pfEl.className   = `val ${pf >= 1.5 ? "up" : pf >= 1 ? "neutral" : "down"}`;
+
+  expEl.textContent = `${exp >= 0 ? "+" : ""}₹${exp.toFixed(2)}`;
+  expEl.className   = `val ${exp >= 0 ? "up" : "down"}`;
+  expSub.textContent = `avg win ₹${fmt(avgWin,0)} · avg loss ₹${fmt(avgLoss,0)}`;
+
+  holdEl.textContent = `${avgHold.toFixed(1)}`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   CHART ANALYSIS — Interactive Checklist (ca1-ca8)
+   ══════════════════════════════════════════════════════════ */
+
+function renderCAChecklist() {
+  const cont = document.getElementById("caChecklist");
+  if (!cont) return;
+  const items = CHECKLIST_ITEMS.chart || [];
+  const pill  = document.getElementById("caChecklistPill");
+  const done  = items.filter((_, i) => !!_checkedItems[`chart_${i}`]).length;
+  if (pill) pill.textContent = `${done}/${items.length} done`;
+  cont.innerHTML = items.map((text, i) => {
+    const key = `chart_${i}`;
+    const isDone = !!_checkedItems[key];
+    return `<div class="cli-item ${isDone?"done":""}" data-key="${key}" onclick="toggleCli('${key}',this);updateCAChecklistPill()">
+      <div class="cli-check"></div>
+      <span class="cli-num">${String(i+1).padStart(2,"0")}</span>
+      <span class="cli-text">${text}</span>
+    </div>`;
+  }).join("");
+}
+
+function updateCAChecklistPill() {
+  const items = CHECKLIST_ITEMS.chart || [];
+  const done  = items.filter((_, i) => !!_checkedItems[`chart_${i}`]).length;
+  const pill  = document.getElementById("caChecklistPill");
+  if (pill) pill.textContent = `${done}/${items.length} done`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   CHART ANALYSIS — Per-Stock Validation Matrix
+   Runs 8 checks per stock from scan data
+   ══════════════════════════════════════════════════════════ */
+
+function _caCheck(pass, warn) {
+  if (pass) return { cls: "pass", icon: "✓" };
+  if (warn) return { cls: "warn", icon: "!" };
+  return { cls: "fail", icon: "✗" };
+}
+
+function getStockValidation(s) {
+  const rsi = parseFloat(s.rsi) || 0;
+  const vol = parseFloat(s.vol_ratio) || 0;
+  const chg = parseFloat(s.change_pct) || 0;
+  const ema9x21 = s.ema9_cross_ema21 || "";
+
+  // ca1: Weekly S/R — approximate: price > EMA200 is proxy for weekly uptrend
+  const aboveEma200 = s.above_ema200 !== false; // default true from scan
+  const ca1 = { label: "Weekly trend / S/R zones", ..._caCheck(aboveEma200, false),
+    val: aboveEma200 ? "Above 200" : "Below 200" };
+
+  // ca2: Daily trend direction — EMA20 > EMA50 alignment
+  const emaAligned = s.ema_aligned !== false; // from scan filter
+  const ca2 = { label: "Daily trend (20 > 50 EMA)", ..._caCheck(emaAligned, false),
+    val: emaAligned ? "Aligned ✓" : "Misaligned" };
+
+  // ca3: Chart pattern
+  const setup = s.setup || "unknown";
+  const hasPattern = setup !== "unknown" && setup !== "";
+  const ca3 = { label: "Pattern identified", ..._caCheck(hasPattern, false),
+    val: hasPattern ? setup.replace(/_/g," ") : "—" };
+
+  // ca4: Volatility contraction (VCP) — proxy: ATR% < 3.5 = tight base
+  const atrPct = parseFloat(s.atr_pct) || 0;
+  const vcp = atrPct > 0 && atrPct < 3.5;
+  const ca4 = { label: "Volatility contracting (VCP)", ..._caCheck(vcp, atrPct < 5),
+    val: atrPct ? `ATR ${atrPct.toFixed(1)}%` : "—" };
+
+  // ca5: Sector strength
+  const sector = s.sector || "OTHERS";
+  const secInfo = _sectorPulse[sector] || {};
+  const secStrong = (secInfo.change_pct || 0) >= 0;
+  const ca5 = { label: `Sector (${sector}) trending up`, ..._caCheck(secStrong, false),
+    val: secInfo.change_pct !== undefined ? `${secInfo.change_pct >= 0 ? "+" : ""}${secInfo.change_pct.toFixed(2)}%` : "—" };
+
+  // ca6: RSI health — no overbought, no bearish divergence (proxy: RSI < 75 & > 30)
+  const rsiOk = rsi > 0 && rsi <= 75 && rsi >= 30;
+  const rsiWarn = rsi > 65 && rsi <= 75;
+  const ca6 = { label: "RSI healthy (no divergence, <75)", ..._caCheck(rsiOk && !rsiWarn, rsiWarn),
+    val: rsi ? `RSI ${rsi.toFixed(0)}` : "—" };
+
+  // ca7: F&O ban — check against known ban list from data
+  const foBanEl = document.getElementById("foBanChips");
+  const banSymbols = foBanEl ? Array.from(foBanEl.querySelectorAll(".ban-chip")).map(c => c.textContent.trim()) : [];
+  const isBanned = banSymbols.includes(s.symbol);
+  const ca7 = { label: "Not in F&O ban list", ..._caCheck(!isBanned, false),
+    val: isBanned ? "BANNED ✗" : "Clear ✓" };
+
+  // ca8: No upcoming events (proxy: check earnings_near flag if available)
+  const earningsNear = s.earnings_near || false;
+  const ca8 = { label: "No results/events within 5 days", ..._caCheck(!earningsNear, false),
+    val: earningsNear ? "Events near!" : "Clear ✓" };
+
+  const checks = [ca1, ca2, ca3, ca4, ca5, ca6, ca7, ca8];
+  const passCount = checks.filter(c => c.cls === "pass").length;
+  const scoreClass = passCount >= 7 ? "strong" : passCount >= 5 ? "moderate" : "weak";
+  const scoreLabel = passCount >= 7 ? "STRONG" : passCount >= 5 ? "MODERATE" : "WEAK";
+
+  return { checks, passCount, total: checks.length, scoreClass, scoreLabel };
+}
+
+function renderStockValidation() {
+  const grid = document.getElementById("caValidateGrid");
+  const pill = document.getElementById("caValidatePill");
+  if (!grid) return;
+  const stocks = _currentStocks || [];
+  if (pill) pill.textContent = `${stocks.length} stock${stocks.length !== 1 ? "s" : ""}`;
+
+  if (!stocks.length) {
+    grid.innerHTML = `<div class="empty" style="padding:30px 20px">
+      <div class="empty-icon">📊</div>
+      <div class="empty-title">No stocks to validate</div>
+      <div class="empty-sub">Run <b>Scan Now</b> in Watchlist first</div>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = `<div class="ca-validate-grid">${stocks.map((s, i) => {
+    const v = getStockValidation(s);
+    const chgCls = (s.change_pct || 0) >= 0 ? "up" : "down";
+    return `<div class="ca-vcard">
+      <div class="ca-vcard-head">
+        <div>
+          <div class="sym">${s.symbol}</div>
+          <div style="font-size:11px;color:var(--muted)">${s.name || s.symbol}</div>
+        </div>
+        <div>
+          <div class="px ${chgCls}">₹${fmtP(s.price)}</div>
+          <div class="chg ${chgCls}">${(s.change_pct||0)>=0?"▲":"▼"} ${Math.abs(s.change_pct||0).toFixed(2)}%</div>
+        </div>
+      </div>
+      <div class="ca-vcard-body">
+        ${v.checks.map(c => `<div class="ca-check-row">
+          <span class="ca-check-icon ${c.cls}">${c.icon}</span>
+          <span class="ca-check-label">${c.label}</span>
+          <span class="ca-check-val" style="color:${c.cls==='pass'?'var(--green)':c.cls==='warn'?'var(--yellow)':'var(--red)'}">${c.val}</span>
+        </div>`).join("")}
+      </div>
+      <div class="ca-vcard-foot">
+        <span class="ca-score ${v.scoreClass}">${v.scoreLabel} — ${v.passCount}/${v.total}</span>
+        <div style="display:flex;gap:6px">
+          <button class="ca-btn pine" onclick="caShowPine(${i})" style="font-size:10px;padding:4px 8px">📋 Pine</button>
+          <button class="ca-btn" onclick="selectStockForTrading(${i})" style="font-size:10px;padding:4px 8px;background:var(--blue-bg);color:var(--blue);border-color:var(--blue)">→ Trading</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   POSITION ENTRY CHECKLIST (pe1-pe10)
+   Auto-validated from calculator values + market state
+   ══════════════════════════════════════════════════════════ */
+
+let _selectedTradeStock = null;
+
+function renderEntryChecklist() {
+  const body = document.getElementById("entryChecklistBody");
+  const badge = document.getElementById("entryScoreBadge");
+  const pill  = document.getElementById("entryClPill");
+  if (!body) return;
+
+  // Read calculator state
+  const capital = parseFloat(document.getElementById("ps_capital")?.value) || 0;
+  const riskPct = parseFloat(document.getElementById("ps_risk_pct")?.value) || 0;
+  const entry   = parseFloat(document.getElementById("ps_entry")?.value)    || 0;
+  const sl      = parseFloat(document.getElementById("ps_sl")?.value)       || 0;
+  const target  = parseFloat(document.getElementById("ps_target")?.value)   || 0;
+
+  const riskPerShare = Math.max(0, entry - sl);
+  const riskAmount   = capital * riskPct / 100;
+  const qty          = riskPerShare > 0 ? Math.floor(riskAmount / riskPerShare) : 0;
+  const deployed     = qty * entry;
+  const rr           = riskPerShare > 0 ? (target - entry) / riskPerShare : 0;
+  const chasePct     = entry > 0 && sl > 0 ? ((entry - sl) / entry * 100) : 0;
+
+  // Read market state
+  const regime   = document.getElementById("regimeVal")?.textContent || "";
+  const dayName  = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date().getDay()];
+  const isExpiry = dayName === "Thu";
+
+  // Selected stock data
+  const ss = _selectedTradeStock || {};
+  const vol = parseFloat(ss.vol_ratio) || 0;
+
+  // Count active positions (from positions table if available)
+  const activePosTDs = document.querySelectorAll(".pos-table tbody tr");
+  const activeCount  = activePosTDs.length || 0;
+
+  const checks = [
+    { num: "01", label: "Risk per share calculated",
+      sub: `Entry (₹${fmt(entry,2)}) − SL (₹${fmt(sl,2)}) = ₹${fmt(riskPerShare,2)}`,
+      ok: riskPerShare > 0, val: riskPerShare > 0 ? `₹${fmt(riskPerShare,2)}` : "—",
+      valCls: riskPerShare > 0 ? "var(--green)" : "var(--muted)" },
+
+    { num: "02", label: "Risk capped at 1-2% of capital",
+      sub: `${riskPct}% × ₹${fmt(capital,0)} = ₹${fmt(riskAmount,0)}`,
+      ok: riskPct > 0 && riskPct <= 2, warn: riskPct > 2 && riskPct <= 3,
+      val: riskPct > 0 ? `${riskPct}% (₹${fmt(riskAmount,0)})` : "—",
+      valCls: riskPct <= 2 ? "var(--green)" : "var(--red)" },
+
+    { num: "03", label: "Quantity = Risk Amount ÷ Risk per share",
+      sub: `₹${fmt(riskAmount,0)} ÷ ₹${fmt(riskPerShare,2)} = ${qty} shares (₹${fmt(deployed,0)} deployed)`,
+      ok: qty > 0 && deployed <= capital, warn: qty > 0 && deployed > capital,
+      val: qty > 0 ? `${qty} shares` : "—",
+      valCls: qty > 0 ? (deployed <= capital ? "var(--green)" : "var(--red)") : "var(--muted)" },
+
+    { num: "04", label: "Risk:Reward ≥ 1:2",
+      sub: `(₹${fmt(target,2)} − ₹${fmt(entry,2)}) ÷ ₹${fmt(riskPerShare,2)} = 1:${rr.toFixed(2)}`,
+      ok: rr >= 2, warn: rr >= 1.5 && rr < 2,
+      val: rr > 0 ? `1:${rr.toFixed(2)}` : "—",
+      valCls: rr >= 2 ? "var(--green)" : rr >= 1.5 ? "var(--yellow)" : "var(--red)" },
+
+    { num: "05", label: "Price broken above resistance / base clearly",
+      sub: ss.symbol ? `${ss.symbol}: ${ss.setup || "—"} pattern` : "Select a stock to check",
+      ok: ss.setup && ss.setup !== "unknown",
+      val: ss.setup ? "Confirmed" : "—",
+      valCls: ss.setup ? "var(--green)" : "var(--muted)" },
+
+    { num: "06", label: "Volume ≥ 1.5× 20-day average",
+      sub: ss.symbol ? `${ss.symbol}: ${vol.toFixed(1)}× avg volume` : "Select a stock to check",
+      ok: vol >= 1.5, warn: vol >= 1.0 && vol < 1.5,
+      val: vol > 0 ? `${vol.toFixed(1)}×` : "—",
+      valCls: vol >= 1.5 ? "var(--green)" : vol >= 1.0 ? "var(--yellow)" : "var(--red)" },
+
+    { num: "07", label: "Nifty not in strong downtrend",
+      sub: `Regime: ${regime || "unknown"}`,
+      ok: regime === "GREEN" || regime === "AMBER",
+      warn: regime === "AMBER",
+      val: regime || "—",
+      valCls: regime === "GREEN" ? "var(--green)" : regime === "AMBER" ? "var(--yellow)" : "var(--red)" },
+
+    { num: "08", label: "Not F&O expiry day (Thursday)",
+      sub: `Today: ${dayName}`,
+      ok: !isExpiry,
+      val: isExpiry ? "EXPIRY DAY" : dayName,
+      valCls: isExpiry ? "var(--red)" : "var(--green)" },
+
+    { num: "09", label: "Entry within 3% of breakout level",
+      sub: `Chase: ${chasePct.toFixed(1)}%`,
+      ok: chasePct > 0 && chasePct <= 3, warn: chasePct > 3 && chasePct <= 5,
+      val: chasePct > 0 ? `${chasePct.toFixed(1)}%` : "—",
+      valCls: chasePct <= 3 ? "var(--green)" : "var(--red)" },
+
+    { num: "10", label: "Max 3-5 open positions — within limit",
+      sub: `Currently ~${activeCount} active (estimated from portfolio)`,
+      ok: activeCount <= 5, warn: activeCount > 3 && activeCount <= 5,
+      val: `${activeCount} open`,
+      valCls: activeCount <= 5 ? "var(--green)" : "var(--red)" },
+  ];
+
+  const passCount = checks.filter(c => c.ok).length;
+  const warnCount = checks.filter(c => c.warn && !c.ok).length;
+
+  body.innerHTML = checks.map(c => {
+    const iconCls = c.ok ? "pass" : c.warn ? "warn" : (c.val === "—" ? "neutral" : "fail");
+    const iconTxt = c.ok ? "✓" : c.warn ? "!" : (c.val === "—" ? "—" : "✗");
+    return `<div class="entry-cl-item">
+      <span class="num">${c.num}</span>
+      <span class="icon ${iconCls}">${iconTxt}</span>
+      <span class="text">${c.label}<small>${c.sub}</small></span>
+      <span class="value" style="color:${c.valCls || 'var(--text)'}">${c.val}</span>
+    </div>`;
+  }).join("");
+
+  // Update badge
+  if (badge) {
+    const scoreCls = passCount >= 8 ? "var(--green-bg)" : passCount >= 5 ? "var(--yellow-bg)" : "var(--red-bg)";
+    const scoreCol = passCount >= 8 ? "var(--green)" : passCount >= 5 ? "var(--yellow)" : "var(--red)";
+    const scoreBorder = passCount >= 8 ? "var(--green)" : passCount >= 5 ? "var(--yellow)" : "var(--red)";
+    badge.style.background   = scoreCls;
+    badge.style.color        = scoreCol;
+    badge.style.borderColor  = scoreBorder;
+    badge.textContent = `${passCount} / ${checks.length} pass`;
+  }
+  if (pill) pill.textContent = `${passCount}/${checks.length} pass`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   STOCK SELECTOR — click scanned stock to auto-fill
+   ══════════════════════════════════════════════════════════ */
+
+function renderStockSelector() {
+  const bar = document.getElementById("stockSelBar");
+  if (!bar) return;
+  const stocks = _currentStocks || [];
+  if (!stocks.length) {
+    bar.innerHTML = `<span style="color:var(--muted);font-size:12px">No scanned stocks — run Scan Now first</span>`;
+    return;
+  }
+  bar.innerHTML = stocks.map((s, i) => {
+    const active = _selectedTradeStock && _selectedTradeStock.symbol === s.symbol ? "active" : "";
+    const chg = (s.change_pct || 0) >= 0 ? "▲" : "▼";
+    return `<span class="stock-sel-chip ${active}" onclick="selectStockForTrading(${i})" title="₹${fmtP(s.price)} ${chg}${Math.abs(s.change_pct||0).toFixed(1)}%">
+      ${s.symbol}
+    </span>`;
+  }).join("");
+}
+
+function selectStockForTrading(idx) {
+  const s = _currentStocks[idx];
+  if (!s) return;
+  _selectedTradeStock = s;
+
+  // Auto-fill Position Sizer
+  const entryPrice = s.entry_min || s.price || 0;
+  document.getElementById("ps_entry").value  = entryPrice;
+  document.getElementById("ps_sl").value     = s.sl || 0;
+  document.getElementById("ps_target").value = s.target_2 || s.target_1 || 0;
+  recalcPosSize();
+
+  // Auto-fill SL & Target calculator
+  document.getElementById("rm_entry").value     = entryPrice;
+  document.getElementById("rm_base_low").value  = s.sl ? (s.sl / 0.995).toFixed(2) : 0; // reverse-engineer base low
+  document.getElementById("rm_base_high").value = entryPrice;
+  document.getElementById("rm_atr").value       = s.atr_pct ? (entryPrice * s.atr_pct / 100).toFixed(2) : 8;
+  recalcRiskTargets();
+
+  // Auto-fill Trail stop
+  document.getElementById("ts_entry").value = entryPrice;
+  document.getElementById("ts_sl").value    = s.sl || 0;
+  document.getElementById("ts_cur").value   = s.price || entryPrice;
+  recalcTrail();
+
+  // Re-render entry checklist with stock context
+  renderEntryChecklist();
+  renderStockSelector();
+
+  // Switch to trading tab if not there
+  switchTab("trading");
+  toast(`${s.symbol} loaded into calculators`, "success", 2500);
+}
+
+/* ══════════════════════════════════════════════════════════
+   Hook tab updates into existing pipelines
+   ══════════════════════════════════════════════════════════ */
+
+// Wrap original renderStocks so Chart Analysis tab refreshes whenever scan completes
+const _origRenderStocks = renderStocks;
+renderStocks = function(stocks) {
+  _origRenderStocks(stocks);
+  renderChartAnalysis();
+  renderStockValidation();
+  renderStockSelector();
+};
+
+// Wrap renderMarket / renderGlobal so the bias builder refreshes live
+const _origRenderMarket = renderMarket;
+renderMarket = function(d) { _origRenderMarket(d); renderBiasBuilder(); };
+const _origRenderGlobal = renderGlobal;
+renderGlobal = function(d) { _origRenderGlobal(d); renderBiasBuilder(); };
+
+// Initial render of all checklist sections + tools
+function _initChecklistsAndTools() {
+  // Run initial calculator outputs
+  try { recalcPosSize();      } catch {}
+  try { recalcRiskTargets();  } catch {}
+  try { recalcTrail();        } catch {}
+  renderBiasBuilder();
+  renderEntryGates();
+  renderCAChecklist();
+  renderStockValidation();
+  renderStockSelector();
+  renderEntryChecklist();
+  renderJournalList();
+  renderReviewMetrics();
+  _restoreCollapsedSections();
+}
+
+/* ── Collapsible section toggle ──────────────────────────── */
+const LS_COLLAPSED_KEY = "swingSentinel_collapsed_v1";
+
+function _getCollapsed() {
+  try { return JSON.parse(localStorage.getItem(LS_COLLAPSED_KEY) || "{}"); } catch { return {}; }
+}
+
+function toggleSection(sectionId) {
+  const el = document.getElementById(sectionId);
+  if (!el) return;
+  const isCollapsed = el.classList.toggle("collapsed");
+  const state = _getCollapsed();
+  state[sectionId] = isCollapsed;
+  localStorage.setItem(LS_COLLAPSED_KEY, JSON.stringify(state));
+}
+
+function _restoreCollapsedSections() {
+  const state = _getCollapsed();
+  Object.keys(state).forEach(id => {
+    if (state[id]) {
+      const el = document.getElementById(id);
+      if (el) el.classList.add("collapsed");
+    }
+  });
+}
+
+_initChecklistsAndTools();
 init();
 </script>
 </body>
