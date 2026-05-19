@@ -290,6 +290,7 @@ def api_scan():
         if not chartink_stocks:
             brief = _load_latest_brief()
             if brief:
+                _hydrate_brief_missing_fields(brief)
                 brief["source"]  = "last_session"
                 brief["message"] = f"No matches today. Showing last scan from {brief.get('date','?')} {brief.get('time','')}"
                 logger.info("[scan] 0 matches — serving last brief (%s)", brief.get("date"))
@@ -1304,6 +1305,30 @@ def _load_latest_brief():
         except Exception:
             continue
     return None
+
+
+# Fields the dashboard reads off each stock that may be absent from older
+# briefs. When a stale brief is served back, hydrate them from yfinance so
+# downstream UI (e.g. Analysis tab's VCP row) doesn't show N/A.
+_HYDRATE_FIELDS = ("atr_pct",)
+
+
+def _hydrate_brief_missing_fields(brief: dict) -> None:
+    stocks = brief.get("stocks") or []
+    needs = [s for s in stocks if any(s.get(f) is None for f in _HYDRATE_FIELDS)]
+    if not needs:
+        return
+    logger.info("[scan] hydrating %d stale stock(s) with %s", len(needs), list(_HYDRATE_FIELDS))
+    for s in needs:
+        try:
+            tech = fetch_stock_technicals(s.get("symbol", ""))
+            if not tech:
+                continue
+            for f in _HYDRATE_FIELDS:
+                if s.get(f) is None and f in tech:
+                    s[f] = tech[f]
+        except Exception as exc:
+            logger.warning("[scan] hydrate %s failed: %s", s.get("symbol"), exc)
 
 
 def _now_date() -> str:
