@@ -4,125 +4,362 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Swing Sentinel</title>
+<script>
+  (function() {
+    const theme = localStorage.getItem("swingSentinel_theme");
+    if (theme === "light") {
+      document.documentElement.classList.add("light-theme");
+    }
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 :root {
-  --bg:        #0d1117;
-  --surface:   #161b22;
-  --card:      #1c2128;
-  --border:    #30363d;
-  --border-hi: #484f58;
-  --text:      #e6edf3;
-  --muted:     #8b949e;
-  --green:     #3fb950;
-  --green-bg:  rgba(63,185,80,.12);
-  --red:       #f85149;
-  --red-bg:    rgba(248,81,73,.12);
-  --yellow:    #d29922;
-  --yellow-bg: rgba(210,153,34,.12);
-  --blue:      #58a6ff;
-  --blue-bg:   rgba(88,166,255,.12);
-  --purple:    #bc8cff;
-  --orange:    #ffa657;
-  --radius:    10px;
+  /* Sentinel Terminal Premium HSL Palette */
+  --bg:          #08090c;
+  --surface:     rgba(17, 22, 34, 0.65);
+  --card:        rgba(26, 32, 48, 0.45);
+  --border:      rgba(255, 255, 255, 0.08);
+  --border-hi:   rgba(255, 255, 255, 0.16);
+  
+  --text:        #f1f5f9;
+  --muted:       #94a3b8;
+  
+  /* Semantic highlights */
+  --green:       #10b981;
+  --green-bg:    rgba(16, 185, 129, 0.1);
+  --red:         #ef4444;
+  --red-bg:      rgba(239, 68, 68, 0.1);
+  --yellow:      #f59e0b;
+  --yellow-bg:   rgba(245, 158, 11, 0.1);
+  --blue:        #3b82f6;
+  --blue-bg:     rgba(59, 130, 246, 0.1);
+  --purple:      #8b5cf6;
+  --orange:      #f97316;
+
+  /* Metric Tokens */
+  --radius-lg:   16px;
+  --radius-md:   12px;
+  --radius-sm:   6px;
+  --radius-full: 9999px;
+
+  /* Typography */
+  --font-heading: 'Outfit', 'Inter', -apple-system, sans-serif;
+  --font-body:    'Inter', -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Consolas', monospace;
 }
+
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;min-height:100vh}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  height: 100vh;
+  line-height: 1.5;
+  color-scheme: dark;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body.light-theme {
+  --bg:          #f1f5f9;
+  --surface:     rgba(255, 255, 255, 0.7);
+  --card:        rgba(255, 255, 255, 0.5);
+  --border:      rgba(0, 0, 0, 0.08);
+  --border-hi:   rgba(0, 0, 0, 0.16);
+  --text:        #0f172a;
+  --muted:       #475569;
+  color-scheme: light;
+}
+
+body.light-theme::before, body.light-theme::after {
+  opacity: 0.05;
+}
+
+/* Ambient Radial Blur Spheres (Figma style) */
+body::before, body::after {
+  content: "";
+  position: fixed;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  filter: blur(140px);
+  z-index: -1;
+  opacity: 0.12;
+  pointer-events: none;
+}
+body::before {
+  background: radial-gradient(circle, var(--blue) 0%, transparent 70%);
+  top: -150px;
+  left: -150px;
+}
+body::after {
+  background: radial-gradient(circle, var(--purple) 0%, transparent 70%);
+  bottom: -150px;
+  right: -150px;
+}
+
+/* Typography elements */
+h1, h2, h3, .logo, .mcard .val, .rsum-card .val, .bias-card .val, .bias-final .total, .je-sym, .tv-modal-box h3, #pineModalTitle, #modalTitle {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.sym, .ca-sym, .f-inp, .f-preset-sel, .f-preset-inp, .tool-grid input, .tool-out-card .val, .pine-code, kbd, .ca-check-val, .entry-cl-item .value, #lastUpd {
+  font-family: var(--font-mono);
+}
+
+/* Glassmorphism Surface Base */
+.scard, .mcard, .acard, .rsum-card, .setup-card, .ca-vcard, .bias-card, .bias-final, .journal-wrap, .tool-card, .pos-wrap, .news-wrap, .tv-wrap, .stock-sel-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(20px) saturate(120%);
+  -webkit-backdrop-filter: blur(20px) saturate(120%);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+  transition: border-color .25s cubic-bezier(0.4, 0, 0.2, 1), transform .22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow .25s ease;
+}
+
+/* Hover scales and premium animations */
+.scard:hover, .mcard:hover, .acard:hover, .setup-card:hover {
+  border-color: var(--border-hi);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+input, select, textarea {
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--blue) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+  outline: none;
+}
+
+button, .f-btn, .ca-btn, .buy-btn, .tv-btn, .je-del, .tv-del-btn, .btn-confirm, .btn-cancel, .sec-toggle {
+  transition: all .2s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
 /* ── Toast ─────────────────────────────────────────────── */
-#toastArea{position:fixed;top:16px;right:16px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
-.toast{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:13px;display:flex;align-items:center;gap:8px;min-width:240px;max-width:340px;animation:slideIn .25s ease;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+#toastArea{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+.toast{
+  background: rgba(30, 36, 50, 0.85);
+  backdrop-filter: blur(12px);
+  border:1px solid var(--border);
+  border-radius:var(--radius-md);
+  padding:12px 18px;
+  font-size:13px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:280px;
+  max-width:380px;
+  animation:slideIn .3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow:0 10px 40px rgba(0,0,0,.4);
+}
 .toast.success{border-color:var(--green);color:var(--green)}
 .toast.error  {border-color:var(--red);  color:var(--red)}
 .toast.info   {border-color:var(--blue); color:var(--blue)}
-@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
-@keyframes fadeOut{to{opacity:0;transform:translateX(20px)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
 
 /* ── Header ────────────────────────────────────────────── */
-header{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:12px;flex-wrap:wrap;min-height:55px}
-.logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;letter-spacing:-.3px;white-space:nowrap}
-.logo-mark{width:30px;height:30px;background:linear-gradient(135deg,#3fb950,#58a6ff);border-radius:7px;display:grid;place-items:center;font-size:15px;flex-shrink:0}
-.header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+header{
+  background: var(--surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom:1px solid var(--border);
+  padding:12px 24px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  position: relative;
+  z-index:100;
+  gap:12px;
+  flex-wrap:wrap;
+  min-height:60px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+.logo{display:flex;align-items:center;gap:12px;font-size:18px;font-weight:800;letter-spacing:-.5px;white-space:nowrap}
+.logo-mark{
+  width:32px;
+  height:32px;
+  background:linear-gradient(135deg,#10b981,#3b82f6);
+  border-radius:var(--radius-md);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.35);
+  transition: transform 0.3s ease;
+}
+.logo:hover .logo-mark {
+  transform: rotate(10deg);
+}
+.header-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+/* theme toggle button */
+.theme-toggle-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+.theme-toggle-btn:hover {
+  border-color: var(--border-hi);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
+body.light-theme .theme-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+.theme-toggle-btn svg {
+  transition: transform 0.3s ease;
+}
+.theme-toggle-btn:hover svg {
+  transform: rotate(15deg);
+}
+
+/* TV screener button */
+#tvBtn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+  height: 36px;
+}
+#tvBtn:hover {
+  border-color: var(--border-hi);
+  color: var(--text);
+}
+#tvBtn svg {
+  transition: transform 0.2s;
+}
+#tvBtn:hover svg {
+  transform: scale(1.05);
+}
 
 /* scan button */
-#scanBtn{display:flex;align-items:center;gap:7px;background:var(--green);color:#0d1117;border:none;border-radius:7px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s,background .15s;white-space:nowrap}
-#scanBtn:hover{opacity:.88}
-#scanBtn:disabled{opacity:.5;cursor:not-allowed}
+#scanBtn{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:var(--green);
+  color:#06080c;
+  border:none;
+  border-radius:var(--radius-md);
+  padding:0 16px;
+  height: 36px;
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+  transition: all .25s ease;
+  white-space:nowrap;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+}
+#scanBtn:hover{
+  opacity:.95;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+}
+#scanBtn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 #scanBtn .spinner{width:14px;height:14px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;display:none}
 #scanBtn.loading .btn-icon{display:none}
 #scanBtn.loading .spinner{display:block}
 #scanBtn.loading .btn-text{content:'Scanning…'}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-.status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0}
-.status-dot.live{background:var(--green);box-shadow:0 0 6px var(--green)}
+.status-dot{width:8px;height:8px;border-radius:var(--radius-full);background:var(--muted);flex-shrink:0}
+.status-dot.live{background:var(--green);box-shadow:0 0 8px var(--green)}
 .last-upd{color:var(--muted);font-size:12px;white-space:nowrap}
 
 /* ── Page ───────────────────────────────────────────────── */
-.page{padding:20px 24px;max-width:1400px;margin:0 auto}
+.page {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 16px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
 
 /* ── Market row ─────────────────────────────────────────── */
-.market-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:18px}
-.mcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;transition:border-color .2s}
-.mcard:hover{border-color:var(--border-hi)}
-.mcard .lbl{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
-.mcard .val{font-size:20px;font-weight:700;line-height:1}
-.mcard .sub{font-size:11px;margin-top:4px;color:var(--muted)}
+.market-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px}
+.mcard{padding:16px 20px}
+.mcard .lbl{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700}
+.mcard .val{font-size:22px;font-weight:700;line-height:1}
+.mcard .sub{font-size:11px;margin-top:6px;color:var(--muted)}
 .up{color:var(--green)}.down{color:var(--red)}.neutral{color:var(--yellow)}
 
 /* ── Section head ───────────────────────────────────────── */
-.sec-head{display:flex;align-items:center;justify-content:space-between;margin:22px 0 10px}
-.sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--muted)}
-.pill{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:2px 10px;border-radius:20px;font-size:11px}
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin:24px 0 12px}
+.sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.pill{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:3px 12px;border-radius:var(--radius-full);font-size:11px}
 
 /* ── Collapsible sections ────────────────────────────────── */
-.sec-toggle{background:none;border:1px solid var(--border);color:var(--muted);width:26px;height:26px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .2s;flex-shrink:0;line-height:1}
+.sec-toggle{background:none;border:1px solid var(--border);color:var(--muted);width:28px;height:28px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;line-height:1}
 .sec-toggle:hover{background:var(--card);color:var(--text);border-color:var(--border-hi)}
-.sec-toggle .chevron{transition:transform .25s ease;display:inline-block}
+.sec-toggle .chevron{transition:transform .25s cubic-bezier(0.4, 0, 0.2, 1);display:inline-block}
 .collapsed .sec-toggle .chevron{transform:rotate(-90deg)}
-.sec-body{overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1),opacity .25s ease,margin .25s ease;max-height:3000px;opacity:1}
+.sec-body{overflow:hidden;transition:max-height .4s cubic-bezier(.4,0,.2,1),opacity .3s ease,margin .3s ease;max-height:3000px;opacity:1}
 .collapsed .sec-body{max-height:0!important;opacity:0;margin-top:0!important;margin-bottom:0!important;pointer-events:none}
 
 /* ── Actions ────────────────────────────────────────────── */
-.actions-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:10px;margin-bottom:4px}
-.acard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 15px;display:flex;gap:11px;align-items:flex-start}
-.pbadge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;white-space:nowrap;flex-shrink:0}
+.actions-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px;margin-bottom:6px}
+.acard{padding:14px 16px;display:flex;gap:12px;align-items:flex-start}
+.pbadge{font-size:11px;font-weight:700;padding:4px 10px;border-radius:var(--radius-sm);white-space:nowrap;flex-shrink:0;letter-spacing:0.5px}
 .p1{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
 .p2{background:var(--blue-bg); color:var(--blue); border:1px solid var(--blue)}
-.p3{background:rgba(188,140,255,.12);color:var(--purple);border:1px solid var(--purple)}
-.atext{font-size:13px;line-height:1.5}
+.p3{background:rgba(139,92,246,.12);color:var(--purple);border:1px solid var(--purple)}
+.atext{font-size:13px;line-height:1.5;color:var(--text)}
 
 /* ── Stock grid ─────────────────────────────────────────── */
-.stocks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:14px}
-
-.scard{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:border-color .2s,transform .15s}
-.scard:hover{border-color:var(--blue);transform:translateY(-2px)}
-
-.scard-head{padding:13px 15px 10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
-.sym{font-size:17px;font-weight:700}
-.cname{font-size:11px;color:var(--muted);margin-top:2px;max-width:165px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stocks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:16px}
+.scard{border-radius:var(--radius-lg);transition: border-color .25s ease, transform .22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow .25s ease;}
+.scard-head{padding:16px 18px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+.sym{font-size:18px;font-weight:700;letter-spacing:-0.3px}
+.cname{font-size:11px;color:var(--muted);margin-top:3px;max-width:165px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .px-block{text-align:right}
-.px{font-size:16px;font-weight:700}
-.chg{font-size:12px;font-weight:600;margin-top:2px}
+.px{font-size:17px;font-weight:700}
+.chg{font-size:12px;font-weight:600;margin-top:3px}
 
-.plan{padding:11px 15px}
-.prow{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border)}
-.prow:last-child{border:none}
-.plbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.pval{font-size:13px;font-weight:600}
-.entry-chip{background:var(--blue-bg);border:1px solid rgba(88,166,255,.35);color:var(--blue);padding:2px 8px;border-radius:5px;font-size:12px;font-weight:700}
-.sl-v{color:var(--red)}
-.t1-v{color:var(--yellow)}
-.t2-v{color:var(--green)}
-
-.rr-chip{font-size:12px;font-weight:700;padding:3px 10px;border-radius:6px}
+.rr-chip{font-size:12px;font-weight:700;padding:3px 10px;border-radius:var(--radius-sm)}
 .rr-good{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
 .rr-ok  {background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
 .rr-weak{background:var(--red-bg);   color:var(--red);   border:1px solid var(--red)}
 
-.tags{padding:9px 15px;background:var(--surface);display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--border)}
-.tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;letter-spacing:.3px}
-.t-setup  {background:rgba(188,140,255,.1);color:var(--purple)}
+.tags{padding:10px 18px;background:rgba(255, 255, 255, 0.02);display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--border)}
+.tag{font-size:10px;font-weight:600;padding:3px 8px;border-radius:var(--radius-sm);letter-spacing:.3px}
+.t-setup  {background:rgba(139,92,246,.1);color:var(--purple)}
 .t-rsi    {background:var(--yellow-bg);   color:var(--yellow)}
 .t-vol    {background:var(--green-bg);    color:var(--green)}
 .t-52w    {background:var(--orange);color:#0d1117}
@@ -130,14 +367,14 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .t-death  {background:var(--red-bg);  color:var(--red);  border:1px solid var(--red)}
 
 /* ── F&O Ban Banner ─────────────────────────────────────── */
-#foBanBanner{display:none;background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.35);border-radius:var(--radius);padding:9px 14px;margin-bottom:12px;font-size:12px;color:var(--text)}
-#foBanBanner.show{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-#foBanBanner .ban-label{color:var(--red);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap}
-#foBanBanner .ban-chips{display:flex;gap:5px;flex-wrap:wrap}
-.ban-chip{background:var(--red-bg);border:1px solid var(--red);color:var(--red);font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.3px}
+#foBanBanner{display:none;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:var(--radius-lg);padding:10px 16px;margin-bottom:16px;font-size:12px;color:var(--text)}
+#foBanBanner.show{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#foBanBanner .ban-label{color:var(--red);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1px;white-space:nowrap}
+#foBanBanner .ban-chips{display:flex;gap:6px;flex-wrap:wrap}
+.ban-chip{background:var(--red-bg);border:1px solid var(--red);color:var(--red);font-size:10px;font-weight:700;padding:3px 8px;border-radius:var(--radius-sm);letter-spacing:.3px}
 
 /* ── Regime badge on Nifty card ─────────────────────────── */
-.regime-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;margin-top:4px;letter-spacing:.5px}
+.regime-badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:var(--radius-sm);margin-top:6px;letter-spacing:.5px}
 .regime-GREEN {background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
 .regime-AMBER {background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
 .regime-RED   {background:var(--red-bg);  color:var(--red);  border:1px solid var(--red)}
@@ -145,11 +382,11 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 
 /* ── Positions ──────────────────────────────────────────── */
 .pos-table{width:100%;border-collapse:collapse;font-size:13px}
-.pos-table th{text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.7px;padding:8px 12px;border-bottom:1px solid var(--border);font-weight:600}
-.pos-table td{padding:10px 12px;border-bottom:1px solid var(--border)}
+.pos-table th{text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px;padding:12px 16px;border-bottom:1px solid var(--border);font-weight:700}
+.pos-table td{padding:12px 16px;border-bottom:1px solid var(--border)}
 .pos-table tr:last-child td{border:none}
 .pos-table tr:hover td{background:rgba(255,255,255,.02)}
-.pos-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.pos-wrap{overflow:hidden}
 
 /* ── Skeleton ───────────────────────────────────────────── */
 .skeleton{background:linear-gradient(90deg,var(--surface) 25%,var(--card) 50%,var(--surface) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:6px}
@@ -160,30 +397,74 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .empty-icon{font-size:40px;margin-bottom:10px}
 .empty-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:5px}
 .empty-sub{font-size:13px}
-.empty code{background:var(--card);padding:2px 6px;border-radius:4px;font-size:12px}
+.empty code{background:var(--card);padding:2px 6px;border-radius:var(--radius-sm);font-size:12px}
 
-/* ── Buy button on stock card ───────────────────────────── */
-.buy-btn{background:var(--green-bg);color:var(--green);border:1px solid var(--green);padding:3px 9px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;opacity:0;transition:opacity .15s;white-space:nowrap;flex-shrink:0}
-.scard:hover .buy-btn{opacity:1}
-.buy-btn:hover{background:var(--green);color:#0d1117}
+/* ── Buy button and TV button on stock card ──────────────── */
+.buy-btn, .tv-btn {
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.95);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.scard:hover .buy-btn, .scard:hover .tv-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+.buy-btn {
+  background: var(--green-bg);
+  color: var(--green);
+  border: 1px solid var(--green);
+  margin-right: 4px;
+}
+.buy-btn:hover {
+  background: var(--green);
+  color: #08090c;
+}
+.tv-btn {
+  background: rgba(249,115,22,.12);
+  color: var(--orange);
+  border: 1px solid var(--orange);
+}
+.tv-btn:hover {
+  background: var(--orange);
+  color: #08090c;
+}
+.tv-btn:disabled {
+  opacity: .4;
+  cursor: wait;
+}
 
 /* ── Buy modal ──────────────────────────────────────────── */
-#buyModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center}
+#buyModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);z-index:500;align-items:center;justify-content:center}
 #buyModal.open{display:flex}
-.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:320px;max-width:90vw}
-.modal-box h3{font-size:15px;font-weight:700;margin-bottom:16px}
-.modal-row{display:flex;flex-direction:column;gap:4px;margin-bottom:14px}
-.modal-row label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.modal-row input{background:var(--card);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:14px;font-weight:600;width:100%}
-.modal-row input:focus{outline:none;border-color:var(--blue)}
-.modal-actions{display:flex;gap:8px;margin-top:4px}
-.modal-actions button{flex:1;padding:9px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;border:none}
-.btn-confirm{background:var(--green);color:#0d1117}
+.modal-box{
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(20px);
+  padding: 24px;
+  width: 340px;
+  max-width: 90vw;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+.modal-box h3{font-size:16px;font-weight:700;margin-bottom:18px}
+.modal-row{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.modal-row label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:700}
+.modal-row input{background:var(--card);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:var(--radius-md);font-size:14px;font-weight:600;width:100%}
+.modal-actions{display:flex;gap:10px;margin-top:6px}
+.modal-actions button{flex:1;padding:10px;border-radius:var(--radius-md);font-size:13px;font-weight:700;cursor:pointer;border:none}
+.btn-confirm{background:var(--green);color:#08090c}
 .btn-cancel {background:var(--card); color:var(--text);border:1px solid var(--border)!important}
 
 /* ── Sector Pulse ───────────────────────────────────────── */
-.sector-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
-.sector-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;user-select:none}
+.sector-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}
+.sector-chip{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-full);padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;user-select:none;transition: all .2s ease}
 .sector-chip:hover{border-color:var(--border-hi);transform:translateY(-1px)}
 .sector-chip.active{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
 .sector-chip.strong{border-color:var(--green);color:var(--green)}
@@ -193,77 +474,73 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .sector-chip .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
 
 /* ── Sector group header inside Trade Setups ─────────────── */
-.sector-group-head{display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;border-left:3px solid var(--blue)}
+.sector-group-head{display:flex;align-items:center;justify-content:space-between;margin:20px 0 10px;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);border-left:4px solid var(--blue)}
 .sector-group-head .name{font-size:13px;font-weight:700;letter-spacing:.4px;display:flex;align-items:center;gap:8px}
 .sector-group-head .meta{font-size:11px;color:var(--muted);display:flex;gap:12px;align-items:center}
 .sector-group-head .meta .pct{font-weight:700}
-.sector-mini-trend{font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.5px;background:var(--card);border:1px solid var(--border)}
+.sector-mini-trend{font-size:9px;font-weight:700;padding:2px 7px;border-radius:var(--radius-full);letter-spacing:.5px;background:var(--card);border:1px solid var(--border)}
 .sector-mini-trend.up  {color:var(--green);border-color:var(--green)}
 .sector-mini-trend.down{color:var(--red);  border-color:var(--red)}
-/* Add some breathing space between sector groups */
-.sector-group-head + .stocks-grid{margin-bottom:6px}
+.sector-group-head + .stocks-grid{margin-bottom:8px}
 
 /* ── Filtered-out chip in section header ────────────────── */
-.filtered-pill{cursor:help;background:var(--yellow-bg)!important;color:var(--yellow)!important;border-color:var(--yellow)!important;margin-left:6px}
+.filtered-pill{cursor:help;background:var(--yellow-bg)!important;color:var(--yellow)!important;border-color:var(--yellow)!important;margin-left:8px}
 
 /* ── Results section ────────────────────────────────────── */
-.results-toggle{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:3px}
-.results-toggle button{background:transparent;border:none;color:var(--muted);padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
-.results-toggle button.active{background:var(--surface);color:var(--text)}
+.results-toggle{display:flex;gap:4px;background:rgba(0, 0, 0, 0.2);border:1px solid var(--border);border-radius:var(--radius-md);padding:3px}
+.results-toggle button{background:transparent;border:none;color:var(--muted);padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition: all 0.2s}
+.results-toggle button.active{background:var(--surface);color:var(--text);box-shadow: 0 2px 8px rgba(0,0,0,0.2)}
 .results-toggle button:hover:not(.active){color:var(--text)}
-.results-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
-.rsum-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
-.rsum-card .lbl{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
-.rsum-card .val{font-size:22px;font-weight:700;line-height:1.1}
+.results-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+.rsum-card{padding:14px 18px}
+.rsum-card .lbl{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700}
+.rsum-card .val{font-size:24px;font-weight:700;line-height:1.1}
 .rsum-card .sub{font-size:11px;margin-top:4px;color:var(--muted)}
-.setup-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:14px}
-.setup-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 15px}
+.setup-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px}
+.setup-card{padding:14px 16px}
 .setup-card .setup-name{font-size:12px;font-weight:700;color:var(--text);letter-spacing:.5px;margin-bottom:8px}
-.setup-card .wr-bar{height:6px;background:var(--card);border-radius:3px;overflow:hidden;margin:6px 0}
+.setup-card .wr-bar{height:6px;background:rgba(0,0,0,0.2);border-radius:3px;overflow:hidden;margin:8px 0}
 .setup-card .wr-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--blue));transition:width .4s}
-.setup-card .stats{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:5px}
-.outcome-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;display:inline-block}
+.setup-card .stats{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px}
+.outcome-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:var(--radius-sm);display:inline-block}
 .outcome-T2_WIN{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
 .outcome-SL_LOSS{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
 .outcome-T1_HIT{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
 
 /* ── Kite status chip ───────────────────────────────────── */
-#kiteChip{display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--card);white-space:nowrap;text-decoration:none;cursor:default}
+#kiteChip{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--radius-full);font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--card);white-space:nowrap;text-decoration:none;cursor:default}
 #kiteChip.connected{border-color:var(--green);color:var(--green)}
 #kiteChip.disconnected{border-color:var(--orange);color:var(--orange);cursor:pointer}
 #kiteChip .kite-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
 
 /* ── Target hit indicators on positions table ───────────── */
-.hit-badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;vertical-align:middle}
+.hit-badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:var(--radius-sm);margin-left:6px;vertical-align:middle}
 .hit-t1{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
 .hit-t2{background:var(--green-bg); color:var(--green); border:1px solid var(--green)}
-.pos-table tr.t2-reached td{background:rgba(63,185,80,.06)}
-.pos-table tr.t1-reached td{background:rgba(210,153,34,.06)}
+.pos-table tr.t2-reached td{background:rgba(16,185,129,.06)}
+.pos-table tr.t1-reached td{background:rgba(245,158,11,.06)}
 
 /* ── Filter Panel ───────────────────────────────────────── */
-#filterPanel{background:var(--surface);border-bottom:1px solid var(--border);display:none}
+#filterPanel{background:var(--surface);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);display:none}
 #filterPanel.open{display:block}
-.filter-inner{max-width:1400px;margin:0 auto;padding:16px 24px}
-.filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:14px}
-.filter-group-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);margin-bottom:10px}
-.frow{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(48,54,61,.5)}
+.filter-inner{max-width:1400px;margin:0 auto;padding:20px 24px}
+.filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-bottom:16px}
+.filter-group-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:12px}
+.frow{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)}
 .frow:last-child{border:none}
 .flbl{font-size:12px;color:var(--text);flex:1}
-.flbl small{color:var(--muted);font-size:10px;display:block;margin-top:1px}
-.f-inp{background:var(--card);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-size:12px;font-weight:600;width:68px;text-align:right}
-.f-inp:focus{outline:none;border-color:var(--blue)}
-.f-inp-wide{width:90px}
-.f-range{display:flex;align-items:center;gap:4px}
+.flbl small{color:var(--muted);font-size:10px;display:block;margin-top:2px}
+.f-inp{background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:var(--radius-md);font-size:12px;font-weight:600;width:72px;text-align:right}
+.f-inp-wide{width:96px}
+.f-range{display:flex;align-items:center;gap:6px}
 .f-range span{color:var(--muted);font-size:11px}
-.f-check{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;color:var(--text);user-select:none}
+.f-check{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text);user-select:none}
 .f-check input[type=checkbox]{cursor:pointer;accent-color:var(--green);width:14px;height:14px;flex-shrink:0}
-.filter-foot{display:flex;align-items:center;gap:8px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}
+.filter-foot{display:flex;align-items:center;gap:10px;padding-top:16px;border-top:1px solid var(--border);flex-wrap:wrap}
 .filter-foot label{font-size:11px;color:var(--muted);white-space:nowrap}
-.f-preset-sel{background:var(--card);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:5px;font-size:12px;cursor:pointer}
-.f-preset-sel:focus{outline:none;border-color:var(--blue)}
-.f-preset-inp{background:var(--card);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:5px;font-size:12px;width:130px}
-.f-preset-inp:focus{outline:none;border-color:var(--blue)}
-.f-btn{border:none;padding:5px 12px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer}
+.f-preset-sel{background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:var(--radius-md);font-size:12px;cursor:pointer}
+.f-preset-inp{background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:var(--radius-md);font-size:12px;width:140px}
+.f-btn{border:none;padding:6px 14px;border-radius:var(--radius-md);font-size:12px;font-weight:600;cursor:pointer}
 .f-btn-save{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue)!important}
 .f-btn-reset{background:var(--card);color:var(--muted);border:1px solid var(--border)!important}
 .f-btn-del{background:var(--red-bg);color:var(--red);border:1px solid var(--red)!important}
@@ -271,40 +548,41 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .f-dirty-badge.show{display:inline-block}
 
 /* filter toggle button in header */
-#filterToggleBtn{display:flex;align-items:center;gap:6px;background:var(--card);color:var(--muted);border:1px solid var(--border);border-radius:7px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+#filterToggleBtn{display:flex;align-items:center;gap:8px;background:var(--card);color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition: all 0.2s}
 #filterToggleBtn:hover{border-color:var(--border-hi);color:var(--text)}
 #filterToggleBtn.active{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
 #filterToggleBtn .f-dot{width:7px;height:7px;border-radius:50%;background:var(--yellow);display:none;flex-shrink:0}
 #filterToggleBtn .f-dot.show{display:block}
 
 /* ── Pre-Market News ───────────────────────────────────── */
-.news-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:18px}
-.news-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
-.news-tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:3px}
-.news-tabs button{background:transparent;border:none;color:var(--muted);padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
-.news-tabs button.active{background:var(--surface);color:var(--text)}
+.news-wrap{overflow:hidden;margin-bottom:20px}
+.news-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.news-tabs{display:flex;gap:4px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:var(--radius-md);padding:3px}
+.news-tabs button{background:transparent;border:none;color:var(--muted);padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition: all 0.2s}
+.news-tabs button.active{background:var(--surface);color:var(--text);box-shadow: 0 2px 8px rgba(0,0,0,0.2)}
 .news-tabs button:hover:not(.active){color:var(--text)}
-.news-trend{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:18px;border:1px solid var(--border);background:var(--card)}
+.news-trend{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;padding:5px 12px;border-radius:18px;border:1px solid var(--border);background:var(--card)}
 .news-trend.positive{color:var(--green);border-color:var(--green);background:var(--green-bg)}
 .news-trend.negative{color:var(--red);border-color:var(--red);background:var(--red-bg)}
 .news-trend.neutral {color:var(--yellow);border-color:var(--yellow);background:var(--yellow-bg)}
 .news-trend .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
-.news-bar{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--card);margin:0 14px 10px 14px}
+.news-bar{display:flex;height:6px;border-radius:3px;overflow:hidden;background:rgba(0,0,0,0.2);margin:0 16px 12px 16px}
 .news-bar .seg-p{background:var(--green)}
 .news-bar .seg-n{background:var(--red)}
 .news-bar .seg-u{background:var(--muted)}
-.news-meta{font-size:11px;color:var(--muted);padding:0 14px 8px 14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px}
-.news-body{max-height:540px;overflow-y:auto;padding:6px 14px 14px 14px}
+.news-meta{font-size:11px;color:var(--muted);padding:0 16px 10px 16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.news-body{max-height:540px;overflow-y:auto;padding:8px 16px 16px 16px}
 .news-empty{padding:24px 12px;text-align:center;color:var(--muted);font-size:13px}
-.news-bucket{margin-bottom:14px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--card)}
-.news-bucket-head{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+.news-bucket{margin-bottom:16px;border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;background:var(--card)}
+.news-bucket-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;transition: background .2s}
+.news-bucket-head:hover{background: rgba(255, 255, 255, 0.02)}
 .news-bucket-head .name{font-size:12px;font-weight:700;letter-spacing:.4px;display:flex;align-items:center;gap:8px}
 .news-bucket-head .meta{font-size:11px;color:var(--muted);display:flex;gap:8px;align-items:center}
 .news-bucket-head .caret{color:var(--muted);font-size:10px;transition:transform .2s}
 .news-bucket.collapsed .caret{transform:rotate(-90deg)}
 .news-bucket.collapsed .news-items{display:none}
 .news-items{display:flex;flex-direction:column}
-.news-item{display:flex;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);align-items:flex-start}
+.news-item{display:flex;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);align-items:flex-start}
 .news-item:last-child{border:none}
 .news-item:hover{background:rgba(255,255,255,.02)}
 .news-sent{flex-shrink:0;width:6px;align-self:stretch;border-radius:3px;background:var(--muted)}
@@ -312,197 +590,261 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .news-sent.negative{background:var(--red)}
 .news-sent.neutral {background:var(--yellow)}
 .news-text{flex:1;min-width:0}
-.news-title{font-size:13px;line-height:1.45;color:var(--text)}
+.news-title{font-size:13.5px;line-height:1.45;color:var(--text)}
 .news-title a{color:inherit;text-decoration:none}
 .news-title a:hover{color:var(--blue);text-decoration:underline}
-.news-sub{font-size:10.5px;color:var(--muted);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap}
-.news-sub .sent-chip{font-weight:700;padding:1px 6px;border-radius:4px;letter-spacing:.3px}
+.news-sub{font-size:11px;color:var(--muted);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap}
+.news-sub .sent-chip{font-weight:700;padding:2px 7px;border-radius:var(--radius-sm);letter-spacing:.3px}
 .news-sub .sent-chip.positive{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
 .news-sub .sent-chip.negative{background:var(--red-bg);  color:var(--red);  border:1px solid var(--red)}
 .news-sub .sent-chip.neutral {background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
-#newsRefreshBtn{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer}
+#newsRefreshBtn{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:6px 12px;border-radius:var(--radius-md);font-size:11px;font-weight:600;cursor:pointer}
 #newsRefreshBtn:hover{color:var(--text);border-color:var(--border-hi)}
 #newsRefreshBtn.loading{opacity:.5;cursor:wait}
 
 /* News section in filter panel */
 .news-cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 @media(max-width:900px){.news-cfg-grid{grid-template-columns:1fr}}
-.news-feed-list{display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px;background:var(--card)}
-.news-feed-list .f-check{padding:2px 0;font-size:11.5px}
+.news-feed-list{display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-md);padding:8px;background:var(--card)}
+.news-feed-list .f-check{padding:3px 0;font-size:11.5px}
 .news-feed-list .f-check small{color:var(--muted);font-size:9.5px;margin-left:4px}
-.news-tag-input{background:var(--card);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:5px;font-size:11.5px;width:100%}
-.news-tag-input:focus{outline:none;border-color:var(--blue)}
+.news-tag-input{background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:var(--radius-md);font-size:11.5px;width:100%}
 
-/* ── TradingView button on stock card ───────────────────── */
-.tv-btn{background:rgba(255,166,87,.12);color:var(--orange);border:1px solid var(--orange);padding:3px 9px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;opacity:0;transition:opacity .15s;white-space:nowrap;flex-shrink:0}
-.scard:hover .tv-btn{opacity:1}
-.tv-btn:hover{background:var(--orange);color:#0d1117}
-.tv-btn:disabled{opacity:.4;cursor:wait}
-.tv-badge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(255,166,87,.15);color:var(--orange);border:1px solid var(--orange);vertical-align:middle;margin-left:5px}
-
-/* ── TV Alerts panel ────────────────────────────────────── */
-.tv-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:18px}
-.tv-wrap-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+/* ── TradingView Alert List ──────────────────────────────── */
+.tv-wrap{overflow:hidden;margin-bottom:20px}
+.tv-wrap-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
 .tv-alert-list{display:flex;flex-direction:column;max-height:320px;overflow-y:auto}
-.tv-alert-item{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:13px}
+.tv-alert-item{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:13px}
 .tv-alert-item:last-child{border:none}
 .tv-alert-item:hover{background:rgba(255,255,255,.02)}
-.tv-alert-sym{font-weight:700;min-width:90px;font-size:12px;color:var(--text)}
+.tv-alert-sym{font-weight:700;min-width:90px;font-size:13px;color:var(--text)}
 .tv-alert-desc{flex:1;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tv-del-btn{background:var(--red-bg);color:var(--red);border:1px solid var(--red);padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0;white-space:nowrap}
+.tv-del-btn{background:var(--red-bg);color:var(--red);border:1px solid var(--red);padding:3px 10px;border-radius:var(--radius-sm);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;white-space:nowrap}
 .tv-del-btn:hover{background:var(--red);color:#fff}
 .tv-del-btn:disabled{opacity:.4;cursor:wait}
-#tvAlertsRefreshBtn{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer}
+#tvAlertsRefreshBtn{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:6px 12px;border-radius:var(--radius-md);font-size:11px;font-weight:600;cursor:pointer}
 #tvAlertsRefreshBtn:hover{color:var(--text);border-color:var(--border-hi)}
 
 /* ── TV Screener modal ──────────────────────────────────── */
-#tvModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center}
+#tvModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);z-index:500;align-items:center;justify-content:center}
 #tvModal.open{display:flex}
-.tv-modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:400px;max-width:92vw;max-height:90vh;overflow-y:auto}
-.tv-modal-box h3{font-size:15px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
-.tv-modal-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:14px 0 6px}
-.tv-cond-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(48,54,61,.5)}
+.tv-modal-box{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  backdrop-filter: blur(20px);
+  padding:24px;
+  width:420px;
+  max-width:92vw;
+  max-height:90vh;
+  overflow-y:auto;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+.tv-modal-box h3{font-size:16px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.tv-modal-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:16px 0 8px}
+.tv-cond-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)}
 .tv-cond-row:last-child{border:none}
 .tv-cond-row label{font-size:12px;color:var(--text);cursor:pointer;flex:1}
-.tv-cond-row input[type=checkbox]{cursor:pointer;accent-color:var(--orange);width:14px;height:14px;flex-shrink:0;margin-right:8px}
-.tv-screener-results{margin-top:16px;border-top:1px solid var(--border);padding-top:12px;display:none}
+.tv-cond-row input[type=checkbox]{cursor:pointer;accent-color:var(--orange);width:14px;height:14px;flex-shrink:0;margin-right:10px}
+.tv-screener-results{margin-top:18px;border-top:1px solid var(--border);padding-top:14px;display:none}
 .tv-screener-results.show{display:block}
 .tv-result-table{width:100%;border-collapse:collapse;font-size:12px}
-.tv-result-table th{text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;padding:6px 8px;border-bottom:1px solid var(--border)}
-.tv-result-table td{padding:7px 8px;border-bottom:1px solid var(--border)}
+.tv-result-table th{text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.8px;padding:8px;border-bottom:1px solid var(--border)}
+.tv-result-table td{padding:8px;border-bottom:1px solid var(--border)}
 .tv-result-table tr:last-child td{border:none}
 .tv-result-table tr:hover td{background:rgba(255,255,255,.02)}
-#tvScanBtn{background:var(--orange);color:#0d1117;border:none;border-radius:7px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;width:100%;margin-top:6px}
-#tvScanBtn:hover{opacity:.88}
-#tvScanBtn:disabled{opacity:.5;cursor:not-allowed}
+#tvScanBtn{background:var(--orange);color:#08090c;border:none;border-radius:var(--radius-md);padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;width:100%;margin-top:8px;box-shadow: 0 4px 14px rgba(249, 115, 22, 0.3)}
+#tvScanBtn:hover{opacity:.9;box-shadow: 0 6px 20px rgba(249, 115, 22, 0.45)}
+#tvScanBtn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
 
 /* ── Pine Script modal ──────────────────────────────────── */
-#pineModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:600;align-items:center;justify-content:center}
+#pineModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);z-index:600;align-items:center;justify-content:center}
 #pineModal.open{display:flex}
-.pine-code{background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-family:'Consolas','Courier New',monospace;font-size:11px;color:#c9d1d9;line-height:1.45;max-height:200px;overflow:auto;white-space:pre;margin-bottom:6px;user-select:all}
-.tv-copy-btn{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue);padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer}
-.tv-copy-btn:hover{background:var(--blue);color:#0d1117}
-.tv-copy-btn.copied{background:var(--green);color:#0d1117;border-color:var(--green)}
+.pine-code{background:#040608;border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:11px;color:#c9d1d9;line-height:1.5;max-height:220px;overflow:auto;white-space:pre;margin-bottom:8px;user-select:all}
+.tv-copy-btn{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue);padding:4px 12px;border-radius:var(--radius-md);font-size:11px;font-weight:700;cursor:pointer}
+.tv-copy-btn:hover{background:var(--blue);color:#08090c}
+.tv-copy-btn.copied{background:var(--green);color:#08090c;border-color:var(--green)}
 .pine-status-ok  {background:var(--green-bg);border:1px solid var(--green);color:var(--green)}
 .pine-status-err {background:var(--red-bg);  border:1px solid var(--red);  color:var(--red)}
 .pine-status-info{background:var(--blue-bg); border:1px solid var(--blue); color:var(--blue)}
-kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px;font-family:'Consolas',monospace}
+kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px}
 
 /* ── TV button in header ────────────────────────────────── */
-#tvBtn{display:flex;align-items:center;gap:6px;background:rgba(255,166,87,.1);color:var(--orange);border:1px solid var(--orange);border-radius:7px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s}
-#tvBtn:hover{background:var(--orange);color:#0d1117}
+#tvBtn{display:flex;align-items:center;gap:8px;background:rgba(249,115,22,.1);color:var(--orange);border:1px solid var(--orange);border-radius:var(--radius-md);padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition: all 0.2s}
+#tvBtn:hover{background:var(--orange);color:#08090c;box-shadow: 0 4px 14px rgba(249, 115, 22, 0.25)}
 
-/* ── Tab navigation (4 organized sections) ─────────────── */
-.tab-nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;overflow-x:auto;position:sticky;top:55px;z-index:90;scrollbar-width:thin}
-.tab-nav::-webkit-scrollbar{height:4px}
-.tab-nav::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:2px}
-.tab-btn{background:transparent;border:none;color:var(--muted);padding:14px 22px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;display:flex;align-items:center;gap:8px;transition:all .15s;font-family:inherit;position:relative}
-.tab-btn:hover{color:var(--text)}
+/* ── Tab navigation (Segmented Sliding Control) ─────────── */
+.tab-nav {
+  background: rgba(17, 22, 34, 0.55);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 6px;
+  display: flex;
+  gap: 6px;
+  margin: 12px 24px 0;
+  z-index: 90;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  flex-shrink: 0;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+.tab-nav::-webkit-scrollbar{display:none}
+.tab-btn{
+  background:transparent;
+  border:none;
+  color:var(--muted);
+  padding:10px 16px;
+  font-size:13.5px;
+  font-weight:600;
+  cursor:pointer;
+  white-space:nowrap;
+  border-radius: var(--radius-md);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  transition: all .25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-bottom: none;
+  flex: 1;
+  min-width: 0;
+}
+.tab-btn svg {
+  flex-shrink: 0;
+  opacity: 0.75;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.tab-btn:hover svg {
+  opacity: 1;
+  transform: translateY(-0.5px);
+}
+.tab-btn:hover{color:var(--text);background:rgba(255,255,255,0.04)}
+body.light-theme .tab-btn:hover{background:rgba(0,0,0,0.03)}
 .tab-btn.active{color:var(--text)}
-.tab-btn .tab-num{font-size:10px;font-weight:700;color:var(--muted);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1px 7px;min-width:22px;text-align:center}
-.tab-btn.active .tab-num{color:#0d1117;background:currentColor;border-color:currentColor}
-.tab-btn.tab-watchlist.active   {color:#A5B4FC;border-bottom-color:#A5B4FC}
-.tab-btn.tab-analysis.active    {color:#F59E0B;border-bottom-color:#F59E0B}
-.tab-btn.tab-trading.active     {color:#3B82F6;border-bottom-color:#3B82F6}
-.tab-btn.tab-portfolio.active   {color:#10B981;border-bottom-color:#10B981}
-.tab-content{display:none}
-.tab-content.active{display:block;animation:tabFadeIn .2s ease}
-@keyframes tabFadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-.tab-head{display:flex;align-items:flex-start;justify-content:space-between;margin:6px 0 18px;flex-wrap:wrap;gap:12px}
-.tab-head h2{font-size:20px;font-weight:700;color:var(--text);margin:0;display:flex;align-items:center;gap:10px}
-.tab-head .tab-sub{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.5;max-width:680px}
-.tab-time-chip{display:inline-block;font-size:10px;letter-spacing:1.5px;font-weight:700;text-transform:uppercase;padding:3px 10px;border-radius:4px;background:var(--card);border:1px solid var(--border);color:var(--muted)}
+.tab-btn .tab-num{font-size:10px;font-weight:700;color:var(--muted);background:rgba(0,0,0,0.2);border-radius:8px;padding:2px 6px;min-width:20px;text-align:center}
+.tab-btn.active .tab-num{color:#fff;background:rgba(255,255,255,0.1)}
+.tab-btn.tab-watchlist.active   {color:#a5b4fc !important; background: rgba(165, 180, 252, 0.15) !important;}
+.tab-btn.tab-analysis.active    {color:#f59e0b !important; background: rgba(245, 158, 11, 0.15) !important;}
+.tab-btn.tab-trading.active     {color:#3b82f6 !important; background: rgba(59, 130, 246, 0.15) !important;}
+.tab-btn.tab-portfolio.active   {color:#10b981 !important; background: rgba(16, 185, 129, 0.15) !important;}
+
+body.light-theme .tab-btn.tab-watchlist.active   {color:#4f46e5 !important; background: rgba(79, 70, 229, 0.1) !important;}
+body.light-theme .tab-btn.tab-analysis.active    {color:#d97706 !important; background: rgba(217, 119, 6, 0.1) !important;}
+body.light-theme .tab-btn.tab-trading.active     {color:#2563eb !important; background: rgba(37, 99, 235, 0.1) !important;}
+body.light-theme .tab-btn.tab-portfolio.active   {color:#059669 !important; background: rgba(5, 150, 105, 0.1) !important;}
+
+.page {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 16px 24px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.tab-content{display:none;flex:1;flex-direction:column;min-height:0}
+.tab-content.active{display:flex;animation:tabFadeIn .25s cubic-bezier(0.4, 0, 0.2, 1)}
+@keyframes tabFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.tab-head{display:flex;align-items:flex-start;justify-content:space-between;margin:8px 0 20px;flex-wrap:wrap;gap:12px}
+.tab-head h2{font-size:22px;font-weight:800;color:var(--text);margin:0;display:flex;align-items:center;gap:12px;letter-spacing:-0.4px}
+.tab-head .tab-sub{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.6;max-width:680px}
+.tab-time-chip{display:inline-block;font-size:10px;letter-spacing:1.5px;font-weight:700;text-transform:uppercase;padding:4px 10px;border-radius:var(--radius-sm);background:var(--card);border:1px solid var(--border);color:var(--muted)}
 
 /* Checklist item card (used in all tabs) */
-.cli-list{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
-.cli-item{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:11px 14px;display:flex;align-items:flex-start;gap:12px;transition:border-color .15s,background .15s}
-.cli-item:hover{border-color:var(--border-hi)}
-.cli-item.done{background:rgba(63,185,80,.05);border-color:rgba(63,185,80,.35)}
-.cli-check{width:18px;height:18px;border:2px solid var(--border-hi);border-radius:4px;display:grid;place-items:center;flex-shrink:0;cursor:pointer;transition:all .15s;margin-top:1px;background:transparent}
+.cli-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.cli-item{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding:12px 16px;
+  display:flex;
+  align-items:flex-start;
+  gap:14px;
+  cursor:pointer;
+  transition: all 0.2s ease;
+}
+.cli-item:hover{border-color:var(--border-hi);transform:translateX(2px)}
+.cli-item.done{background:rgba(16,185,129,.05);border-color:rgba(16,185,129,.3)}
+.cli-check{width:18px;height:18px;border:2px solid var(--border-hi);border-radius:4px;display:grid;place-items:center;flex-shrink:0;cursor:pointer;margin-top:2px;background:transparent;transition: all 0.2s}
 .cli-item.done .cli-check{background:var(--green);border-color:var(--green)}
-.cli-item.done .cli-check::after{content:"✓";color:#0d1117;font-weight:700;font-size:12px}
-.cli-num{font-size:10px;font-weight:700;color:var(--muted);min-width:18px}
-.cli-text{font-size:13px;color:var(--text);line-height:1.5;flex:1}
+.cli-item.done .cli-check::after{content:"✓";color:#08090c;font-weight:800;font-size:11px}
+.cli-num{font-size:10px;font-weight:700;color:var(--muted);min-width:18px;margin-top:2px}
+.cli-text{font-size:13.5px;color:var(--text);line-height:1.5;flex:1}
 .cli-item.done .cli-text{color:var(--muted);text-decoration:line-through}
 
 /* Tools/calculators block */
-.tool-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px}
-.tool-card h3{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
-.tool-card h3 .tool-tag{font-size:10px;font-weight:600;color:var(--muted);background:var(--card);border:1px solid var(--border);border-radius:4px;padding:2px 8px;letter-spacing:.5px}
+.tool-card{padding:18px 20px;margin-bottom:16px}
+.tool-card h3{font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.tool-card h3 .tool-tag{font-size:10px;font-weight:600;color:var(--muted);background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:2px 8px;letter-spacing:.5px}
 .tool-card h3 .sec-toggle{margin-left:auto}
 .tool-card.collapsed h3{margin-bottom:0}
 .tool-card .tool-body{overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1),opacity .25s ease;max-height:2000px;opacity:1}
 .tool-card.collapsed .tool-body{max-height:0;opacity:0;pointer-events:none}
-.tool-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
-.tool-grid label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.tool-grid input{background:var(--card);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-size:13px;font-weight:600}
-.tool-grid input:focus{outline:none;border-color:var(--blue)}
-.tool-out{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
-.tool-out-card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px}
-.tool-out-card .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
-.tool-out-card .val{font-size:18px;font-weight:700;color:var(--text)}
+.tool-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+.tool-grid label{display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.tool-grid input{background:var(--card);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:var(--radius-md);font-size:13px;font-weight:600}
+.tool-out{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.tool-out-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px}
+.tool-out-card .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;font-weight:700}
+.tool-out-card .val{font-size:19px;font-weight:700;color:var(--text)}
 
 /* Chart Analysis: scanned stock rows with Pine push */
-.ca-list{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
-.ca-row{display:grid;grid-template-columns:auto 1fr auto auto auto auto;gap:14px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--border);font-size:13px}
+.ca-list{display:flex;flex-direction:column;gap:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+.ca-row{display:grid;grid-template-columns:auto 1fr auto auto auto auto;gap:16px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--border);font-size:13px;transition: background 0.2s}
 .ca-row:last-child{border-bottom:none}
 .ca-row:hover{background:rgba(255,255,255,.02)}
-.ca-sym{font-weight:700;font-size:14px;color:var(--text);min-width:90px}
+.ca-sym{font-weight:700;font-size:14.5px;color:var(--text);min-width:90px}
 .ca-name{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ca-meta{font-size:11px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+.ca-meta{font-size:11px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap}
 .ca-meta b{color:var(--text);font-weight:600}
-.ca-actions{display:flex;gap:6px}
-.ca-btn{background:var(--card);color:var(--text);border:1px solid var(--border);padding:5px 10px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s}
-.ca-btn:hover{border-color:var(--border-hi)}
-.ca-btn.pine{background:rgba(255,166,87,.12);color:var(--orange);border-color:var(--orange)}
-.ca-btn.pine:hover{background:var(--orange);color:#0d1117}
-.ca-btn.tv-push{background:rgba(99,102,241,.12);color:#A5B4FC;border-color:#A5B4FC}
-.ca-btn.tv-push:hover{background:#A5B4FC;color:#0d1117}
+.ca-actions{display:flex;gap:8px}
+.ca-btn{background:var(--card);color:var(--text);border:1px solid var(--border);padding:6px 12px;border-radius:var(--radius-md);font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition: all 0.2s}
+.ca-btn:hover{border-color:var(--border-hi);background: rgba(255,255,255,0.03)}
+.ca-btn.pine{background:rgba(249,115,22,.12);color:var(--orange);border-color:var(--orange)}
+.ca-btn.pine:hover{background:var(--orange);color:#08090c}
+.ca-btn.tv-push{background:rgba(165,180,252,.12);color:#A5B4FC;border-color:#A5B4FC}
+.ca-btn.tv-push:hover{background:#A5B4FC;color:#08090c}
 
 /* Bias score builder (Pre-Market tab) */
-.bias-builder{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
-.bias-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
-.bias-card .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
-.bias-card .val{font-size:18px;font-weight:700}
-.bias-card .score{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;margin-top:6px;border:1px solid currentColor}
+.bias-builder{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.bias-card{padding:14px 16px}
+.bias-card .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;font-weight:700}
+.bias-card .val{font-size:20px;font-weight:700}
+.bias-card .score{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:var(--radius-sm);margin-top:8px;border:1px solid currentColor}
 .bias-card .score.pos{color:var(--green);background:var(--green-bg)}
 .bias-card .score.neg{color:var(--red);background:var(--red-bg)}
 .bias-card .score.zero{color:var(--muted);background:var(--card)}
-.bias-final{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--blue);border-radius:var(--radius);padding:14px 18px;margin-top:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
-.bias-final .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
-.bias-final .total{font-size:30px;font-weight:700}
-.bias-final .verdict{font-size:14px;font-weight:600}
+.bias-final{padding:16px 20px;margin-top:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;border-left:4px solid var(--blue)}
+.bias-final .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700}
+.bias-final .total{font-size:32px;font-weight:800}
+.bias-final .verdict{font-size:15px;font-weight:600}
 
 /* Journal / Review entry card */
-.journal-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px}
-.journal-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:12px}
-.journal-form label{display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.journal-form input,.journal-form select,.journal-form textarea{background:var(--card);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-size:13px;font-family:inherit}
-.journal-form textarea{min-height:60px;resize:vertical;font-family:inherit;grid-column:span 2}
-.journal-form input:focus,.journal-form select:focus,.journal-form textarea:focus{outline:none;border-color:var(--blue)}
-.journal-list{margin-top:12px;display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto}
-.journal-entry{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:12px;display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center}
-.journal-entry .je-sym{font-weight:700;font-size:13px}
+.journal-wrap{padding:18px;margin-bottom:16px}
+.journal-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px}
+.journal-form label{display:flex;flex-direction:column;gap:6px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.journal-form input,.journal-form select,.journal-form textarea{background:var(--card);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:var(--radius-md);font-size:13px;font-family:inherit}
+.journal-form textarea{min-height:70px;resize:vertical;font-family:inherit;grid-column:span 2}
+.journal-list{margin-top:14px;display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto}
+.journal-entry{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;font-size:12px;display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center}
+.journal-entry .je-sym{font-weight:700;font-size:13.5px}
 .journal-entry .je-meta{color:var(--muted);font-size:11px}
-.journal-entry .je-del{background:transparent;border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer}
+.journal-entry .je-del{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:var(--radius-sm);font-size:11px;cursor:pointer;transition: all 0.2s}
 .journal-entry .je-del:hover{color:var(--red);border-color:var(--red)}
 
 /* Section block within a tab */
-.tab-section-head{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:22px 0 10px;display:flex;align-items:center;justify-content:space-between}
+.tab-section-head{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:24px 0 12px;display:flex;align-items:center;justify-content:space-between}
 .tab-section-head:first-child{margin-top:0}
 
 /* ── Chart Analysis Validation Cards ────────────────────── */
-.ca-validate-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;margin-bottom:18px}
-.ca-vcard{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .2s,transform .15s}
-.ca-vcard:hover{border-color:var(--blue);transform:translateY(-2px)}
-.ca-vcard-head{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
-.ca-vcard-head .sym{font-size:16px;font-weight:700}
-.ca-vcard-head .px{font-size:14px;font-weight:700;text-align:right}
-.ca-vcard-head .chg{font-size:11px;margin-top:2px}
-.ca-vcard-body{padding:10px 14px}
-.ca-check-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(48,54,61,.4);font-size:12px}
+.ca-validate-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-bottom:20px}
+.ca-vcard{overflow:hidden}
+.ca-vcard-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.ca-vcard-head .sym{font-size:17px;font-weight:700}
+.ca-vcard-head .px{font-size:15px;font-weight:700;text-align:right}
+.ca-vcard-head .chg{font-size:11px;margin-top:3px}
+.ca-vcard-body{padding:12px 16px}
+.ca-check-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px}
 .ca-check-row:last-child{border:none}
-.ca-check-icon{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;flex-shrink:0}
+.ca-check-icon{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;flex-shrink:0}
 .ca-check-icon.pass{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
 .ca-check-icon.fail{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
 .ca-check-icon.warn{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
@@ -510,46 +852,47 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
 .ca-check-icon.na{background:transparent;color:var(--muted);border:1px solid var(--muted)}
 .ca-check-label{flex:1;color:var(--text)}
 .ca-check-val{font-weight:600;font-size:11px;text-align:right;min-width:70px}
-.ca-vcard-foot{padding:8px 14px;background:var(--surface);border-top:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:space-between}
-.ca-score{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:3px 10px;border-radius:6px}
+.ca-vcard-foot{padding:10px 16px;background:rgba(255,255,255,0.01);border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.ca-score{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:var(--radius-sm)}
 .ca-score.strong{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
 .ca-score.moderate{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
 .ca-score.weak{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
 
 /* ── Entry Checklist (Trading Tools) ───────────────────── */
-.entry-cl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
-.entry-cl-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
-.entry-cl-head h3{font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;margin:0}
-.entry-cl-head .entry-score{font-size:12px;font-weight:700;padding:3px 10px;border-radius:6px}
-.entry-cl-body{padding:8px 0}
-.entry-cl-item{display:flex;align-items:center;gap:12px;padding:8px 16px;border-bottom:1px solid rgba(48,54,61,.3);font-size:13px;transition:background .15s}
+.entry-cl-wrap{overflow:hidden;margin-bottom:16px}
+.entry-cl-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
+.entry-cl-head h3{font-size:14.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:10px;margin:0}
+.entry-cl-head .entry-score{font-size:12px;font-weight:700;padding:4px 10px;border-radius:var(--radius-sm)}
+.entry-cl-body{padding:10px 0}
+.entry-cl-item{display:flex;align-items:center;gap:14px;padding:10px 18px;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;transition:background .15s}
 .entry-cl-item:last-child{border:none}
 .entry-cl-item:hover{background:rgba(255,255,255,.02)}
 .entry-cl-item .num{font-size:10px;font-weight:700;color:var(--muted);min-width:18px}
-.entry-cl-item .icon{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;flex-shrink:0}
+.entry-cl-item .icon{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;flex-shrink:0}
 .entry-cl-item .icon.pass{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
 .entry-cl-item .icon.fail{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
 .entry-cl-item .icon.warn{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
 .entry-cl-item .icon.neutral{background:var(--card);color:var(--muted);border:1px solid var(--border)}
-.entry-cl-item .text{flex:1;color:var(--text);line-height:1.4}
-.entry-cl-item .text small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
-.entry-cl-item .value{font-weight:700;font-size:12px;text-align:right;min-width:80px}
+.entry-cl-item .text{flex:1;color:var(--text);line-height:1.45}
+.entry-cl-item .text small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.entry-cl-item .value{font-weight:700;font-size:12.5px;text-align:right;min-width:80px}
 
 /* ── Stock Selector (for per-stock analysis) ────────────── */
-.stock-sel-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
-.stock-sel-chip{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:18px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;user-select:none}
+.stock-sel-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding:12px 16px;align-items:center}
+.stock-sel-chip{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:var(--radius-full);font-size:12px;font-weight:600;cursor:pointer;user-select:none;transition: all 0.2s}
 .stock-sel-chip:hover{border-color:var(--border-hi);color:var(--text)}
 .stock-sel-chip.active{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
 
 /* ── Responsive ─────────────────────────────────────────── */
 @media(max-width:600px){
-  header{padding:10px 14px}
-  .page{padding:12px 12px}
+  header{padding:12px 16px}
+  .page{padding:16px 12px}
   .market-row{grid-template-columns:1fr 1fr}
   .stocks-grid{grid-template-columns:1fr}
   #scanBtn span.last-upd{display:none}
   .filter-grid{grid-template-columns:1fr}
   .ca-validate-grid{grid-template-columns:1fr}
+  .tab-nav{margin: 14px 12px 0; top: 125px;}
 }
 @media(max-width:900px){
   .filter-grid{grid-template-columns:1fr}
@@ -643,7 +986,13 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
 
 <header>
   <div class="logo">
-    <div class="logo-mark">🎯</div>
+    <div class="logo-mark" style="display:flex;align-items:center;justify-content:center">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #fff">
+        <circle cx="12" cy="12" r="10"></circle>
+        <circle cx="12" cy="12" r="6"></circle>
+        <circle cx="12" cy="12" r="2"></circle>
+      </svg>
+    </div>
     Swing Sentinel
   </div>
   <div class="header-right">
@@ -652,10 +1001,36 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
     </span>
     <div class="status-dot" id="statusDot"></div>
     <span class="last-upd" id="lastUpd">Not loaded</span>
-    <button id="tvBtn" onclick="openTVModal()" title="TradingView Screener">📺 TV</button>
+    <button id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Light/Dark Mode" class="theme-toggle-btn">
+      <svg class="sun-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </svg>
+      <svg class="moon-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+    </button>
+    <button id="tvBtn" onclick="openTVModal()" title="TradingView Screener">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px">
+        <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
+        <polyline points="17 2 12 7 7 2"></polyline>
+      </svg>
+      TV
+    </button>
     <button id="scanBtn" onclick="runScan()">
       <div class="spinner"></div>
-      <span class="btn-icon">⚡</span>
+      <span class="btn-icon" style="display:flex;align-items:center;justify-content:center">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+      </span>
       <span class="btn-text">Scan Now</span>
     </button>
   </div>
@@ -664,16 +1039,34 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
 <!-- Tab Navigation (4 organized sections) -->
 <nav class="tab-nav" id="tabNav">
   <button class="tab-btn tab-watchlist active" data-tab="watchlist" onclick="switchTab('watchlist')">
-    📋 Watchlist
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+    </svg>
+    Watchlist
   </button>
   <button class="tab-btn tab-analysis" data-tab="analysis" onclick="switchTab('analysis')">
-    📊 Analysis
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10"></line>
+      <line x1="12" y1="20" x2="12" y2="4"></line>
+      <line x1="6" y1="20" x2="6" y2="14"></line>
+    </svg>
+    Analysis
   </button>
   <button class="tab-btn tab-trading" data-tab="trading" onclick="switchTab('trading')">
-    🎯 Trading Tools
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <circle cx="12" cy="12" r="6"></circle>
+      <circle cx="12" cy="12" r="2"></circle>
+    </svg>
+    Trading Tools
   </button>
   <button class="tab-btn tab-portfolio" data-tab="portfolio" onclick="switchTab('portfolio')">
-    💼 Portfolio
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+    </svg>
+    Portfolio
   </button>
 </nav>
 
@@ -824,12 +1217,22 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
 
   <div class="tab-head">
     <div>
-      <h2>📋 Watchlist</h2>
+      <h2 style="display:flex;align-items:center;gap:10px">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+        </svg>
+        Watchlist
+      </h2>
       <div class="tab-sub">Run today's scan, review market context, and shortlist candidates. You add stocks every day — scan and filter here.</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <button id="filterToggleBtn" onclick="toggleFilterPanel()" title="Configure scan filters" style="display:flex;align-items:center;gap:6px;background:var(--card);color:var(--muted);border:1px solid var(--border);border-radius:7px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap">
-        <span class="f-dot" id="filterDirtyDot"></span>&#9881; Filters
+        <span class="f-dot" id="filterDirtyDot"></span>
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px">
+          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+        </svg>
+        Filters
       </button>
     </div>
   </div>
@@ -877,7 +1280,12 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
   <!-- Sector Pulse -->
   <div id="sec_sectors">
   <div class="sec-head">
-    <span class="sec-title">🌡️ Sector Pulse</span>
+    <span class="sec-title" style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--blue)">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+      </svg>
+      Sector Pulse
+    </span>
     <div style="display:flex;align-items:center;gap:8px">
       <span class="pill" id="sectorPill">— sectors</span>
       <button class="sec-toggle" onclick="toggleSection('sec_sectors')" title="Expand / Shrink"><span class="chevron">▼</span></button>
@@ -895,7 +1303,14 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
   <!-- Actions -->
   <div id="sec_actions">
   <div class="sec-head">
-    <span class="sec-title">🎯 Priority Actions</span>
+    <span class="sec-title" style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--orange)">
+        <circle cx="12" cy="12" r="10"></circle>
+        <circle cx="12" cy="12" r="6"></circle>
+        <circle cx="12" cy="12" r="2"></circle>
+      </svg>
+      Priority Actions
+    </span>
     <div style="display:flex;align-items:center;gap:8px">
       <span class="pill" id="actionPill">0 actions</span>
       <button class="sec-toggle" onclick="toggleSection('sec_actions')" title="Expand / Shrink"><span class="chevron">▼</span></button>
@@ -911,7 +1326,14 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
   <!-- Stocks (Scan Output) -->
   <div id="sec_setups">
   <div class="sec-head">
-    <span class="sec-title">📊 Trade Setups <small style="font-weight:400;color:var(--muted);letter-spacing:0;text-transform:none;margin-left:8px">— Chartink → yfinance filtered</small></span>
+    <span class="sec-title" style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--green)">
+        <line x1="18" y1="20" x2="18" y2="10"></line>
+        <line x1="12" y1="20" x2="12" y2="4"></line>
+        <line x1="6" y1="20" x2="6" y2="14"></line>
+      </svg>
+      Trade Setups <small style="font-weight:400;color:var(--muted);letter-spacing:0;text-transform:none;margin-left:8px">— Chartink → yfinance filtered</small>
+    </span>
     <div style="display:flex;align-items:center;gap:8px">
       <button id="addAllBtn" onclick="addAllToPositions()" style="display:none;background:var(--green-bg);color:var(--green);border:1px solid var(--green);padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer" onmouseover="this.style.background='var(--green)';this.style.color='#0d1117'" onmouseout="this.style.background='var(--green-bg)';this.style.color='var(--green)'">+ Add All to Watchlist</button>
       <button onclick="switchTab('analysis')" style="background:rgba(16,185,129,.12);color:#10B981;border:1px solid #10B981;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">→ Analysis</button>
@@ -938,14 +1360,21 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
 <section class="tab-content" data-tab="analysis">
   <div class="tab-head">
     <div>
-      <h2>📊 Analysis</h2>
+      <h2 style="display:flex;align-items:center;gap:10px">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--orange)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+        Analysis
+      </h2>
       <div class="tab-sub">Pre-market cues, global context, composite bias score, and chart-level stock validation.</div>
     </div>
   </div>
 
   <!-- Global market widgets -->
   <div id="sec_global">
-  <div class="tab-section-head"><span>Global Cues &amp; FX</span><button class="sec-toggle" onclick="toggleSection('sec_global')" title="Expand / Shrink"><span class="chevron">▼</span></button></div>
+  <div class="tab-section-head"><span style="display:flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--orange)"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>Global Cues &amp; FX</span><button class="sec-toggle" onclick="toggleSection('sec_global')" title="Expand / Shrink"><span class="chevron">▼</span></button></div>
   <div class="sec-body">
   <div class="market-row">
     <div class="mcard">
@@ -974,7 +1403,7 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
 
   <!-- Composite Bias Builder -->
   <div id="sec_bias">
-  <div class="tab-section-head"><span>Composite Market Bias</span><button class="sec-toggle" onclick="toggleSection('sec_bias')" title="Expand / Shrink"><span class="chevron">▼</span></button></div>
+  <div class="tab-section-head"><span style="display:flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--orange)"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>Composite Market Bias</span><button class="sec-toggle" onclick="toggleSection('sec_bias')" title="Expand / Shrink"><span class="chevron">▼</span></button></div>
   <div class="sec-body">
   <div class="bias-builder" id="biasBuilder">
     <!-- populated by renderBiasBuilder() -->
@@ -998,7 +1427,13 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
   <!-- TradingView Alerts (review stale before market opens) -->
   <div id="sec_tv_alerts">
   <div class="tab-section-head">
-    <span>📺 TradingView Alerts <small style="font-weight:400;text-transform:none;letter-spacing:0;margin-left:6px">Remove stale ones</small></span>
+    <span style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--orange)">
+        <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
+        <polyline points="17 2 12 7 7 2"></polyline>
+      </svg>
+      TradingView Alerts <small style="font-weight:400;text-transform:none;letter-spacing:0;margin-left:6px">Remove stale ones</small>
+    </span>
     <div style="display:flex;align-items:center;gap:8px">
       <span class="pill" id="tvAlertPill">—</span>
       <button id="tvAlertsRefreshBtn" onclick="loadTVAlerts()" title="Refresh TV alerts">↻ Refresh</button>
@@ -1019,7 +1454,13 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
   <!-- Pre-Market News -->
   <div id="sec_news">
   <div class="tab-section-head">
-    <span>📰 Pre-Market News</span>
+    <span style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--orange)">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+        <polyline points="22 6 12 13 2 6"></polyline>
+      </svg>
+      Pre-Market News
+    </span>
     <div style="display:flex;align-items:center;gap:8px">
       <span class="pill" id="newsPill">loading…</span>
       <button id="newsRefreshBtn" onclick="loadNews(true)" title="Force-refresh news (skip cache)">↻ Refresh</button>
@@ -1052,7 +1493,15 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
   <!-- Chart Analysis Checklist -->
   <div id="sec_chart_checklist">
   <div class="tab-section-head">
-    <span>📊 Chart Analysis Checklist <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">Before Entry — validate each stock</small></span>
+    <span style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--orange)">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="9" y1="9" x2="15" y2="9"></line>
+        <line x1="9" y1="13" x2="15" y2="13"></line>
+        <line x1="9" y1="17" x2="11" y2="17"></line>
+      </svg>
+      Chart Analysis Checklist <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">Before Entry — validate each stock</small>
+    </span>
     <div style="display:flex;align-items:center;gap:8px">
       <span class="pill" id="caChecklistPill">8 checks</span>
       <button class="sec-toggle" onclick="toggleSection('sec_chart_checklist')" title="Expand / Shrink"><span class="chevron">▼</span></button>
@@ -1066,7 +1515,12 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
   <!-- Per-Stock Chart Validation -->
   <div id="sec_chart_validate">
   <div class="tab-section-head">
-    <span>🔬 Stock Validation Matrix <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">Auto-checked from scan data</small></span>
+    <span style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--orange)">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+      </svg>
+      Stock Validation Matrix <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">Auto-checked from scan data</small>
+    </span>
     <div style="display:flex;align-items:center;gap:8px">
       <span class="pill" id="caValidatePill">0 stocks</span>
       <button class="sec-toggle" onclick="toggleSection('sec_chart_validate')" title="Expand / Shrink"><span class="chevron">▼</span></button>
@@ -1086,7 +1540,14 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
   <!-- Chart Analysis: Scanned Stocks (TV Push) -->
   <div id="sec_chart_stocks">
   <div class="tab-section-head">
-    <span>Scanned Stocks <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">Pine S/R marker + Alerts → TradingView</small></span>
+    <span style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--orange)">
+        <line x1="18" y1="20" x2="18" y2="10"></line>
+        <line x1="12" y1="20" x2="12" y2="4"></line>
+        <line x1="6" y1="20" x2="6" y2="14"></line>
+      </svg>
+      Scanned Stocks <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">Pine S/R marker + Alerts → TradingView</small>
+    </span>
     <div style="display:flex;align-items:center;gap:8px">
       <button onclick="caPushAll()" id="caPushAllBtn" style="background:rgba(255,166,87,.12);color:var(--orange);border:1px solid var(--orange);padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">📺 Add All to TV Watchlist</button>
       <span class="pill" id="caPill">0 stocks</span>
@@ -1103,7 +1564,6 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
   </div>
   </div>
   </div>
-  </div>
 
 </section>
 
@@ -1113,7 +1573,14 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
 <section class="tab-content" data-tab="trading">
   <div class="tab-head">
     <div>
-      <h2>🎯 Trading Tools</h2>
+      <h2 style="display:flex;align-items:center;gap:10px">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <circle cx="12" cy="12" r="6"></circle>
+          <circle cx="12" cy="12" r="2"></circle>
+        </svg>
+        Trading Tools
+      </h2>
       <div class="tab-sub">Position sizing, entry gates, SL/target calculators, and trail-stop — all in one place.</div>
     </div>
   </div>
@@ -1121,7 +1588,13 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
   <!-- Stock Selector for auto-fill -->
   <div id="sec_stock_selector">
   <div class="tab-section-head">
-    <span>📌 Quick Stock Select <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">click a scanned stock to auto-fill calculators</small></span>
+    <span style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--blue)">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+        <circle cx="12" cy="10" r="3"></circle>
+      </svg>
+      Quick Stock Select <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">click a scanned stock to auto-fill calculators</small>
+    </span>
     <button class="sec-toggle" onclick="toggleSection('sec_stock_selector')" title="Expand / Shrink"><span class="chevron">▼</span></button>
   </div>
   <div class="sec-body">
@@ -1134,7 +1607,13 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
   <!-- Position Entry Checklist (pe1-pe10 from the checklist) -->
   <div id="sec_entry_checklist">
   <div class="tab-section-head">
-    <span>✅ Entry Checklist <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">all gates must pass before entering</small></span>
+    <span style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--blue)">
+        <polyline points="9 11 12 14 22 4"></polyline>
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+      </svg>
+      Entry Checklist <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">all gates must pass before entering</small>
+    </span>
     <div style="display:flex;align-items:center;gap:8px">
       <span class="pill" id="entryClPill">10 checks</span>
       <button class="sec-toggle" onclick="toggleSection('sec_entry_checklist')" title="Expand / Shrink"><span class="chevron">▼</span></button>
@@ -1143,7 +1622,14 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
   <div class="sec-body">
   <div class="entry-cl-wrap" id="entryChecklistWrap">
     <div class="entry-cl-head">
-      <h3>🎯 Position Entry Gates</h3>
+      <h3 style="display:flex;align-items:center;gap:6px">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--blue)">
+          <circle cx="12" cy="12" r="10"></circle>
+          <circle cx="12" cy="12" r="6"></circle>
+          <circle cx="12" cy="12" r="2"></circle>
+        </svg>
+        Position Entry Gates
+      </h3>
       <span class="entry-score" id="entryScoreBadge" style="background:var(--card);color:var(--muted);border:1px solid var(--border)">— / 10</span>
     </div>
     <div class="entry-cl-body" id="entryChecklistBody">
@@ -1155,7 +1641,12 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
 
 
   <div class="tool-card" id="tc_pos_sizer">
-    <h3 onclick="toggleSection('tc_pos_sizer')">📐 Position Size Calculator <span class="tool-tag">1% RULE</span><button class="sec-toggle"><span class="chevron">▼</span></button></h3>
+    <h3 onclick="toggleSection('tc_pos_sizer')">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:middle;color:var(--blue)">
+        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+      </svg>
+      Position Size Calculator <span class="tool-tag">1% RULE</span><button class="sec-toggle"><span class="chevron">▼</span></button>
+    </h3>
     <div class="tool-body">
     <div class="tool-grid">
       <label>Capital (₹)<input id="ps_capital" type="number" value="500000" oninput="recalcPosSize()"></label>
@@ -1176,34 +1667,54 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
   </div>
 
   <div class="tool-card" id="tc_entry_gates">
-    <h3 onclick="toggleSection('tc_entry_gates')">🚦 Entry Gate Status <span class="tool-tag">SKIP IF RED</span><button class="sec-toggle"><span class="chevron">▼</span></button></h3>
+    <h3 onclick="toggleSection('tc_entry_gates')">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:middle;color:var(--blue)">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="2" x2="12" y2="22"></line>
+        <line x1="2" y1="12" x2="22" y2="12"></line>
+      </svg>
+      Entry Gate Status <span class="tool-tag">SKIP IF RED</span><button class="sec-toggle"><span class="chevron">▼</span></button>
+    </h3>
     <div class="tool-body">
     <div id="entryGates" class="bias-builder"></div>
     </div>
   </div>
 
   <div class="tool-card" id="tc_sl_calc">
-    <h3 onclick="toggleSection('tc_sl_calc')">🛡️ SL &amp; Target Calculator <span class="tool-tag">STRUCTURE + ATR</span><button class="sec-toggle"><span class="chevron">▼</span></button></h3>
+    <h3 onclick="toggleSection('tc_sl_calc')">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:middle;color:var(--blue)">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+      </svg>
+      SL &amp; Target Plan <span class="tool-tag">SETUP-AWARE · SERVER</span><button class="sec-toggle"><span class="chevron">▼</span></button>
+    </h3>
     <div class="tool-body">
     <div class="tool-grid">
-      <label>Entry Price (₹)<input id="rm_entry" type="number" step="0.05" value="500" oninput="recalcRiskTargets()"></label>
-      <label>Base Low (₹)<input id="rm_base_low" type="number" step="0.05" value="482" oninput="recalcRiskTargets()"></label>
-      <label>Base High (₹)<input id="rm_base_high" type="number" step="0.05" value="500" oninput="recalcRiskTargets()"></label>
-      <label>ATR(14) (₹)<input id="rm_atr" type="number" step="0.05" value="8" oninput="recalcRiskTargets()"></label>
+      <label>Symbol (NSE)<input id="rm_symbol" type="text" placeholder="e.g. RELIANCE" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')fetchPlanForSymbol()"></label>
+      <label style="align-self:end"><button class="buy-btn" style="width:100%;height:38px" onclick="fetchPlanForSymbol()">Get Plan</button></label>
     </div>
-    <div class="tool-out">
-      <div class="tool-out-card"><div class="lbl">SL · Structure (base low − 0.5%)</div><div class="val" id="rm_sl_struct">—</div></div>
-      <div class="tool-out-card"><div class="lbl">SL · Volatility (2 × ATR)</div><div class="val" id="rm_sl_atr">—</div></div>
-      <div class="tool-out-card"><div class="lbl">Recommended SL</div><div class="val" id="rm_sl_final" style="color:var(--red)">—</div></div>
-      <div class="tool-out-card"><div class="lbl">Target 1 (1.5R · book 50%)</div><div class="val" id="rm_t1" style="color:var(--yellow)">—</div></div>
-      <div class="tool-out-card"><div class="lbl">Target 2 (base projection)</div><div class="val" id="rm_t2" style="color:var(--green)">—</div></div>
-      <div class="tool-out-card"><div class="lbl">Risk %</div><div class="val" id="rm_risk_pct">—</div></div>
+    <div id="rm_status" style="font-size:12px;color:var(--muted);margin:6px 0 0">Enter an NSE symbol or pick one from the Watchlist tab — levels match the scan card exactly.</div>
+    <div class="tool-out" id="rm_plan_out" style="display:none">
+      <div class="tool-out-card"><div class="lbl">Setup</div><div class="val" id="rm_setup">—</div></div>
+      <div class="tool-out-card"><div class="lbl">Last Price</div><div class="val" id="rm_price">—</div></div>
+      <div class="tool-out-card"><div class="lbl">Entry Zone</div><div class="val" id="rm_entry_zone">—</div></div>
+      <div class="tool-out-card"><div class="lbl">Stop Loss</div><div class="val" id="rm_sl" style="color:var(--red)">—</div></div>
+      <div class="tool-out-card"><div class="lbl">Target 1</div><div class="val" id="rm_t1" style="color:var(--yellow)">—</div></div>
+      <div class="tool-out-card"><div class="lbl">Target 2</div><div class="val" id="rm_t2" style="color:var(--green)">—</div></div>
+      <div class="tool-out-card"><div class="lbl">Risk / Reward</div><div class="val" id="rm_rr">—</div></div>
+      <div class="tool-out-card"><div class="lbl">ATR(14)</div><div class="val" id="rm_atr_val">—</div></div>
     </div>
     </div>
   </div>
 
   <div class="tool-card" id="tc_trail">
-    <h3 onclick="toggleSection('tc_trail')">📈 Stop-Loss Ladder &amp; Trail <span class="tool-tag">ONE-WAY RATCHET</span><button class="sec-toggle"><span class="chevron">▼</span></button></h3>
+    <h3 onclick="toggleSection('tc_trail')">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:middle;color:var(--blue)">
+        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+        <polyline points="17 6 23 6 23 12"></polyline>
+      </svg>
+      Stop-Loss Ladder &amp; Trail <span class="tool-tag">ONE-WAY RATCHET</span><button class="sec-toggle"><span class="chevron">▼</span></button>
+    </h3>
+
     <div class="tool-body">
     <div class="tool-grid">
       <label>Entry (₹)<input id="ts_entry" type="number" step="0.05" value="500" oninput="recalcTrail()"></label>
@@ -1227,14 +1738,26 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
 <section class="tab-content" data-tab="portfolio">
   <div class="tab-head">
     <div>
-      <h2>💼 Portfolio</h2>
+      <h2 style="display:flex;align-items:center;gap:10px">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+        </svg>
+        Portfolio
+      </h2>
       <div class="tab-sub">Active positions, performance tracking, trade journal, and edge metrics.</div>
     </div>
   </div>
 
   <div id="sec_positions">
   <div class="tab-section-head">
-    <span>Positions &amp; Performance</span>
+    <span style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--green)">
+        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+      </svg>
+      Positions &amp; Performance
+    </span>
     <div style="display:flex;align-items:center;gap:8px">
       <div class="results-toggle">
         <button id="rtForward" class="active" onclick="switchResults('forward')">Live</button>
@@ -1254,7 +1777,15 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
   </div>
 
   <div id="sec_metrics">
-  <div class="tab-section-head"><span>Edge Metrics <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">last 20+ closed trades</small></span><button class="sec-toggle" onclick="toggleSection('sec_metrics')" title="Expand / Shrink"><span class="chevron">▼</span></button></div>
+  <div class="tab-section-head">
+    <span style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--green)">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+      </svg>
+      Edge Metrics <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">last 20+ closed trades</small>
+    </span>
+    <button class="sec-toggle" onclick="toggleSection('sec_metrics')" title="Expand / Shrink"><span class="chevron">▼</span></button>
+  </div>
   <div class="sec-body">
   <div class="results-summary" id="reviewMetrics">
     <div class="rsum-card"><div class="lbl">Win Rate</div><div class="val" id="rev_wr">—</div><div class="sub" id="rev_wr_sub">—</div></div>
@@ -1266,7 +1797,16 @@ kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padd
   </div>
 
   <div id="sec_journal">
-  <div class="tab-section-head"><span>Trade Journal <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">stored locally</small></span><button class="sec-toggle" onclick="toggleSection('sec_journal')" title="Expand / Shrink"><span class="chevron">▼</span></button></div>
+  <div class="tab-section-head">
+    <span style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--green)">
+        <path d="M12 20h9"></path>
+        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+      </svg>
+      Trade Journal <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">stored locally</small>
+    </span>
+    <button class="sec-toggle" onclick="toggleSection('sec_journal')" title="Expand / Shrink"><span class="chevron">▼</span></button>
+  </div>
   <div class="sec-body">
   <div class="journal-wrap">
     <div class="journal-form">
@@ -1522,8 +2062,12 @@ function showSkeletons(n = 4) {
         <div><div class="skeleton" style="width:80px;height:18px;margin-bottom:6px"></div><div class="skeleton" style="width:120px;height:11px"></div></div>
         <div style="text-align:right"><div class="skeleton" style="width:70px;height:16px;margin-bottom:6px"></div><div class="skeleton" style="width:50px;height:11px;margin-left:auto"></div></div>
       </div>
-      <div class="plan">${Array(5).fill(0).map(()=>`<div class="prow"><div class="skeleton" style="width:60px;height:11px"></div><div class="skeleton" style="width:90px;height:13px"></div></div>`).join("")}</div>
-      <div class="tags"><div class="skeleton" style="width:70px;height:18px"></div><div class="skeleton" style="width:50px;height:18px"></div></div>
+      <div class="tags" style="margin-top:8px">
+        <div class="skeleton" style="width:70px;height:18px"></div>
+        <div class="skeleton" style="width:50px;height:18px"></div>
+        <div class="skeleton" style="width:60px;height:18px"></div>
+        <div class="skeleton" style="width:90px;height:24px;margin-left:auto"></div>
+      </div>
     </div>`).join("");
   grid.innerHTML = `<div class="stocks-grid">${cards}</div>`;
 }
@@ -1615,13 +2159,6 @@ function renderStockCard(s, i) {
           <div class="chg ${chgCls}">${s.change_pct>=0?"▲":"▼"} ${Math.abs(s.change_pct||0).toFixed(2)}%</div>
         </div>
       </div>
-      <div class="plan">
-        <div class="prow"><span class="plbl">Entry Zone</span><span class="entry-chip">₹${fmtP(s.entry_min)} – ₹${fmtP(s.entry_max)}</span></div>
-        <div class="prow"><span class="plbl">Stop Loss</span><span class="pval sl-v">₹${fmtP(s.sl)}</span></div>
-        <div class="prow"><span class="plbl">Target 1</span><span class="pval t1-v">₹${fmtP(s.target_1)}${upside(s.target_1,s.price)}</span></div>
-        <div class="prow"><span class="plbl">Target 2</span><span class="pval t2-v">₹${fmtP(s.target_2)}${upside(s.target_2,s.price)}</span></div>
-        <div class="prow"><span class="plbl">Risk / Reward</span><span class="rr-chip ${rrClass(s.rr)}">R:R ${String(s.rr).includes(":")?s.rr:"1:"+rrNum(s.rr).toFixed(1)}</span></div>
-      </div>
       <div class="tags">
         ${s.setup?`<span class="tag t-setup">${s.setup.replace(/_/g," ")}</span>`:""}
         ${rsi?`<span class="tag t-rsi" style="color:${rsiCol}">RSI ${rsi.toFixed(0)}</span>`:""}
@@ -1629,6 +2166,7 @@ function renderStockCard(s, i) {
         ${s.near_52w_high?`<span class="tag t-52w" title="Within 5% of 52W High (${fmtP(s.high_52w)})">Near 52W High</span>`:""}
         ${s.ema9_cross_ema21==="golden"?`<span class="tag t-golden">9/21 Cross ▲</span>`:""}
         ${s.ema9_cross_ema21==="death" ?`<span class="tag t-death">9/21 Cross ▼</span>`:""}
+        <button class="buy-btn" onclick="selectStockForTrading(${i})" title="Open full plan in Trading tab">View Plan</button>
         <button class="buy-btn" onclick="openBuyModal(${i})">+ Watchlist</button>
         <button class="tv-btn" onclick="tvAddToWatchlist('NSE:${s.symbol}',this)" title="Add to TradingView watchlist">📺 TV</button>
       </div>
@@ -2885,7 +3423,7 @@ function switchTab(tabId) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tabId));
   // Trigger tab-specific refresh
   if (tabId === "analysis")   { renderBiasBuilder(); renderChartAnalysis(); renderCAChecklist(); renderStockValidation(); }
-  if (tabId === "trading")    { renderEntryGates(); renderEntryChecklist(); renderStockSelector(); recalcPosSize(); recalcRiskTargets(); recalcTrail(); }
+  if (tabId === "trading")    { renderEntryGates(); renderEntryChecklist(); renderStockSelector(); recalcPosSize(); recalcTrail(); }
   if (tabId === "portfolio")  { renderReviewMetrics(); renderJournalList(); }
   // Scroll to top of tab
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -3143,26 +3681,49 @@ function renderEntryGates() {
    RISK MANAGEMENT — SL / Target calculator
    ══════════════════════════════════════════════════════════ */
 
-function recalcRiskTargets() {
-  const entry = parseFloat(document.getElementById("rm_entry").value)     || 0;
-  const bLow  = parseFloat(document.getElementById("rm_base_low").value)  || 0;
-  const bHigh = parseFloat(document.getElementById("rm_base_high").value) || 0;
-  const atr   = parseFloat(document.getElementById("rm_atr").value)       || 0;
+/* Render a server-computed plan (from /api/plan/:symbol OR a scan-result stock)
+   into the Trading-tab SL & Target card. Single source of truth = calculate_trade_plan. */
+function renderPlanCard(p) {
+  if (!p || !p.symbol) return;
+  const out    = document.getElementById("rm_plan_out");
+  const status = document.getElementById("rm_status");
+  out.style.display = "";
+  status.innerHTML = `<b>${p.symbol}</b> · plan from server (matches Watchlist exactly)`;
+  status.style.color = "var(--muted)";
 
-  const slStruct = bLow ? bLow * 0.995 : 0;          // base low − 0.5%
-  const slATR    = entry ? entry - 2 * atr : 0;      // entry − 2×ATR
-  const slFinal  = Math.min(slStruct, slATR) || slStruct || slATR;
-  const risk     = Math.max(0, entry - slFinal);
-  const t1       = entry + 1.5 * risk;
-  const t2       = entry + Math.max(0, bHigh - bLow);  // base-projection
-  const riskPct  = entry ? (risk / entry * 100) : 0;
+  const chgCls = (p.change_pct || 0) >= 0 ? "up" : "down";
+  const chgArr = (p.change_pct || 0) >= 0 ? "▲" : "▼";
+  document.getElementById("rm_setup").textContent     = (p.setup || "—").replace(/_/g, " ");
+  document.getElementById("rm_price").innerHTML       = `₹${fmtP(p.price)} <span class="${chgCls}" style="font-size:11px">${chgArr}${Math.abs(p.change_pct||0).toFixed(2)}%</span>`;
+  document.getElementById("rm_entry_zone").textContent = `₹${fmtP(p.entry_min)} – ₹${fmtP(p.entry_max)}`;
+  document.getElementById("rm_sl").textContent        = `₹${fmtP(p.sl)}`;
+  document.getElementById("rm_t1").innerHTML          = `₹${fmtP(p.target_1)}${upside(p.target_1, p.price)}`;
+  document.getElementById("rm_t2").innerHTML          = `₹${fmtP(p.target_2)}${upside(p.target_2, p.price)}`;
+  const rrTxt = String(p.rr || "").includes(":") ? p.rr : `1:${rrNum(p.rr).toFixed(1)}`;
+  document.getElementById("rm_rr").innerHTML          = `<span class="rr-chip ${rrClass(p.rr)}">${rrTxt}</span>`;
+  const atrTxt = p.atr ? `₹${fmt(p.atr,2)}` : (p.atr_pct ? `${(+p.atr_pct).toFixed(2)}%` : "—");
+  document.getElementById("rm_atr_val").textContent   = atrTxt;
+}
 
-  document.getElementById("rm_sl_struct").textContent = `₹${fmt(slStruct,2)}`;
-  document.getElementById("rm_sl_atr").textContent    = `₹${fmt(slATR,2)}`;
-  document.getElementById("rm_sl_final").textContent  = `₹${fmt(slFinal,2)}`;
-  document.getElementById("rm_t1").textContent        = `₹${fmt(t1,2)}`;
-  document.getElementById("rm_t2").textContent        = `₹${fmt(t2,2)}`;
-  document.getElementById("rm_risk_pct").textContent  = `${riskPct.toFixed(2)}%`;
+/* Fetch a plan from the server for the symbol typed in #rm_symbol. */
+async function fetchPlanForSymbol(symbol) {
+  const input = document.getElementById("rm_symbol");
+  const sym   = (symbol || (input && input.value) || "").trim().toUpperCase();
+  if (!sym) return;
+  if (input) input.value = sym;
+  const status = document.getElementById("rm_status");
+  status.textContent = `Fetching plan for ${sym}…`;
+  status.style.color = "var(--muted)";
+  try {
+    const r = await fetch(`/api/plan/${encodeURIComponent(sym)}`);
+    const j = await r.json();
+    if (!r.ok || j.status === "error") throw new Error(j.message || `HTTP ${r.status}`);
+    renderPlanCard(j);
+  } catch (e) {
+    status.textContent = `Could not fetch ${sym}: ${e.message}`;
+    status.style.color = "var(--red)";
+    document.getElementById("rm_plan_out").style.display = "none";
+  }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -3643,12 +4204,23 @@ function selectStockForTrading(idx) {
   document.getElementById("ps_target").value = s.target_2 || s.target_1 || 0;
   recalcPosSize();
 
-  // Auto-fill SL & Target calculator
-  document.getElementById("rm_entry").value     = entryPrice;
-  document.getElementById("rm_base_low").value  = s.sl ? (s.sl / 0.995).toFixed(2) : 0; // reverse-engineer base low
-  document.getElementById("rm_base_high").value = entryPrice;
-  document.getElementById("rm_atr").value       = s.atr_pct ? (entryPrice * s.atr_pct / 100).toFixed(2) : 8;
-  recalcRiskTargets();
+  // Auto-fill SL & Target plan — use the scan-result fields directly
+  // (they are already server-computed by calculate_trade_plan, so no extra fetch needed)
+  document.getElementById("rm_symbol").value = s.symbol;
+  renderPlanCard({
+    symbol:     s.symbol,
+    price:      s.price,
+    change_pct: s.change_pct,
+    atr:        s.atr_pct ? (s.price * s.atr_pct / 100) : 0,
+    atr_pct:    s.atr_pct,
+    setup:      s.setup,
+    entry_min:  s.entry_min,
+    entry_max:  s.entry_max,
+    sl:         s.sl,
+    target_1:   s.target_1,
+    target_2:   s.target_2,
+    rr:         s.rr,
+  });
 
   // Auto-fill Trail stop
   document.getElementById("ts_entry").value = entryPrice;
@@ -3688,7 +4260,6 @@ renderGlobal = function(d) { _origRenderGlobal(d); renderBiasBuilder(); };
 function _initChecklistsAndTools() {
   // Run initial calculator outputs
   try { recalcPosSize();      } catch {}
-  try { recalcRiskTargets();  } catch {}
   try { recalcTrail();        } catch {}
   renderBiasBuilder();
   renderEntryGates();

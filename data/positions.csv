@@ -10,7 +10,7 @@ CIPLA,Cipla Limited,1301.85,1,1432.1,1460.74,1280.25,PULLBACK,2026-05-14,OPEN,Fa
 PARACABLES,Paramount Communications Limited,46.15,1,60.9,62.12,42.69,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
 NIVABUPA,Niva Bupa Health Insurance Company Ltd,78.65,1,89.77,91.57,76.75,PULLBACK,2026-05-14,OPEN,False,False,False,False,,,,,,0.0
 JSFB,Jana Small Finance Bank Ltd,443.47,1,501.0,520.75,423.31,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
-MIDHANI,Mishra Dhatu Nigam Ltd,383.8,1,438.7,447.47,370.05,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
+MIDHANI,Mishra Dhatu Nigam Ltd,383.8,1,438.7,447.47,370.05,PULLBACK,2026-05-15,OPEN,True,,,,2026-05-20,,,,,0.0
 METROPOLIS,Metropolis Healthcare Ltd,498.62,1,574.9,586.4,483.16,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
 SCI,Shipping Corporation Of India Limited,303.57,1,368.75,376.12,289.83,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
 SENORES,Senores Pharmaceuticals Ltd,897.49,1,991.0,1010.82,872.74,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
@@ -26,7 +26,7 @@ CROMPTON,Crompton Greaves Consumer Electricals Limited,270.16,1,299.15,305.13,26
 FORTIS,Fortis Healthcare Limited,921.34,1,982.95,1002.61,907.49,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
 RATNAVEER,Ratnaveer Precision Engineering Ltd,164.24,1,193.39,202.36,153.61,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
 RPEL,Raghav Productivity Enhancers Ltd,718.22,1,809.0,825.18,691.96,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
-TEXRAIL,Texmaco Rail & Engineering Limited,107.03,1,124.73,127.22,102.97,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
+TEXRAIL,Texmaco Rail & Engineering Limited,107.03,1,124.73,127.22,102.97,PULLBACK,2026-05-15,OPEN,True,False,False,False,2026-05-20,,,,,0.0
 HAL,Hindustan Aeronautics Ltd,4418.11,1,4836.3,4933.03,4347.4,PULLBACK,2026-05-15,CLOSED,True,,,True,2026-05-15,,,2026-05-18,SL_LOSS,4248.89990234375
 IFCI,Ifci Limited,59.94,1,66.25,68.13,57.97,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0
 INDOAMIN,Indo Amines Ltd,113.56,1,125.8,128.32,110.3,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0
@@ -53,3 +53,6 @@ GESHIP,The Great Eastern Shipping Company Limited,1509.42,1,1720.0,1754.4,1448.3
 SAREGAMA,Saregama India Limited,350.64,1,443.0,451.86,335.72,PULLBACK,2026-05-19,OPEN,,,,,,,,,,
 MUKANDLTD,Mukand Limited,135.77,1,150.62,153.63,132.05,PULLBACK,2026-05-19,OPEN,,,,,,,,,,
 POLICYBZR,PB Fintech Ltd,1622.83,1,1735.0,1798.51,1584.76,PULLBACK,2026-05-19,OPEN,,,,,,,,,,
+NAZARA,Nazara Technologies Ltd,268.66,1,314.0,320.28,260.2,PULLBACK,2026-05-20,OPEN,,,,,,,,,,
+V2RETAIL,V2 Retail Limited,211.02,1,241.5,246.33,202.51,PULLBACK,2026-05-20,OPEN,,,,,,,,,,
+MARICO,Marico Limited,801.02,1,848.8,865.78,789.0,PULLBACK,2026-05-20,OPEN,,,,,,,,,,
