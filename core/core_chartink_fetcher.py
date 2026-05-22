@@ -25,8 +25,24 @@ BASE_HEADERS = {
     "Accept-Encoding": "gzip, deflate",  # exclude br — requests can't decode brotli
 }
 
+# Chartink scan-group tokens. Keys are what the UI/preset stores; values are
+# the token Chartink expects inside the scan clause (with curly braces).
+# Whitelisted server-side to keep the DSL safe from arbitrary input.
+UNIVERSE_TOKENS: dict = {
+    "cash":              "cash",              # All NSE cash market
+    "nifty50":           "nifty50",
+    "niftynext50":       "niftynext50",
+    "nifty100":          "nifty100",
+    "nifty200":          "nifty200",
+    "nifty500":          "nifty500",
+    "niftymidcap150":    "niftymidcap150",
+    "niftysmallcap250":  "niftysmallcap250",
+    "fnolist":           "fnolist",           # F&O securities
+}
+
 # Default swing-trade scan conditions — must stay in sync with FILTER_DEFAULTS in swing_agent_app.html
 DEFAULT_SCAN_PARAMS: dict = {
+    "universe":             "cash",
     "min_price":            50,
     "rsi_min":              40,
     "rsi_max":              70,
@@ -45,6 +61,7 @@ def build_scan_clause(params: dict = None) -> str:
     Missing keys fall back to DEFAULT_SCAN_PARAMS.
     """
     p = {**DEFAULT_SCAN_PARAMS, **(params or {})}
+    universe    = UNIVERSE_TOKENS.get(str(p.get("universe", "cash")).lower(), "cash")
     min_price   = p["min_price"]
     rsi_min     = p["rsi_min"]
     rsi_max     = p["rsi_max"]
@@ -65,7 +82,7 @@ def build_scan_clause(params: dict = None) -> str:
     conds.append(f"latest adx(14) > {adx_min}")
     conds.append(f"latest volume > {min_vol}")
 
-    return "( {cash} ( " + " and ".join(conds) + " ) )"
+    return "( {" + universe + "} ( " + " and ".join(conds) + " ) )"
 
 
 def _make_session() -> tuple:

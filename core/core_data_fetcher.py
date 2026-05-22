@@ -8,10 +8,16 @@ from typing import Dict
 
 import numpy as np
 import pandas as pd
+import requests
 import yfinance as yf
 
 _GLOBAL_CACHE: Dict = {}
 _GLOBAL_TTL   = 300  # 5 minutes
+
+# How many trading days back to look for a fresh EMA 9/21 crossover.
+# A swing trade is still "fresh" for a few days after the cross — this
+# window lets the dashboard badge the setup until momentum is well past.
+EMA_CROSS_LOOKBACK = 5
 
 NSE_TICKERS = {
     'RELIANCE': 'RELIANCE.NS', 'HDFCBANK': 'HDFCBANK.NS', 'ICICIBANK': 'ICICIBANK.NS',
@@ -42,10 +48,11 @@ def fetch_stock_technicals(symbol: str) -> Dict:
 
         ema9_s  = close.ewm(span=9).mean()
         ema21_s = close.ewm(span=21).mean()
+        ema50_s = close.ewm(span=50).mean()
         ema9    = float(ema9_s.iloc[-1])
         ema21   = float(ema21_s.iloc[-1])
         ema20   = float(close.ewm(span=20).mean().iloc[-1])
-        ema50   = float(close.ewm(span=50).mean().iloc[-1])
+        ema50   = float(ema50_s.iloc[-1])
         ema200  = float(close.ewm(span=200).mean().iloc[-1])
         rsi     = _rsi(close)
         macd_d  = _macd(close)
@@ -58,9 +65,9 @@ def fetch_stock_technicals(symbol: str) -> Dict:
         vol_ratio    = float(volume.iloc[-1] / avg_vol_20) if avg_vol_20 else 1.0
         price_yest   = float(close.iloc[-2])
         change_pct   = ((price - price_yest) / price_yest * 100) if price_yest else 0
-        resistance_1 = float(df['High'].tail(20).max())
-        support_1    = float(df['Low'].tail(20).min())
-        resistance_2 = float(df['High'].tail(60).max())
+        resistance_1 = float(df['High'].iloc[:-1].tail(20).max())
+        support_1    = float(df['Low'].iloc[:-1].tail(20).min())
+        resistance_2 = float(df['High'].iloc[:-1].tail(60).max())
 
         # Risk-filter inputs (used by core_risk_filters.py)
         recent_returns = close.pct_change().tail(60)
@@ -70,15 +77,78 @@ def fetch_stock_technicals(symbol: str) -> Dict:
 
         near_52w_high  = price >= high_52w * 0.95
         dist_52w_pct   = round((high_52w - price) / high_52w * 100, 2) if high_52w else 0.0
-        # EMA 9/21 cross: yesterday 9<21, today 9>21 (golden) or vice-versa (death)
-        ema9_prev  = float(ema9_s.iloc[-2])
-        ema21_prev = float(ema21_s.iloc[-2])
-        if ema9_prev < ema21_prev and ema9 > ema21:
-            ema9_cross_ema21 = "golden"
-        elif ema9_prev > ema21_prev and ema9 < ema21:
-            ema9_cross_ema21 = "death"
+        # EMA 9/21 cross: scan the last EMA_CROSS_LOOKBACK bars and report the
+        # most recent crossover, with days_ago (0 = today, 1 = yesterday, …).
+        # days_ago = -1 means no cross within the window.
+        ema9_cross_ema21    = "none"
+        ema9_cross_days_ago = -1
+        for d in range(EMA_CROSS_LOOKBACK):
+            older = -(d + 2); newer = -(d + 1)
+            if abs(older) > len(ema9_s):
+                break
+            o9, o21 = float(ema9_s.iloc[older]), float(ema21_s.iloc[older])
+            n9, n21 = float(ema9_s.iloc[newer]), float(ema21_s.iloc[newer])
+            if o9 < o21 and n9 > n21:
+                ema9_cross_ema21, ema9_cross_days_ago = "golden", d
+                break
+            if o9 > o21 and n9 < n21:
+                ema9_cross_ema21, ema9_cross_days_ago = "death", d
+                break
+
+        # RSI 40-55 continuation pullback (checklist wl4): price > EMA50 AND
+        # EMA50 rising vs 20 bars ago AND RSI in the 40-55 reload zone.
+        ema50_20b_ago = float(ema50_s.iloc[-21]) if len(ema50_s) >= 21 else ema50
+        in_uptrend    = price > ema50 and ema50 > ema50_20b_ago
+        rsi_pullback_zone = bool(in_uptrend and 40 <= rsi <= 55)
+
+        # ── 1. Weekly Trend (resampled Weekly EMA 30) ──
+        try:
+            if not isinstance(df.index, pd.DatetimeIndex):
+                df.index = pd.to_datetime(df.index)
+            weekly_df = df['Close'].resample('W').last().dropna()
+            if len(weekly_df) >= 5:
+                weekly_ema30 = weekly_df.ewm(span=30, min_periods=1).mean()
+                curr_weekly_ema = float(weekly_ema30.iloc[-1])
+                weekly_trend = "BULLISH" if price >= curr_weekly_ema else "BEARISH"
+            else:
+                weekly_trend = "BULLISH" if price >= ema50 else "BEARISH"
+        except Exception:
+            weekly_trend = "BULLISH" if price >= ema50 else "BEARISH"
+
+        # ── 2. Daily Pattern Base Duration ──
+        _rev    = close.iloc[::-1].reset_index(drop=True)
+        _cmin   = _rev.expanding().min()
+        _cmax   = _rev.expanding().max()
+        _spread = (_cmax - _cmin) / _cmin.replace(0, float("nan"))
+        base_days = int((_spread <= 0.125).cumprod().sum())
+        
+        if base_days >= 20:
+            base_status = "STABLE_BASE"
+        elif base_days >= 5:
+            base_status = "CONSOLIDATING"
         else:
-            ema9_cross_ema21 = "none"
+            base_status = "VOLATILE"
+
+        # ── 3. False Breakout Risk (rejections, traps, dry volume breakouts) ──
+        false_breakout = False
+        fb_desc = "Low risk. Price action is stable."
+
+        today_high = float(df['High'].iloc[-1])
+        today_low  = float(df['Low'].iloc[-1])
+        today_open = float(df['Open'].iloc[-1])
+
+        if today_high >= resistance_1:
+            if price < resistance_1:
+                false_breakout = True
+                fb_desc = f"Failed Breakout: Price hit high of ₹{today_high:.1f} but closed below resistance ₹{resistance_1:.1f}."
+            elif today_high > today_low and (today_high - max(today_open, price)) > 0.6 * (today_high - today_low):
+                false_breakout = True
+                fb_desc = f"Rejection Wick: Strong supply wick at resistance (High ₹{today_high:.1f})."
+            elif price >= resistance_1 and vol_ratio < 1.0:
+                false_breakout = True
+                fb_desc = f"Low Volume Breakout: Breakout occurred but volume ratio ({vol_ratio:.2f}x) is below average."
+
+        false_breakout_risk = "HIGH" if false_breakout else "LOW"
 
         return {
             'symbol': symbol, 'price': round(price, 2), 'change_pct': round(change_pct, 2),
@@ -98,6 +168,13 @@ def fetch_stock_technicals(symbol: str) -> Dict:
             'near_52w_high': near_52w_high,
             'dist_52w_pct':  dist_52w_pct,
             'ema9_cross_ema21': ema9_cross_ema21,
+            'ema9_cross_days_ago': ema9_cross_days_ago,
+            'rsi_pullback_zone': rsi_pullback_zone,
+            'weekly_trend': weekly_trend,
+            'base_days': base_days,
+            'base_status': base_status,
+            'false_breakout_risk': false_breakout_risk,
+            'false_breakout_desc': fb_desc,
             'timestamp': datetime.now().isoformat(),
         }
     except Exception as e:
@@ -200,18 +277,135 @@ def fetch_global_markets() -> Dict:
             print(f"[global_markets] {sym} error: {e}")
             result[key] = {'price': 0, 'change_pct': 0, 'status': 'error'}
 
+    result['gift_nifty'] = _fetch_gift_nifty()
+
     _GLOBAL_CACHE.clear()
     _GLOBAL_CACHE.update(result)
     _GLOBAL_CACHE['_ts'] = now
     return result
 
 
-def fetch_fii_dii_flow(days: int = 5) -> Dict:
+_TV_SCANNER_HEADERS = {
+    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                   "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
+    "Origin":  "https://www.tradingview.com",
+    "Referer": "https://www.tradingview.com/",
+}
+
+
+def _fetch_gift_nifty() -> Dict:
+    """
+    GIFT Nifty live quote via TradingView's public Scanner API.
+    Symbol: NSEIX:NIFTY1! (continuous front-month future on NSE IX).
+    No auth, no chart side-effects. Result is cached by fetch_global_markets.
+    """
+    payload = {
+        "symbols": {"tickers": ["NSEIX:NIFTY1!"], "query": {"types": []}},
+        "columns": ["close", "change", "change_abs", "open", "high", "low"],
+    }
+    try:
+        r = requests.post(
+            "https://scanner.tradingview.com/global/scan",
+            json=payload, headers=_TV_SCANNER_HEADERS, timeout=10,
+        )
+        r.raise_for_status()
+        data = r.json()
+        rows = data.get("data") or []
+        if not rows:
+            return {'price': 0, 'change_pct': 0, 'status': 'error',
+                    'note': 'GIFT Nifty not returned by TV scanner'}
+        d = rows[0].get("d") or []
+        price = float(d[0]) if len(d) > 0 and d[0] is not None else 0
+        chg   = float(d[1]) if len(d) > 1 and d[1] is not None else 0
+        return {'price': round(price, 2), 'change_pct': round(chg, 2),
+                'status': 'ok', 'source': 'tv:NSEIX:NIFTY1!'}
+    except Exception as e:
+        print(f"[gift_nifty] fetch error: {e}")
+        return {'price': 0, 'change_pct': 0, 'status': 'error', 'note': str(e)}
+
+
+_FII_CACHE: Dict = {}
+_FII_TTL = 15 * 60  # 15 minutes — NSE publishes once per session
+
+_NSE_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.nseindia.com/reports/fii-dii",
+}
+
+
+def _empty_fii() -> Dict:
     return {
         'fii_today': 0, 'dii_today': 0,
         'fii_last_5_days': [0] * 5, 'dii_last_5_days': [0] * 5,
         'fii_trend': 'unknown', 'note': 'Live FII data unavailable',
     }
+
+
+def fetch_fii_dii_flow(days: int = 5) -> Dict:
+    """
+    Fetch latest FII/DII cash-market net flow from NSE.
+    Returns net values in Rupees Crore. Cached 15 min.
+    `fii_last_5_days`/`dii_last_5_days` carry today's value in slot 0
+    and zeros for older days (NSE doesn't expose a stable history JSON).
+    """
+    now = time.time()
+    if _FII_CACHE.get('_ts', 0) + _FII_TTL > now and _FII_CACHE.get('fii_today') is not None:
+        return {k: v for k, v in _FII_CACHE.items() if not k.startswith('_')}
+
+    try:
+        sess = requests.Session()
+        sess.headers.update(_NSE_HEADERS)
+        # Warm cookies — NSE rejects naked API calls
+        try:
+            sess.get("https://www.nseindia.com/reports/fii-dii", timeout=8)
+        except Exception:
+            pass
+        r = sess.get("https://www.nseindia.com/api/fiidiiTradeReact", timeout=10)
+        r.raise_for_status()
+        rows = r.json()
+        if not isinstance(rows, list):
+            return _empty_fii()
+
+        def _net(row: Dict) -> float:
+            for k in ('netValue', 'net', 'netBuySell', 'net_value'):
+                v = row.get(k)
+                if v not in (None, ''):
+                    try:
+                        return float(str(v).replace(',', ''))
+                    except (TypeError, ValueError):
+                        continue
+            try:
+                buy  = float(str(row.get('buyValue', 0)).replace(',', ''))
+                sell = float(str(row.get('sellValue', 0)).replace(',', ''))
+                return buy - sell
+            except (TypeError, ValueError):
+                return 0.0
+
+        fii_net = dii_net = 0.0
+        for row in rows:
+            cat = str(row.get('category', '')).upper()
+            if cat.startswith('FII') or cat.startswith('FPI'):
+                fii_net = _net(row)
+            elif cat.startswith('DII'):
+                dii_net = _net(row)
+
+        result = {
+            'fii_today':       round(fii_net, 2),
+            'dii_today':       round(dii_net, 2),
+            'fii_last_5_days': [round(fii_net, 2), 0, 0, 0, 0],
+            'dii_last_5_days': [round(dii_net, 2), 0, 0, 0, 0],
+            'fii_trend': 'positive' if fii_net > 0 else 'negative' if fii_net < 0 else 'flat',
+            'note': 'NSE cash-market net (Cr) — only latest session available',
+        }
+        _FII_CACHE.clear()
+        _FII_CACHE.update(result)
+        _FII_CACHE['_ts'] = now
+        return result
+    except Exception as e:
+        print(f"[fii_dii] fetch error: {e}")
+        return _empty_fii()
 
 
 # ── Indicator helpers ────────────────────────────────────────────────────────

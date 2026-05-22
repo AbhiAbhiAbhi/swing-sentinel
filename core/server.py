@@ -11,6 +11,7 @@ from datetime import datetime
 # Resolve paths relative to the project root (one level up from core/)
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+import pandas as pd
 import requests as _requests
 from flask import Flask, jsonify, redirect, request, send_from_directory
 
@@ -118,6 +119,16 @@ def index():
 def checklist():
     """Serve the interactive swing-trading checklist."""
     resp = send_from_directory(os.path.join(_ROOT, "dashboard"), "checklist.html")
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"]        = "no-cache"
+    resp.headers["Expires"]       = "0"
+    return resp
+
+
+@app.route("/preview")
+def preview():
+    """Serve the premium warm light theme preview dashboard with no-cache headers."""
+    resp = send_from_directory(os.path.join(_ROOT, "dashboard"), "swing_agent_preview.html")
     resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     resp.headers["Pragma"]        = "no-cache"
     resp.headers["Expires"]       = "0"
@@ -364,7 +375,14 @@ def api_scan():
                     "near_52w_high":    tech.get("near_52w_high", False),
                     "dist_52w_pct":     tech.get("dist_52w_pct", 0),
                     "ema9_cross_ema21": tech.get("ema9_cross_ema21", "none"),
+                    "ema9_cross_days_ago": tech.get("ema9_cross_days_ago", -1),
+                    "rsi_pullback_zone": tech.get("rsi_pullback_zone", False),
                     "high_52w":         tech.get("high_52w", 0),
+                    "weekly_trend":        tech.get("weekly_trend", "UNKNOWN"),
+                    "base_days":           tech.get("base_days", 0),
+                    "base_status":         tech.get("base_status", "UNKNOWN"),
+                    "false_breakout_risk": tech.get("false_breakout_risk", "LOW"),
+                    "false_breakout_desc": tech.get("false_breakout_desc", ""),
                 })
             except Exception as exc:
                 logger.warning("[scan] %s skipped: %s", symbol, exc)
@@ -425,6 +443,11 @@ def api_plan(symbol: str):
             "target_1":   plan.get("target_1", 0),
             "target_2":   plan.get("target_2", 0),
             "rr":         rr_raw if isinstance(rr_raw, str) else plan.get("rr_ratio", "N/A"),
+            "weekly_trend":        tech.get("weekly_trend", "UNKNOWN"),
+            "base_days":           tech.get("base_days", 0),
+            "base_status":         tech.get("base_status", "UNKNOWN"),
+            "false_breakout_risk": tech.get("false_breakout_risk", "LOW"),
+            "false_breakout_desc": tech.get("false_breakout_desc", ""),
         })
     except Exception as exc:
         logger.error("[plan] %s failed: %s", symbol, exc)
@@ -461,7 +484,6 @@ def _append_rows_to_csv(path: str, rows: list) -> tuple:
 
     Returns (added_rows, skipped_symbols) tuple.
     """
-    import pandas as pd
     if not rows:
         return [], []
 
@@ -487,6 +509,45 @@ def _append_rows_to_csv(path: str, rows: list) -> tuple:
         combined.to_csv(path, index=False)
 
     return added, skipped
+
+
+def _ensure_cols(df, cols: list, default="") -> None:
+    """Add missing columns to df in-place with the given default value."""
+    for col in cols:
+        if col not in df.columns:
+            df[col] = pd.Series([default] * len(df), dtype=object)
+
+
+def _save_positions_csv(df, path: str) -> None:
+    """Atomically write positions DataFrame to CSV via a tmp file."""
+    tmp = f"{path}.tmp"
+    df.to_csv(tmp, index=False)
+    os.replace(tmp, path)
+
+
+def _extract_snapshot(r) -> dict:
+    """Extract buy-snapshot and post-mortem fields from a positions DataFrame row."""
+    def _safe_float(key):
+        v = r.get(key)
+        return float(v) if pd.notna(v) and str(v).strip() else 0.0
+    def _safe_int(key):
+        v = r.get(key)
+        return int(float(v)) if pd.notna(v) and str(v).strip() else 0
+    def _safe_str(key):
+        v = r.get(key)
+        return str(v) if pd.notna(v) else ""
+    return {
+        "buy_weekly_trend":        str(r.get("Buy_Weekly_Trend", "UNKNOWN")),
+        "buy_base_days":           _safe_int("Buy_Base_Days"),
+        "buy_base_status":         str(r.get("Buy_Base_Status", "UNKNOWN")),
+        "buy_false_breakout_risk": str(r.get("Buy_False_Breakout_Risk", "LOW")),
+        "buy_false_breakout_desc": str(r.get("Buy_False_Breakout_Desc", "")),
+        "buy_rsi":                 _safe_float("Buy_RSI"),
+        "buy_atr_pct":             _safe_float("Buy_ATR_Pct"),
+        "buy_vol_ratio":           _safe_float("Buy_Vol_Ratio"),
+        "post_mortem_why":         _safe_str("Post_Mortem_Why"),
+        "post_mortem_maximize":    _safe_str("Post_Mortem_Maximize"),
+    }
 
 
 @app.route("/api/positions/add", methods=["POST"])
@@ -593,6 +654,248 @@ def api_positions_add_all():
         return jsonify({"status": "error", "message": str(exc)}), 500
 
 
+@app.route("/api/positions/remove", methods=["POST"])
+def api_positions_remove():
+    """Remove an OPEN position (symbol) from the active watchlist."""
+    try:
+        data = request.get_json(force=True, silent=True)
+        if not data or not data.get("symbol"):
+            return jsonify({"status": "error", "message": "symbol required"}), 400
+
+        symbol = data["symbol"]
+        path = os.path.join(_ROOT, "data", "positions.csv")
+        if not os.path.exists(path):
+            return jsonify({"status": "error", "message": "positions.csv does not exist"}), 404
+
+        df = pd.read_csv(path)
+        if df.empty:
+            return jsonify({"status": "error", "message": "watchlist is empty"}), 400
+
+        # Check if the symbol is in open positions (case-insensitive & stripped)
+        open_mask = (df["Symbol"].astype(str).str.strip().str.upper() == symbol.strip().upper()) & (df["Status"].fillna("").astype(str).str.strip().str.upper() == "OPEN")
+        if not open_mask.any():
+            return jsonify({"status": "error", "message": f"{symbol} not found in active watchlist"}), 404
+
+        # Remove matching open positions
+        df = df[~open_mask]
+        _save_positions_csv(df, path)
+        logger.info("[positions] Removed %s from active watchlist", symbol)
+        return jsonify({"status": "ok", "message": f"Removed {symbol} from watchlist"})
+
+    except Exception as exc:
+        logger.error("[positions/remove] %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route("/api/positions/buy", methods=["POST"])
+def api_positions_buy():
+    """Transition an OPEN watchlist position to BOUGHT status, capturing indicators snapshot."""
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        symbol = data.get("symbol")
+        if not symbol:
+            return jsonify({"status": "error", "message": "symbol required"}), 400
+
+        symbol = symbol.strip().upper()
+        path = os.path.join(_ROOT, "data", "positions.csv")
+        if not os.path.exists(path):
+            return jsonify({"status": "error", "message": "No positions found (database empty)"}), 404
+
+        df = pd.read_csv(path)
+        if df.empty:
+            return jsonify({"status": "error", "message": "No positions found (database empty)"}), 404
+
+        # Standardize strings for lookup
+        df["Symbol"] = df["Symbol"].astype(str).str.strip().str.upper()
+        df["Status"] = df["Status"].fillna("").astype(str).str.strip().str.upper()
+
+        # Locate the OPEN position for the symbol
+        mask = (df["Symbol"] == symbol) & (df["Status"] == "OPEN")
+        if not mask.any():
+            return jsonify({"status": "error", "message": f"No OPEN position found for {symbol}"}), 404
+
+        idx = df[mask].index[-1]  # take the most recent open setup
+
+        # Fetch real-time technicals
+        tech = fetch_stock_technicals(symbol)
+        if not tech:
+            return jsonify({"status": "error", "message": f"Failed to fetch real-time technicals for {symbol}"}), 500
+
+        # Calculate current price and date
+        market_price = float(tech.get("price", 0) or df.at[idx, "Entry_Price"])
+        entry_price = float(data.get("entry_price", market_price) or market_price)
+
+        _ensure_cols(df, [
+            "Buy_Weekly_Trend", "Buy_Base_Days", "Buy_Base_Status",
+            "Buy_False_Breakout_Risk", "Buy_False_Breakout_Desc",
+            "Buy_RSI", "Buy_ATR_Pct", "Buy_Vol_Ratio",
+        ])
+
+        # Update status & capture snapshot
+        df.at[idx, "Status"] = "BOUGHT"
+        df.at[idx, "Entry_Price"] = entry_price
+        df.at[idx, "Entry_Date"] = _now_date()
+
+        # Populate snapshot columns
+        df.at[idx, "Buy_Weekly_Trend"] = str(tech.get("weekly_trend", "UNKNOWN"))
+        df.at[idx, "Buy_Base_Days"] = int(tech.get("base_days", 0))
+        df.at[idx, "Buy_Base_Status"] = str(tech.get("base_status", "UNKNOWN"))
+        df.at[idx, "Buy_False_Breakout_Risk"] = str(tech.get("false_breakout_risk", "LOW"))
+        df.at[idx, "Buy_False_Breakout_Desc"] = str(tech.get("false_breakout_desc", ""))
+        df.at[idx, "Buy_RSI"] = float(tech.get("rsi", 0) or 0)
+        df.at[idx, "Buy_ATR_Pct"] = float(tech.get("atr_pct", 0) or 0)
+        df.at[idx, "Buy_Vol_Ratio"] = float(tech.get("volume_ratio", 0) or tech.get("vol_ratio", 0) or 0)
+
+        _save_positions_csv(df, path)
+
+        # Telegram notification
+        name = df.at[idx, "Name"] if "Name" in df.columns else symbol
+        msg = (
+            f"🛍️ <b>TRADE EXECUTED — {symbol} bought!</b>\n"
+            f"Name: {name}\n"
+            f"Execution Price: ₹{entry_price:.2f}\n"
+            f"Snapshot Technicals captured:\n"
+            f"• Weekly Trend: <b>{tech.get('weekly_trend', 'UNKNOWN')}</b>\n"
+            f"• Base Status: <b>{tech.get('base_status', 'UNKNOWN')}</b> ({tech.get('base_days', 0)} days)\n"
+            f"• False Breakout Risk: <b>{tech.get('false_breakout_risk', 'LOW')}</b>\n"
+            f"• RSI: <b>{tech.get('rsi', 0.0):.1f}</b> | ATR%: <b>{tech.get('atr_pct', 0.0):.2f}%</b>\n"
+            f"Good luck! 🚀"
+        )
+        _tg_send(msg)
+
+        logger.info("[positions] Executed buy for %s @ %s", symbol, entry_price)
+        return jsonify({"status": "ok", "message": f"Successfully executed buy for {symbol}", "entry_price": entry_price})
+    except Exception as exc:
+        logger.error("[positions/buy] %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route("/api/positions/post-mortem", methods=["POST"])
+def api_positions_post_mortem():
+    """Save retrospective analysis for a closed or active position in the database."""
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        symbol = data.get("symbol")
+        entry_date = data.get("entry_date")
+        why = data.get("why", "").strip()
+        maximize = data.get("maximize", "").strip()
+
+        if not symbol or not entry_date:
+            return jsonify({"status": "error", "message": "symbol and entry_date are required"}), 400
+
+        symbol = symbol.strip().upper()
+        entry_date = entry_date.strip()
+        path = os.path.join(_ROOT, "data", "positions.csv")
+        if not os.path.exists(path):
+            return jsonify({"status": "error", "message": "Positions database file not found"}), 404
+
+        df = pd.read_csv(path)
+        if df.empty:
+            return jsonify({"status": "error", "message": "Database is empty"}), 404
+
+        # Standardize search fields
+        df["Symbol"] = df["Symbol"].astype(str).str.strip().str.upper()
+        df["Entry_Date"] = df["Entry_Date"].fillna("").astype(str).str.strip()
+
+        # Match by Symbol and Entry_Date
+        mask = (df["Symbol"] == symbol) & (df["Entry_Date"] == entry_date)
+        if not mask.any():
+            return jsonify({"status": "error", "message": f"No position found for {symbol} on {entry_date}"}), 404
+
+        idx = df[mask].index[-1]  # Take the matching index
+
+        _ensure_cols(df, ["Post_Mortem_Why", "Post_Mortem_Maximize"])
+
+        df.at[idx, "Post_Mortem_Why"] = why
+        df.at[idx, "Post_Mortem_Maximize"] = maximize
+
+        _save_positions_csv(df, path)
+
+        logger.info("[positions] Saved post-mortem retrospective for %s (%s)", symbol, entry_date)
+        return jsonify({"status": "ok", "message": f"Post-mortem retrospective saved for {symbol}"})
+
+    except Exception as exc:
+        logger.error("[positions/post-mortem] %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route("/api/positions/close", methods=["POST"])
+def api_positions_close():
+    """Manually close an active position in positions.csv (simulated exit)."""
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        symbol = data.get("symbol")
+        entry_date = data.get("entry_date")
+        exit_price = data.get("exit_price")
+        outcome = data.get("outcome", "MANUAL_EXIT")
+        why = data.get("why", "").strip()
+        maximize = data.get("maximize", "").strip()
+
+        if not symbol or not entry_date or exit_price is None:
+            return jsonify({"status": "error", "message": "symbol, entry_date, and exit_price are required"}), 400
+
+        symbol = symbol.strip().upper()
+        entry_date = entry_date.strip()
+        exit_price = float(exit_price)
+        path = os.path.join(_ROOT, "data", "positions.csv")
+        if not os.path.exists(path):
+            return jsonify({"status": "error", "message": "Positions database file not found"}), 404
+
+        df = pd.read_csv(path)
+        if df.empty:
+            return jsonify({"status": "error", "message": "Database is empty"}), 404
+
+        # Standardize fields
+        df["Symbol"] = df["Symbol"].astype(str).str.strip().str.upper()
+        df["Entry_Date"] = df["Entry_Date"].fillna("").astype(str).str.strip()
+        df["Status"] = df["Status"].fillna("").astype(str).str.strip().str.upper()
+
+        # Match active bought position
+        mask = (df["Symbol"] == symbol) & (df["Entry_Date"] == entry_date) & (df["Status"] == "BOUGHT")
+        if not mask.any():
+            return jsonify({"status": "error", "message": f"No active position found for {symbol} on {entry_date}"}), 404
+
+        idx = df[mask].index[-1]
+
+        _ensure_cols(df, ["Closing_Price", "Outcome", "Status", "T2_Hit_Date", "SL_Hit_Date", "Post_Mortem_Why", "Post_Mortem_Maximize", "T2_Notified", "SL_Notified"])
+
+        today_str = datetime.now().strftime("%Y-%m-%d")
+
+        df.at[idx, "Closing_Price"] = exit_price
+        df.at[idx, "Outcome"] = outcome
+        df.at[idx, "Status"] = "CLOSED"
+        
+        if "WIN" in outcome or outcome == "T2_WIN" or outcome == "T1_HIT":
+            df.at[idx, "T2_Hit_Date"] = today_str
+            df.at[idx, "T2_Notified"] = True
+        else:
+            df.at[idx, "SL_Hit_Date"] = today_str
+            df.at[idx, "SL_Notified"] = True
+
+        df.at[idx, "Post_Mortem_Why"] = why
+        df.at[idx, "Post_Mortem_Maximize"] = maximize
+
+        _save_positions_csv(df, path)
+
+        # Telegram notification
+        name = df.at[idx, "Name"] if "Name" in df.columns else symbol
+        msg = (
+            f"🏁 <b>TRADE CLOSED — {symbol} exited!</b>\n"
+            f"Name: {name}\n"
+            f"Exit Price: ₹{exit_price:.2f}\n"
+            f"Outcome: <b>{outcome}</b>\n"
+            f"Retrospective Notes recorded. 📊"
+        )
+        _tg_send(msg)
+
+        logger.info("[positions] Closed position manually for %s @ %s", symbol, exit_price)
+        return jsonify({"status": "ok", "message": f"Successfully closed position for {symbol}"})
+
+    except Exception as exc:
+        logger.error("[positions/close] %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
 @app.route("/api/positions")
 def api_positions():
     """All positions with live P&L + target-hit status. Triggers Telegram alerts on first hit."""
@@ -615,30 +918,34 @@ def api_backtest():
 @app.route("/api/results")
 def api_results():
     """
-    Strategy performance for EVERY watchlist entry (open + closed):
+    Strategy performance for watchlist setups (OPEN) and active portfolio positions (BOUGHT):
       - Closed trades drive realized win rate / avg P&L
-      - Open trades drive live unrealized P&L + active counts
+      - Bought trades drive live unrealized P&L + active counts
       - by_setup breaks down both
     """
     path = os.path.join(_ROOT, "data", "positions.csv")
     if not os.path.exists(path):
         return jsonify(_empty_results())
     try:
-        import pandas as pd
         df = pd.read_csv(path)
         if df.empty:
             return jsonify(_empty_results())
 
-        # Ensure all expected columns exist (read-only — won't write)
-        for col in ("Outcome", "Entry_Hit_Date", "T1_Hit_Date", "T2_Hit_Date",
-                    "SL_Hit_Date", "Closing_Price", "Setup", "Entry_Notified",
-                    "T1_Notified", "T2_Notified", "SL_Notified"):
-            if col not in df.columns:
-                df[col] = ""
+        # Ensure columns exist (read-only — changes won't be persisted)
+        _ensure_cols(df, [
+            "Outcome", "Entry_Hit_Date", "T1_Hit_Date", "T2_Hit_Date",
+            "SL_Hit_Date", "Closing_Price", "Setup", "Entry_Notified",
+            "T1_Notified", "T2_Notified", "SL_Notified",
+            "Buy_Weekly_Trend", "Buy_Base_Days", "Buy_Base_Status",
+            "Buy_False_Breakout_Risk", "Buy_False_Breakout_Desc",
+            "Buy_RSI", "Buy_ATR_Pct", "Buy_Vol_Ratio",
+            "Post_Mortem_Why", "Post_Mortem_Maximize",
+        ])
 
         total = len(df)
         closed_df = df[df["Status"].astype(str).str.upper() == "CLOSED"]
         open_df   = df[df["Status"].astype(str).str.upper() == "OPEN"]
+        bought_df = df[df["Status"].astype(str).str.upper() == "BOUGHT"]
 
         wins   = len(closed_df[closed_df["Outcome"] == "T2_WIN"])
         losses = len(closed_df[closed_df["Outcome"] == "SL_LOSS"])
@@ -659,19 +966,13 @@ def api_results():
                     pass
         avg_days_held = round(sum(days_list) / len(days_list), 1) if days_list else 0
 
-        # ── Live prices for OPEN positions (one bulk yfinance call) ──
-        open_symbols = open_df["Symbol"].astype(str).unique().tolist()
-        price_map    = fetch_prices_bulk(open_symbols) if open_symbols else {}
-
-        # Build active_positions with unrealized P&L
+        # ── Live prices for active symbols (OPEN + BOUGHT) in bulk ──
+        active_symbols = pd.concat([open_df["Symbol"], bought_df["Symbol"]]).astype(str).unique().tolist() if (not open_df.empty or not bought_df.empty) else []
+        price_map    = fetch_prices_bulk(active_symbols) if active_symbols else {}
         today        = datetime.now().date()
-        active_list  = []
-        active_pnls  = []
-        active_wins  = 0    # OPEN positions currently in profit
-        active_loss  = 0    # OPEN positions currently in loss
-        t1_hit_open  = 0    # OPEN positions that have hit T1 (riding for T2)
-        entry_hit_open = 0  # OPEN positions where entry zone reached
 
+        # Build watchlist_positions list (OPEN status)
+        watchlist_list = []
         for _, r in open_df.iterrows():
             try:
                 sym = str(r.get("Symbol", ""))
@@ -682,7 +983,6 @@ def api_results():
                 cp  = float(price_map.get(sym, 0) or 0)
                 pnl_pct = round((cp - ep) / ep * 100, 2) if ep and cp else 0
 
-                # Days held so far
                 entry_date_str = str(r.get("Entry_Date", ""))
                 days_held = 0
                 if entry_date_str:
@@ -691,30 +991,81 @@ def api_results():
                     except Exception:
                         days_held = 0
 
-                # ── LIVE state derived from current price (independent of notifications) ──
                 live_at_entry = bool(cp and ep and cp <= ep * 1.005)
                 live_above_t1 = bool(cp and t1 and cp >= t1)
                 live_above_t2 = bool(cp and t2 and cp >= t2)
                 live_below_sl = bool(cp and sl and cp <= sl)
 
-                # Pick a single label for the status badge (priority: T2 > T1 > SL > Entry > Waiting)
                 if   live_above_t2: live_status = "T2_REACHED"
                 elif live_above_t1: live_status = "T1_REACHED"
                 elif live_below_sl: live_status = "BELOW_SL"
                 elif live_at_entry: live_status = "AT_ENTRY"
                 else:               live_status = "WAITING"
 
-                # Notification flags (alerts already sent) — separate from live state
-                t1_done    = _truthy(r.get("T1_Notified"))
-                entry_done = _truthy(r.get("Entry_Notified"))
+                watchlist_list.append({
+                    "symbol":      sym,
+                    "name":        str(r.get("Name", sym)),
+                    "setup":       str(r.get("Setup", "")),
+                    "entry":       ep,
+                    "current":     cp,
+                    "target_1":    t1,
+                    "target_2":    t2,
+                    "sl":          sl,
+                    "pnl_pct":     pnl_pct,
+                    "days_held":   days_held,
+                    "live_status": live_status,
+                    "above_t1":    live_above_t1,
+                    "above_t2":    live_above_t2,
+                    "at_entry":    live_at_entry,
+                    "below_sl":    live_below_sl,
+                    "t1_notified":    _truthy(r.get("T1_Notified")),
+                    "entry_notified": _truthy(r.get("Entry_Notified")),
+                    "entry_date":  entry_date_str,
+                })
+            except Exception:
+                continue
+
+        # Build active_positions list (BOUGHT status)
+        active_list  = []
+        active_pnls  = []
+        active_wins   = 0   # BOUGHT positions currently in profit
+        active_losses = 0   # BOUGHT positions currently in loss
+        t1_hit_active = 0   # BOUGHT positions that have hit T1
+        entry_hit_active = 0 # BOUGHT positions where entry zone reached
+
+        for _, r in bought_df.iterrows():
+            try:
+                sym = str(r.get("Symbol", ""))
+                ep  = float(r.get("Entry_Price", 0))
+                t1  = float(r.get("Target_1", 0))
+                t2  = float(r.get("Target_2", 0))
+                sl  = float(r.get("Current_SL", 0))
+                cp  = float(price_map.get(sym, 0) or 0)
+                pnl_pct = round((cp - ep) / ep * 100, 2) if ep and cp else 0
+
+                entry_date_str = str(r.get("Entry_Date", ""))
+                days_held = 0
+                if entry_date_str:
+                    try:
+                        days_held = (today - datetime.strptime(entry_date_str, "%Y-%m-%d").date()).days
+                    except Exception:
+                        days_held = 0
+
+                live_at_entry = bool(cp and ep and cp <= ep * 1.005)
+                live_above_t1 = bool(cp and t1 and cp >= t1)
+                live_above_t2 = bool(cp and t2 and cp >= t2)
+                live_below_sl = bool(cp and sl and cp <= sl)
+
+                if   live_above_t2: live_status = "T2_REACHED"
+                elif live_above_t1: live_status = "T1_REACHED"
+                elif live_below_sl: live_status = "BELOW_SL"
+                elif live_at_entry: live_status = "AT_ENTRY"
+                else:               live_status = "WAITING"
 
                 if pnl_pct > 0: active_wins += 1
-                elif pnl_pct < 0: active_loss += 1
-                # Count LIVE T1/Entry (price-based, not notification-based) for the
-                # summary cards — these reflect what's actually happening, not what
-                # alerts have fired.
-                if live_above_t1:  t1_hit_open    += 1
-                if live_at_entry:  entry_hit_open += 1
+                elif pnl_pct < 0: active_losses += 1
+                if live_above_t1:  t1_hit_active += 1
+                if live_at_entry:  entry_hit_active += 1
 
                 active_pnls.append(pnl_pct)
                 active_list.append({
@@ -728,16 +1079,15 @@ def api_results():
                     "sl":          sl,
                     "pnl_pct":     pnl_pct,
                     "days_held":   days_held,
-                    # Live state (current price vs target) — for visual badge
                     "live_status": live_status,
                     "above_t1":    live_above_t1,
                     "above_t2":    live_above_t2,
                     "at_entry":    live_at_entry,
                     "below_sl":    live_below_sl,
-                    # Notification state (have alerts fired) — for "did Telegram fire" logic
-                    "t1_notified":    t1_done,
-                    "entry_notified": entry_done,
+                    "t1_notified":    _truthy(r.get("T1_Notified")),
+                    "entry_notified": _truthy(r.get("Entry_Notified")),
                     "entry_date":  entry_date_str,
+                    **_extract_snapshot(r),
                 })
             except Exception:
                 continue
@@ -745,14 +1095,14 @@ def api_results():
         active_list.sort(key=lambda x: x["pnl_pct"], reverse=True)
         avg_unrealized = round(sum(active_pnls) / len(active_pnls), 2) if active_pnls else 0
 
-        # Per-setup breakdown — now includes BOTH closed + open
+        # Per-setup breakdown — now includes BOTH closed + open/bought
         by_setup = {}
         for setup in df["Setup"].dropna().astype(str).unique():
             if not setup:
                 continue
             grp        = df[df["Setup"] == setup]
             grp_closed = grp[grp["Status"].astype(str).str.upper() == "CLOSED"]
-            grp_open   = grp[grp["Status"].astype(str).str.upper() == "OPEN"]
+            grp_open   = grp[grp["Status"].astype(str).str.upper().isin(["OPEN", "BOUGHT"])]
             grp_wins   = len(grp_closed[grp_closed["Outcome"] == "T2_WIN"])
             grp_loss   = len(grp_closed[grp_closed["Outcome"] == "SL_LOSS"])
             grp_total  = len(grp_closed)
@@ -768,7 +1118,7 @@ def api_results():
                 except Exception:
                     pass
 
-            # Unrealized P&L (open) — uses live prices
+            # Unrealized P&L (open + bought) — uses live prices
             unr_pnls = []
             for _, r in grp_open.iterrows():
                 try:
@@ -817,6 +1167,7 @@ def api_results():
                     "outcome":   str(r.get("Outcome", "")),
                     "entry_date": str(r.get("Entry_Date", "")),
                     "exit_date":  exit_date,
+                    **_extract_snapshot(r),
                 })
             except Exception:
                 continue
@@ -825,7 +1176,7 @@ def api_results():
 
         return jsonify({
             "total":            total,
-            "open":             len(open_df),
+            "open":             len(open_df) + len(bought_df),
             "closed":           closed,
             "wins":             wins,
             "losses":           losses,
@@ -833,14 +1184,15 @@ def api_results():
             "avg_days_held":    avg_days_held,
             "by_setup":         by_setup,
             "closed_positions": closed_list,
-            # ── Live data for OPEN positions ──────────────────────────────
-            "active_count":       len(open_df),
+            # ── Split lists returned for portfolio vs watchlist decoupling ──
+            "watchlist_positions": watchlist_list,
+            "active_positions":    active_list,
+            "active_count":       len(bought_df),
             "active_in_profit":   active_wins,
-            "active_in_loss":     active_loss,
-            "active_entry_hit":   entry_hit_open,
-            "active_t1_hit":      t1_hit_open,
+            "active_in_loss":     active_losses,
+            "active_entry_hit":   entry_hit_active,
+            "active_t1_hit":      t1_hit_active,
             "avg_unrealized_pct": avg_unrealized,
-            "active_positions":   active_list,
         })
     except Exception as exc:
         logger.error("[results] %s", exc)
@@ -1065,8 +1417,9 @@ def _empty_results():
 def check_positions_and_notify() -> list:
     """
     Core watchlist-monitor: reads positions.csv, fetches live prices, detects
-    Entry / T1 / T2 / SL crossings, fires Telegram alert on first crossing,
-    and persists notification state back to CSV. Returns enriched positions list.
+    Entry alerts for OPEN setups, and Target/SL alerts for BOUGHT active positions,
+    fires Telegram alert on first crossing, and persists notification state back to CSV.
+    Returns enriched positions list.
 
     Called by:
       - GET /api/positions (on-demand from dashboard)
@@ -1076,7 +1429,6 @@ def check_positions_and_notify() -> list:
     if not os.path.exists(path):
         return []
 
-    import pandas as pd
     df = pd.read_csv(path)
     if df.empty:
         return []
@@ -1085,30 +1437,24 @@ def check_positions_and_notify() -> list:
     for col in ("Entry_Notified", "T1_Notified", "T2_Notified", "SL_Notified"):
         if col not in df.columns:
             df[col] = False
-    # Date / outcome columns — object dtype so they accept strings or floats
-    for col in ("Entry_Hit_Date", "T1_Hit_Date", "T2_Hit_Date", "SL_Hit_Date", "Outcome"):
-        if col not in df.columns:
-            df[col] = pd.Series([""] * len(df), dtype=object)
+    _ensure_cols(df, ["Entry_Hit_Date", "T1_Hit_Date", "T2_Hit_Date", "SL_Hit_Date", "Outcome"])
     if "Closing_Price" not in df.columns:
-        df["Closing_Price"] = 0.0   # float dtype — will hold the actual exit price
+        df["Closing_Price"] = 0.0
 
     today_str = _now_date()
     csv_dirty = False
     positions = []
-    # Buffer alerts and only send them AFTER the CSV write succeeds — otherwise
-    # a locked/unwritable positions.csv (Excel, OneDrive sync) would let Telegram
-    # fire every poll cycle while the notified-flag never persists.
     pending_alerts: list[str] = []
 
-    # ── Bulk-fetch live prices for all OPEN positions (one yfinance call) ──
-    open_symbols = (
-        df.loc[df["Status"].astype(str).str.upper() == "OPEN", "Symbol"]
+    # ── Bulk-fetch live prices for all OPEN and BOUGHT positions (one bulk yfinance call) ──
+    active_symbols = (
+        df.loc[df["Status"].astype(str).str.upper().isin(["OPEN", "BOUGHT"]), "Symbol"]
           .astype(str).unique().tolist()
     )
-    price_map = fetch_prices_bulk(open_symbols) if open_symbols else {}
+    price_map = fetch_prices_bulk(active_symbols) if active_symbols else {}
 
     for idx, row in df.iterrows():
-        pos    = row.to_dict()
+        pos = row.to_dict()
         # Convert NaN to None/empty string for JSON serialization
         for key, val in pos.items():
             try:
@@ -1118,8 +1464,7 @@ def check_positions_and_notify() -> list:
                 pass
         status = str(pos.get("Status", "OPEN")).upper()
 
-        # Skip closed positions — don't waste yfinance calls or fire stale alerts
-        if status != "OPEN":
+        if status not in ("OPEN", "BOUGHT"):
             pos["current_price"] = 0
             pos["pnl"]           = 0
             pos["pnl_pct"]       = 0
@@ -1132,7 +1477,7 @@ def check_positions_and_notify() -> list:
 
         sym  = str(pos.get("Symbol", "?"))
         name = pos.get("Name", sym)
-        cur  = float(price_map.get(sym, 0) or 0)   # bulk fetch — 11x faster than per-row
+        cur  = float(price_map.get(sym, 0) or 0)
 
         ep  = float(pos.get("Entry_Price", 0))
         qty = float(pos.get("Quantity", 0))
@@ -1140,92 +1485,87 @@ def check_positions_and_notify() -> list:
         t2  = float(pos.get("Target_2", 0))
         sl  = float(pos.get("Current_SL", 0))
 
-        # Crossing detection
-        entry_hit = bool(cur and ep and cur <= ep * 1.005)   # price in/below entry zone
-        t1_hit    = bool(cur and t1 and cur >= t1)
-        t2_hit    = bool(cur and t2 and cur >= t2)
-        sl_hit    = bool(cur and sl and cur <= sl)
-
         pos["current_price"] = cur
         pos["pnl"]           = round((cur - ep) * qty, 2) if cur else 0
         pos["pnl_pct"]       = round(((cur - ep) / ep * 100) if ep else 0, 2)
-        pos["entry_hit"]     = entry_hit
-        pos["t1_hit"]        = t1_hit
-        pos["t2_hit"]        = t2_hit
-        pos["sl_hit"]        = sl_hit
         pct                  = round(((cur - ep) / ep * 100) if ep else 0, 1)
 
-        # ── Entry alert always fires independently ───────────────────────
-        entry_done = _truthy(pos.get("Entry_Notified"))
-        if entry_hit and not entry_done:
-            pending_alerts.append(
-                f"🎯 <b>ENTRY READY — {sym}</b>\n"
-                f"{name}\n"
-                f"Now ₹{cur:.2f} (entry zone ≈ ₹{ep:.2f})\n"
-                f"Time to consider opening the position."
-            )
-            df.at[idx, "Entry_Notified"] = True
-            df.at[idx, "Entry_Hit_Date"] = today_str
-            entry_done = True   # so T1/T2/SL gate sees it within this same iteration
-            csv_dirty = True
+        if status == "OPEN":
+            # Watched stock setup: monitor only for entry ready zone
+            entry_hit = bool(cur and ep and cur <= ep * 1.005)
+            pos["entry_hit"] = entry_hit
+            pos["t1_hit"]    = False
+            pos["t2_hit"]    = False
+            pos["sl_hit"]    = False
 
-        # ── T1/T2/SL alerts are GATED behind Entry ───────────────────────
-        # If the stock never pulled back into the entry zone, we never "entered"
-        # the watchlist position, so target/SL alerts would be misleading
-        # ("Book profits on what?"). Skip them until Entry fires first.
-        if not entry_done:
-            positions.append(pos)
-            continue
+            entry_done = _truthy(pos.get("Entry_Notified"))
+            if entry_hit and not entry_done:
+                pending_alerts.append(
+                    f"🎯 <b>ENTRY READY — {sym}</b>\n"
+                    f"{name}\n"
+                    f"Now ₹{cur:.2f} (entry zone ≈ ₹{ep:.2f})\n"
+                    f"Time to consider opening the position."
+                )
+                df.at[idx, "Entry_Notified"] = True
+                df.at[idx, "Entry_Hit_Date"] = today_str
+                csv_dirty = True
 
-        if t1_hit and not _truthy(pos.get("T1_Notified")):
-            pending_alerts.append(
-                f"🟡 <b>T1 HIT — {sym}</b>\n"
-                f"{name}\n"
-                f"Entry ₹{ep:.2f} → Now ₹{cur:.2f} (+{pct}%)\n"
-                f"Target 1 was ₹{t1:.2f} ✅\n"
-                f"Consider booking partial profits."
-            )
-            df.at[idx, "T1_Notified"]  = True
-            df.at[idx, "T1_Hit_Date"]  = today_str
-            if not str(pos.get("Outcome", "")).strip():
-                df.at[idx, "Outcome"] = "T1_HIT"
-            csv_dirty = True
+        elif status == "BOUGHT":
+            # Active portfolio position: monitor for profit/loss targets
+            pos["entry_hit"] = True  # already bought and active
+            t1_hit = bool(cur and t1 and cur >= t1)
+            t2_hit = bool(cur and t2 and cur >= t2)
+            sl_hit = bool(cur and sl and cur <= sl)
+            pos["t1_hit"] = t1_hit
+            pos["t2_hit"] = t2_hit
+            pos["sl_hit"] = sl_hit
 
-        if t2_hit and not _truthy(pos.get("T2_Notified")):
-            pending_alerts.append(
-                f"🟢 <b>T2 HIT — {sym}</b>\n"
-                f"{name}\n"
-                f"Entry ₹{ep:.2f} → Now ₹{cur:.2f} (+{pct}%)\n"
-                f"Target 2 was ₹{t2:.2f} ✅✅\n"
-                f"Full target reached!"
-            )
-            df.at[idx, "T2_Notified"]   = True
-            df.at[idx, "T2_Hit_Date"]   = today_str
-            df.at[idx, "Closing_Price"] = cur
-            df.at[idx, "Outcome"]       = "T2_WIN"
-            df.at[idx, "Status"]        = "CLOSED"
-            csv_dirty = True
+            if t1_hit and not _truthy(pos.get("T1_Notified")):
+                pending_alerts.append(
+                    f"🟡 <b>T1 HIT — {sym}</b>\n"
+                    f"{name}\n"
+                    f"Entry ₹{ep:.2f} → Now ₹{cur:.2f} (+{pct}%)\n"
+                    f"Target 1 was ₹{t1:.2f} ✅\n"
+                    f"Consider booking partial profits."
+                )
+                df.at[idx, "T1_Notified"]  = True
+                df.at[idx, "T1_Hit_Date"]  = today_str
+                if not str(pos.get("Outcome", "")).strip():
+                    df.at[idx, "Outcome"] = "T1_HIT"
+                csv_dirty = True
 
-        if sl_hit and not _truthy(pos.get("SL_Notified")):
-            pending_alerts.append(
-                f"🔴 <b>SL HIT — {sym}</b>\n"
-                f"{name}\n"
-                f"Entry ₹{ep:.2f} → Now ₹{cur:.2f} ({pct:+}%)\n"
-                f"Stop loss was ₹{sl:.2f} ⛔\n"
-                f"Position invalidated — exit."
-            )
-            df.at[idx, "SL_Notified"]   = True
-            df.at[idx, "SL_Hit_Date"]   = today_str
-            df.at[idx, "Closing_Price"] = cur
-            df.at[idx, "Outcome"]       = "SL_LOSS"
-            df.at[idx, "Status"]        = "CLOSED"
-            csv_dirty = True
+            if t2_hit and not _truthy(pos.get("T2_Notified")):
+                pending_alerts.append(
+                    f"🟢 <b>T2 HIT — {sym}</b>\n"
+                    f"{name}\n"
+                    f"Entry ₹{ep:.2f} → Now ₹{cur:.2f} (+{pct}%)\n"
+                    f"Target 2 was ₹{t2:.2f} ✅✅\n"
+                    f"Full target reached!"
+                )
+                df.at[idx, "T2_Notified"]   = True
+                df.at[idx, "T2_Hit_Date"]   = today_str
+                df.at[idx, "Closing_Price"] = cur
+                df.at[idx, "Outcome"]       = "T2_WIN"
+                df.at[idx, "Status"]        = "CLOSED"
+                csv_dirty = True
+
+            if sl_hit and not _truthy(pos.get("SL_Notified")):
+                pending_alerts.append(
+                    f"🔴 <b>SL HIT — {sym}</b>\n"
+                    f"{name}\n"
+                    f"Entry ₹{ep:.2f} → Now ₹{cur:.2f} ({pct:+}%)\n"
+                    f"Stop loss was ₹{sl:.2f} ⛔\n"
+                    f"Position invalidated — exit."
+                )
+                df.at[idx, "SL_Notified"]   = True
+                df.at[idx, "SL_Hit_Date"]   = today_str
+                df.at[idx, "Closing_Price"] = cur
+                df.at[idx, "Outcome"]       = "SL_LOSS"
+                df.at[idx, "Status"]        = "CLOSED"
+                csv_dirty = True
 
         positions.append(pos)
 
-    # Persist state BEFORE firing Telegram. If the write raises (e.g., the file
-    # is locked by Excel or OneDrive), the exception propagates, no alerts go
-    # out, and the next poll retries — preventing the per-minute alert spam.
     if csv_dirty:
         tmp_path = f"{path}.tmp"
         df.to_csv(tmp_path, index=False)
@@ -1332,7 +1672,6 @@ def _save_env_token(token: str):
 def _write_gtt_id(csv_path: str, symbol: str, gtt_id: int):
     """Update the GTT_Id cell for the last row matching symbol in positions CSV."""
     try:
-        import pandas as pd
         df = pd.read_csv(csv_path)
         if "GTT_Id" not in df.columns:
             df["GTT_Id"] = ""
@@ -1369,7 +1708,11 @@ def _load_latest_brief():
 # Fields the dashboard reads off each stock that may be absent from older
 # briefs. When a stale brief is served back, hydrate them from yfinance so
 # downstream UI (e.g. Analysis tab's VCP row) doesn't show N/A.
-_HYDRATE_FIELDS = ("atr_pct",)
+_HYDRATE_FIELDS = (
+    "atr_pct", "near_52w_high", "ema9_cross_ema21", "ema9_cross_days_ago",
+    "rsi_pullback_zone", "high_52w", "dist_52w_pct", "weekly_trend",
+    "base_days", "base_status", "false_breakout_risk", "false_breakout_desc",
+)
 
 
 def _hydrate_brief_missing_fields(brief: dict) -> None:

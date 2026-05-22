@@ -172,12 +172,14 @@ def simulate_outcome(df: pd.DataFrame, signal_idx: int, plan: dict) -> dict:
 def detect_setup(close, ema20, ema50, support_1, resistance_1, idx) -> str:
     """Mirror calculate_trade_plan's setup labelling."""
     p, e20, e50 = close.iat[idx], ema20.iat[idx], ema50.iat[idx]
-    if e20 > 0 and e20 > e50 and p >= e20:
-        return "PULLBACK"
-    if resistance_1 > 0 and p > resistance_1:
+    r1 = resistance_1.iat[idx] if isinstance(resistance_1, pd.Series) else resistance_1
+    s1 = support_1.iat[idx] if isinstance(support_1, pd.Series) else support_1
+    if r1 > 0 and p >= r1:
         return "BREAKOUT"
-    if support_1 > 0 and p <= support_1 * 1.02:
+    if s1 > 0 and p <= s1 * 1.02:
         return "SUPPORT_BOUNCE"
+    if e20 > 0 and e50 > 0 and p >= e50 and e20 > e50:
+        return "PULLBACK"
     return "CONSOLIDATION"
 
 
@@ -191,6 +193,7 @@ def backtest_symbol(symbol: str, months: int) -> list:
     close = df["Close"]
     ema20, ema50 = _ema(close, 20), _ema(close, 50)
     atr  = _atr(df, 14)
+    rsi  = _rsi(close, 14)
 
     lookback_idx = max(200, len(df) - months * 22)
     signals = find_signals(df, lookback_idx)
@@ -206,10 +209,11 @@ def backtest_symbol(symbol: str, months: int) -> list:
             "price":        float(close.iat[s_idx]),
             "ema20":        float(ema20.iat[s_idx]),
             "ema50":        float(ema50.iat[s_idx]),
-            "support_1":    float(window["Low"].tail(20).min()),
-            "resistance_1": float(window["High"].tail(20).max()),
-            "resistance_2": float(window["High"].tail(60).max()),
+            "support_1":    float(window["Low"].iloc[:-1].tail(20).min()),
+            "resistance_1": float(window["High"].iloc[:-1].tail(20).max()),
+            "resistance_2": float(window["High"].iloc[:-1].tail(60).max()),
             "atr":          float(atr.iat[s_idx]) if pd.notna(atr.iat[s_idx]) else float(close.iat[s_idx]) * 0.02,
+            "rsi":          float(rsi.iat[s_idx]) if pd.notna(rsi.iat[s_idx]) else 50.0,
         }
         plan    = calculate_trade_plan(stock_data)
         outcome = simulate_outcome(df, s_idx, plan)

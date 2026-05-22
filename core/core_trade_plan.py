@@ -22,12 +22,19 @@ def calculate_trade_plan(stock_data: Dict) -> Dict:
     atr          = stock_data.get('atr') or price * 0.02
 
     # ── Detect setup ─────────────────────────────────────────────────────
-    if ema20 > 0 and ema20 > ema50 and price >= ema20:
-        setup = 'PULLBACK'
-    elif resistance_1 > 0 and price > resistance_1:
+    if resistance_1 > 0 and price >= resistance_1:
         setup = 'BREAKOUT'
     elif support_1 > 0 and price <= support_1 * 1.02:
         setup = 'SUPPORT_BOUNCE'
+    elif ema20 > 0 and ema50 > 0 and price >= ema50 and ema20 > ema50:
+        rsi = stock_data.get('rsi', 0)
+        is_pullback = (
+            price <= ema20 * 1.025 or
+            (ema50 <= price <= ema20) or
+            (40 <= rsi <= 60) or
+            stock_data.get('rsi_pullback_zone', False)
+        )
+        setup = 'PULLBACK' if is_pullback else 'CONSOLIDATION'
     else:
         setup = 'CONSOLIDATION'
 
