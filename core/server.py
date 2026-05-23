@@ -1777,18 +1777,82 @@ def _start_scheduler():
     logger.info("[poll] background scheduler started — polling every minute, Mon-Fri 9:15-15:30 IST")
 
 
+# ── Multi-Agent Orchestrator Endpoint ─────────────────────────────────────────
+
+try:
+    from core.agents.orchestrator import SwingTradeOrchestrator
+    from core.agents.config import OrchestrationConfig
+    _HAS_ORCHESTRATOR = True
+except ImportError:
+    try:
+        sys_path_backup = __import__("sys").path[:]
+        __import__("sys").path.insert(0, _ROOT)
+        from core.agents.orchestrator import SwingTradeOrchestrator
+        from core.agents.config import OrchestrationConfig
+        __import__("sys").path[:] = sys_path_backup
+        _HAS_ORCHESTRATOR = True
+    except ImportError:
+        _HAS_ORCHESTRATOR = False
+
+
+@app.route("/api/orchestrator", methods=["POST"])
+def api_orchestrator():
+    """
+    Multi-agent orchestrator — runs 5-agent pipeline and returns ranked
+    swing trade recommendations with risk-assessed sizing.
+
+    POST body (all optional):
+      {
+        "tickers":         ["RELIANCE", "TCS"],  # manual list (skips Chartink)
+        "portfolio_value":  1000000,
+        "max_picks":        10,
+        "use_chartink":     true,
+        "chartink_params":  { "universe": "nifty200", ... }
+      }
+    """
+    if not _HAS_ORCHESTRATOR:
+        return jsonify({
+            "status": "error",
+            "message": "Orchestrator module not available. Check core/agents/ directory.",
+        }), 500
+
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        config = OrchestrationConfig(
+            portfolio_value=body.get("portfolio_value", 1_000_000),
+            max_risk_per_trade_pct=body.get("risk_per_trade", 2.0),
+        )
+        if body.get("chartink_params"):
+            config.chartink_params.update(body["chartink_params"])
+
+        orchestrator = SwingTradeOrchestrator(config)
+        result = orchestrator.run(
+            tickers=body.get("tickers"),
+            portfolio_value=body.get("portfolio_value"),
+            max_recommendations=body.get("max_picks", 10),
+            use_chartink=body.get("use_chartink", True),
+            chartink_params=config.chartink_params,
+        )
+
+        return jsonify({"status": "ok", **result.to_dict()})
+    except Exception as exc:
+        logger.error("[orchestrator] %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
 # ── Entry ───────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     print("\n=== Swing Sentinel - Local Server ===")
-    print("  Dashboard : http://localhost:5000")
-    print("  Checklist : http://localhost:5000/checklist")
-    print("  Scan API  : POST /api/scan")
-    print("  Market    : GET  /api/market")
-    print("  Positions : GET  /api/positions")
-    print("  TV Alerts : GET  /api/tv/alerts")
-    print("  TV Watch  : GET  /api/tv/watchlist")
-    print("  Poller    : every 1 min during market hours")
+    print("  Dashboard    : http://localhost:5000")
+    print("  Checklist    : http://localhost:5000/checklist")
+    print("  Scan API     : POST /api/scan")
+    print("  Orchestrator : POST /api/orchestrator")
+    print("  Market       : GET  /api/market")
+    print("  Positions    : GET  /api/positions")
+    print("  TV Alerts    : GET  /api/tv/alerts")
+    print("  TV Watch     : GET  /api/tv/watchlist")
+    print("  Poller       : every 1 min during market hours")
     print("=" * 38 + "\n")
     _start_scheduler()
     app.run(debug=False, port=5000, host="0.0.0.0", use_reloader=False)

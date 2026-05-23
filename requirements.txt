@@ -10,3 +10,5 @@ pytz
 kiteconnect
 python-dotenv
 apscheduler
+numpy
+rich
