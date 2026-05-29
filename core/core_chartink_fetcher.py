@@ -28,6 +28,11 @@ BASE_HEADERS = {
 # Chartink scan-group tokens. Keys are what the UI/preset stores; values are
 # the token Chartink expects inside the scan clause (with curly braces).
 # Whitelisted server-side to keep the DSL safe from arbitrary input.
+import json
+import os
+import time
+import io
+
 UNIVERSE_TOKENS: dict = {
     "cash":              "cash",              # All NSE cash market
     "nifty50":           "nifty50",
@@ -54,6 +59,118 @@ DEFAULT_SCAN_PARAMS: dict = {
 }
 
 
+def _get_universe_symbols(universe_name: str) -> set:
+    """
+    Get dynamic list of symbols for a specific index/universe.
+    Caches the results locally in data/universes_cache.json for 24 hours
+    to ensure scans remain extremely fast and don't hit external APIs constantly.
+    """
+    import pandas as pd
+    
+    universe_name = str(universe_name).lower().strip()
+    if universe_name == "cash":
+        return set()
+        
+    cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+    cache_path = os.path.join(cache_dir, "universes_cache.json")
+    os.makedirs(cache_dir, exist_ok=True)
+    
+    cache_data = {}
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path, "r") as f:
+                cache_data = json.load(f)
+        except Exception as e:
+            logger.warning("[universe] Cache read error: %s", e)
+            
+    # Check if cache is fresh (less than 24 hours old)
+    last_updated = cache_data.get("last_updated", 0)
+    current_time = time.time()
+    
+    if cache_data and (current_time - last_updated) < 86400 and universe_name in cache_data:
+        return set(cache_data[universe_name])
+        
+    logger.info("[universe] Cache stale or missing universe '%s'. Re-fetching from official sources...", universe_name)
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        )
+    }
+    
+    new_cache = {
+        "last_updated": current_time,
+        "nifty50": [],
+        "niftynext50": [],
+        "nifty100": [],
+        "nifty200": [],
+        "nifty500": [],
+        "niftymidcap150": [],
+        "niftysmallcap250": [],
+        "fnolist": []
+    }
+    
+    # Preserve existing cache data if some fetch fails
+    for k in new_cache:
+        if k != "last_updated" and k in cache_data:
+            new_cache[k] = cache_data[k]
+            
+    # 1. Fetch Nifty CSVs from NSE India
+    nifty_urls = {
+        "nifty50": "https://archives.nseindia.com/content/indices/ind_nifty50list.csv",
+        "niftynext50": "https://archives.nseindia.com/content/indices/ind_niftynext50list.csv",
+        "nifty100": "https://archives.nseindia.com/content/indices/ind_nifty100list.csv",
+        "nifty200": "https://archives.nseindia.com/content/indices/ind_nifty200list.csv",
+        "nifty500": "https://archives.nseindia.com/content/indices/ind_nifty500list.csv",
+        "niftymidcap150": "https://archives.nseindia.com/content/indices/ind_niftymidcap150list.csv",
+        "niftysmallcap250": "https://archives.nseindia.com/content/indices/ind_niftysmallcap250list.csv",
+    }
+    
+    for key, url in nifty_urls.items():
+        try:
+            logger.info("[universe] Fetching %s list...", key)
+            resp = requests.get(url, headers=headers, timeout=15)
+            if resp.status_code == 200:
+                df = pd.read_csv(io.StringIO(resp.text))
+                if "Symbol" in df.columns:
+                    symbols = [s.strip().upper() for s in df["Symbol"].dropna().tolist() if s.strip()]
+                    new_cache[key] = symbols
+                    logger.info("[universe]   -> Loaded %d symbols for %s", len(symbols), key)
+            else:
+                logger.warning("[universe] Failed to fetch %s: Status %d", key, resp.status_code)
+        except Exception as exc:
+            logger.error("[universe] Error fetching %s: %s", key, exc)
+            
+    # 2. Fetch F&O List from Kite instruments API
+    try:
+        logger.info("[universe] Fetching F&O list from Kite instruments...")
+        resp = requests.get("https://api.kite.trade/instruments", timeout=20)
+        if resp.status_code == 200:
+            df = pd.read_csv(io.StringIO(resp.text))
+            nfo_df = df[df["exchange"] == "NFO"]
+            if not nfo_df.empty:
+                fno_symbols = sorted([s.strip().upper() for s in nfo_df["name"].dropna().unique().tolist() if s.strip()])
+                new_cache["fnolist"] = fno_symbols
+                logger.info("[universe]   -> Loaded %d unique F&O symbols", len(fno_symbols))
+        else:
+            logger.warning("[universe] Failed to fetch F&O list from Kite: Status %d", resp.status_code)
+    except Exception as exc:
+        logger.error("[universe] Error fetching F&O list: %s", exc)
+        
+    # Write to local cache
+    try:
+        tmp_path = f"{cache_path}.tmp"
+        with open(tmp_path, "w") as f:
+            json.dump(new_cache, f, indent=2)
+        os.replace(tmp_path, cache_path)
+        logger.info("[universe] Cache successfully updated in %s", cache_path)
+    except Exception as exc:
+        logger.error("[universe] Failed to write cache file: %s", exc)
+        
+    return set(new_cache.get(universe_name, []))
+
+
 def build_scan_clause(params: dict = None) -> str:
     """
     Chartink DSL for swing trade candidates. All thresholds are driven by
@@ -61,7 +178,12 @@ def build_scan_clause(params: dict = None) -> str:
     Missing keys fall back to DEFAULT_SCAN_PARAMS.
     """
     p = {**DEFAULT_SCAN_PARAMS, **(params or {})}
-    universe    = UNIVERSE_TOKENS.get(str(p.get("universe", "cash")).lower(), "cash")
+    
+    # Always query cash segment from Chartink, as specific index segments (e.g. nifty50)
+    # are not supported in their free/public screener POST API.
+    # Python-side post-filtering will be done on the returned symbols.
+    universe    = "cash"
+    
     min_price   = p["min_price"]
     rsi_min     = p["rsi_min"]
     rsi_max     = p["rsi_max"]
@@ -184,6 +306,10 @@ def fetch_chartink_stocks(params: dict = None) -> List[Dict]:
         )
         return []
 
+    # Get the selected universe name and load dynamic symbols list for post-filtering
+    universe_name = str((params or {}).get("universe", "cash")).lower().strip()
+    universe_symbols = _get_universe_symbols(universe_name)
+
     # ETF suffixes / known ETF symbols to exclude from swing scan
     ETF_SUFFIXES = ("BEES", "CASE", "IETF", "GETF")
     ETF_SYMBOLS  = {"LIQUIDBEES", "TATAGOLD", "GOLDBEES", "JUNIORBEES", "NIFTYBEES",
@@ -198,6 +324,12 @@ def fetch_chartink_stocks(params: dict = None) -> List[Dict]:
         if symbol in ETF_SYMBOLS or any(symbol.endswith(s) for s in ETF_SUFFIXES):
             logger.debug("[Chartink] Skipping ETF: %s", symbol)
             continue
+
+        # Apply python-side post-filtering based on the selected index/universe
+        if universe_name != "cash" and symbol not in universe_symbols:
+            logger.debug("[Chartink] Skipping stock outside universe %s: %s", universe_name, symbol)
+            continue
+
         stocks.append({
             "symbol":     symbol,
             "name":       row.get("company_name") or row.get("name") or symbol,

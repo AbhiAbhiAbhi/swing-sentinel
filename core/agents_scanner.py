@@ -101,6 +101,18 @@ def run_morning_scanner():
                 "setup": plan.get("setup_type", "—"),
                 # All Chartink-matched stocks are entry-ready
                 "verdict": "entry",
+                # Advanced Indicators
+                "weekly_trend": tech_data.get("weekly_trend", "BULLISH"),
+                "base_days": tech_data.get("base_days", 0),
+                "base_status": tech_data.get("base_status", "VOLATILE"),
+                "false_breakout_risk": tech_data.get("false_breakout_risk", "LOW"),
+                "false_breakout_desc": tech_data.get("false_breakout_desc", ""),
+                "atr_pct": tech_data.get("atr_pct", 3.0),
+                "adx": tech_data.get("adx", 25.0),
+                "macd_crossover_days_ago": tech_data.get("macd_crossover_days_ago", -1),
+                "resistance_1": tech_data.get("resistance_1", 0.0),
+                "avg_volume_20d": tech_data.get("avg_volume_20d", 0),
+                "return_20d": tech_data.get("return_20d", 0.0),
             })
             print(f"ok  entry ₹{plan.get('entry_zone_min', 0):.0f}–{plan.get('entry_zone_max', 0):.0f}  "
                   f"SL ₹{plan.get('stop_loss', 0):.0f}  R:R {plan.get('rr_ratio', '?')}")
@@ -173,8 +185,107 @@ def generate_priority_actions(results: List[Dict]) -> List[Dict]:
     if not results:
         return actions
 
+    # Load overrides from positions.csv to identify ON_HOLD or confirmation-locked symbols
+    on_hold_symbols = set()
+    confirmation_locked_symbols = set()
+    path = "data/positions.csv"
+    if os.path.exists(path):
+        try:
+            import pandas as pd
+            df = pd.read_csv(path)
+            if not df.empty:
+                df["Symbol"] = df["Symbol"].astype(str).str.strip().str.upper()
+                df["Status"] = df["Status"].fillna("").astype(str).str.strip().str.upper()
+                df["Fundamental_Status"] = df["Fundamental_Status"].fillna("").astype(str).str.strip().str.upper()
+                
+                # Exclude watchlist OPEN positions that are ON_HOLD
+                on_hold = df[(df["Status"] == "OPEN") & (df["Fundamental_Status"] == "ON_HOLD")]["Symbol"].tolist()
+                on_hold_symbols.update(on_hold)
+                
+                # Exclude watchlist OPEN positions locked by a breakout trigger (price below trigger)
+                for _, r in df[df["Status"] == "OPEN"].iterrows():
+                    sym = str(r["Symbol"]).upper()
+                    cp_trigger = float(r.get("Confirmation_Price") or 0.0)
+                    if cp_trigger > 0:
+                        # Find current price from technical results to see if still locked
+                        s_res = next((x for x in results if x["symbol"].upper() == sym), None)
+                        s_price = float(s_res["price"]) if s_res else 0.0
+                        if s_price < cp_trigger:
+                            confirmation_locked_symbols.add(sym)
+        except Exception as exc:
+            logger.warning("[scanner/priority] Override load failed: %s", exc)
+
+    # Filter results to only evaluate eligible candidates
+    eligible_results = []
+    for r in results:
+        sym = r["symbol"].upper()
+        if sym in on_hold_symbols or sym in confirmation_locked_symbols:
+            continue
+            
+        # Avoid chasing "No Man's Land" setups:
+        # If the stock has run up above the pullback entry support zone (entry_max) 
+        # but is still below the breakout resistance trigger (resistance_1),
+        # then it has no clean technical trigger yet. Exclude it from Priority briefings.
+        price = float(r.get("price") or 0.0)
+        entry_max = float(r.get("entry_max") or 0.0)
+        res_1 = float(r.get("resistance_1") or r.get("target_1") or 0.0)
+        
+        if price > 0 and entry_max > 0:
+            is_chasing_pullback = price > (entry_max * 1.025)
+            is_below_breakout = res_1 > 0 and price < res_1
+            
+            if is_chasing_pullback and is_below_breakout:
+                logger.info("[scanner/priority] Excluded %s from Top 3 priority list: In No Man's Land (Price ₹%.2f is between Pullback Support ₹%.2f and Breakout Resistance ₹%.2f)", sym, price, entry_max, res_1)
+                continue
+                
+        # Fundamental Strength Guard:
+        # Exclude highly unprofitable companies (negative earnings) or poor capital
+        # efficiency (negative ROE / EBITDA margins) from entering the Top 3 Priority list.
+        try:
+            import yfinance as yf
+            ticker = yf.Ticker(f"{sym}.NS")
+            info = ticker.info or {}
+            
+            eps = info.get("trailingEps")
+            pe = info.get("trailingPE")
+            roe = info.get("returnOnEquity")
+            ebitda = info.get("ebitdaMargins")
+            
+            is_unprofitable = (eps is not None and eps < 0) or (pe is not None and pe < 0)
+            poor_efficiency = (roe is not None and roe < 0) or (ebitda is not None and ebitda < 0)
+            
+            if is_unprofitable or poor_efficiency:
+                reasons = []
+                if is_unprofitable: reasons.append(f"Negative Earnings (EPS {eps}, PE {pe})")
+                if poor_efficiency: reasons.append(f"Poor Capital Efficiency (ROE {roe}, EBITDA margin {ebitda})")
+                logger.info("[scanner/priority] Excluded %s from Top 3 priority list: Fundamentally weak (%s)", sym, ", ".join(reasons))
+                continue
+        except Exception as fund_err:
+            logger.warning("[scanner/priority] Fundamental check failed for %s: %s", sym, fund_err)
+
+        # Liquidity Guard:
+        # Exclude thin volume / low liquidity stocks (20d average volume < 100k shares)
+        avg_vol = r.get("avg_volume_20d", 0)
+        if avg_vol and avg_vol < 100000:
+            logger.info("[scanner/priority] Excluded %s from Top 3 priority list: Low liquidity (20d avg daily volume %d < 100,000 shares)", sym, avg_vol)
+            continue
+
+        # Overextended / Chasing Guard:
+        # Exclude stocks that have already run up more than 25% in the past month (20 trading days)
+        runup = r.get("return_20d", 0.0)
+        if runup and runup > 25.0:
+            logger.info("[scanner/priority] Excluded %s from Top 3 priority list: Overextended (+%.1f%% in the past month)", sym, runup)
+            continue
+                
+        eligible_results.append(r)
+
+    eval_list = eligible_results
+
+    if not eval_list:
+        return actions
+
     # P1: Best R:R
-    best_rr = max(results, key=lambda x: _extract_rr(x["rr"]))
+    best_rr = max(eval_list, key=lambda x: _extract_rr(x["rr"]))
     actions.append({
         "priority": "P1",
         "symbol": best_rr["symbol"],
@@ -185,8 +296,8 @@ def generate_priority_actions(results: List[Dict]) -> List[Dict]:
     })
 
     # P2: Closest to entry zone
-    if len(results) > 1:
-        nearest = min(results, key=lambda x: abs(x["price"] - x["entry_min"]))
+    if len(eval_list) > 1:
+        nearest = min(eval_list, key=lambda x: abs(x["price"] - x["entry_min"]))
         if nearest["symbol"] != best_rr["symbol"]:
             actions.append({
                 "priority": "P2",
@@ -198,9 +309,9 @@ def generate_priority_actions(results: List[Dict]) -> List[Dict]:
             })
 
     # P3: Highest target 2 upside %
-    if len(results) > 2:
+    if len(eval_list) > 2:
         highest_upside = max(
-            [r for r in results if r["symbol"] not in {a["symbol"] for a in actions}],
+            [r for r in eval_list if r["symbol"] not in {a["symbol"] for a in actions}],
             key=lambda x: ((x["target_2"] - x["price"]) / x["price"] if x["price"] > 0 else 0),
             default=None,
         )
@@ -231,10 +342,10 @@ def save_brief(brief: Dict):
     os.makedirs("data/daily_briefs", exist_ok=True)
     date = brief["date"]
 
-    with open(f"data/daily_briefs/{date}.json", "w") as f:
+    with open(f"data/daily_briefs/{date}.json", "w", encoding="utf-8") as f:
         json.dump(brief, f, indent=2)
 
-    with open(f"data/daily_briefs/{date}.md", "w") as f:
+    with open(f"data/daily_briefs/{date}.md", "w", encoding="utf-8") as f:
         f.write(f"# Morning Brief — {date} {brief['time']}\n\n")
         f.write(f"## Market\n")
         f.write(f"- Nifty 50: {brief['market_context']['nifty']['level']} "
@@ -253,25 +364,25 @@ def update_dashboard_data(scan_results: List[Dict], brief: Dict = None):
     html_path = "dashboard/swing_agent_app.html"
     if not os.path.exists(html_path):
         return
-    with open(html_path, "r") as f:
+    with open(html_path, "r", encoding="utf-8") as f:
         html = f.read()
 
-    stocks_json = json.dumps(scan_results, indent=2)
+    stocks_json = json.dumps(scan_results, indent=2).replace('\\', '\\\\')
     html = re.sub(
-        r"const stocks = \[.*?\];",
-        f"const stocks = {stocks_json};",
+        r"const STATIC_STOCKS = \[.*?\];",
+        f"const STATIC_STOCKS = {stocks_json};",
         html, flags=re.DOTALL, count=1
     )
 
     if brief:
-        brief_json = json.dumps(brief, indent=2)
+        brief_json = json.dumps(brief, indent=2).replace('\\', '\\\\')
         html = re.sub(
-            r"const brief = \{.*?\};",
-            f"const brief = {brief_json};",
+            r"const STATIC_BRIEF\s*= \{.*?\};",
+            f"const STATIC_BRIEF  = {brief_json};",
             html, flags=re.DOTALL, count=1
         )
 
-    with open(html_path, "w") as f:
+    with open(html_path, "w", encoding="utf-8") as f:
         f.write(html)
 
 

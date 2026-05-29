@@ -4,7 +4,7 @@ Pulls live market data from NSE via yfinance
 """
 import time
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -30,10 +30,75 @@ NSE_TICKERS = {
 }
 
 
-def fetch_stock_technicals(symbol: str) -> Dict:
+def check_bse_corporate_action(symbol: str, target_date: str) -> bool:
+    """
+    Query BSE corporate actions API to verify if a corporate action (demerger, spin-off, split, bonus, rights)
+    occurred for a given symbol on (or within 1 day of) the target_date (format: 'YYYY-MM-DD').
+    """
+    import requests
+    from datetime import datetime, timedelta
+    
+    try:
+        dt = datetime.strptime(target_date, "%Y-%m-%d")
+        start_date = (dt - timedelta(days=2)).strftime("%Y%m%d")
+        end_date = (dt + timedelta(days=2)).strftime("%Y%m%d")
+        
+        url = "https://api.bseindia.com/BseIndiaAPI/api/DefaultData/w"
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "Referer": "https://www.bseindia.com/"
+        }
+        
+        params = {
+            "Fdate": start_date,
+            "TDate": end_date,
+            "Purposecode": "",
+            "ddlcategorys": "E",
+            "ddlindustrys": "",
+            "scripcode": "",
+            "segment": "0",
+            "strSearch": ""
+        }
+        
+        r = requests.get(url, headers=headers, params=params, timeout=5)
+        if r.status_code != 200:
+            return False
+            
+        data = r.json()
+        if not isinstance(data, list):
+            return False
+            
+        sym_upper = symbol.strip().upper()
+        restructuring_purposes = [
+            "SPIN OFF", "DEMERGER", "AMALGAMATION", "SCHEME OF ARRANGEMENT",
+            "REDUCTION OF CAPITAL", "RIGHTS", "BONUS", "SPLIT", "STOCK SPLIT"
+        ]
+        
+        for item in data:
+            item_short = str(item.get("short_name", "")).strip().upper()
+            item_long = str(item.get("long_name", "")).strip().upper()
+            item_purpose = str(item.get("Purpose", "")).strip().upper()
+            
+            if sym_upper == item_short or sym_upper in item_long:
+                if any(p in item_purpose for p in restructuring_purposes):
+                    print(f"[bse_corp_action] Found matching corporate action for {symbol} on {item.get('Ex_date')}: {item.get('Purpose')}")
+                    return True
+                    
+    except Exception as e:
+        print(f"[bse_corp_action] Error checking corporate action for {symbol}: {e}")
+        
+    return False
+
+
+def fetch_stock_technicals(symbol: str, df: Optional[pd.DataFrame] = None) -> Dict:
     ticker = NSE_TICKERS.get(symbol.upper(), f"{symbol}.NS")
     try:
-        df = yf.Ticker(ticker).history(period="200d")
+        if df is None or df.empty:
+            df = yf.Ticker(ticker).history(period="200d")
         if df.empty:
             return {}
 
@@ -41,6 +106,28 @@ def fetch_stock_technicals(symbol: str) -> Dict:
         df = df.dropna(subset=["Close"])
         if df.empty:
             return {}
+
+        # ── Demerger & Corporate Action Price Adjustments ─────────────────────
+        # Identify massive overnight gap downs (<= -15%) representing unadjusted
+        # corporate actions (demergers/spin-offs) and dynamically scale historical 
+        # prices before the event ONLY if verified against BSE corporate actions.
+        n_rows = len(df)
+        if n_rows > 1:
+            df = df.copy()  # Avoid SettingWithCopyWarning
+            for i in range(1, n_rows):
+                prev_close = df['Close'].iloc[i - 1]
+                curr_open = df['Open'].iloc[i]
+                if prev_close > 0:
+                    gap_pct = (curr_open - prev_close) / prev_close
+                    if gap_pct <= -0.15:
+                        gap_date = df.index[i].strftime("%Y-%m-%d")
+                        # Verify if a real corporate action occurred on BSE
+                        if check_bse_corporate_action(symbol, gap_date):
+                            factor = curr_open / prev_close
+                            # Scale Open, High, Low, and Close for all prior history
+                            for col in ['Open', 'High', 'Low', 'Close']:
+                                df.iloc[0:i, df.columns.get_loc(col)] *= factor
+
 
         close  = df['Close']
         volume = df['Volume']
@@ -58,6 +145,24 @@ def fetch_stock_technicals(symbol: str) -> Dict:
         macd_d  = _macd(close)
         atr     = _atr(df)
         obv     = _obv(close, volume)
+        adx     = _adx(df)
+
+        # Golden crossover check: macd crossed above signal in last 4 days
+        macd_crossover_days_ago = -1
+        ema_f = close.ewm(span=12).mean()
+        ema_s = close.ewm(span=26).mean()
+        macd_line = ema_f - ema_s
+        signal_line = macd_line.ewm(span=9).mean()
+        for d in range(4):
+            older = -(d + 2)
+            newer = -(d + 1)
+            if abs(older) > len(macd_line):
+                break
+            o_m, o_s = float(macd_line.iloc[older]), float(signal_line.iloc[older])
+            n_m, n_s = float(macd_line.iloc[newer]), float(signal_line.iloc[newer])
+            if o_m <= o_s and n_m > n_s:
+                macd_crossover_days_ago = d
+                break
 
         high_52w     = float(close.tail(252).max())
         low_52w      = float(close.tail(252).min())
@@ -70,8 +175,10 @@ def fetch_stock_technicals(symbol: str) -> Dict:
         resistance_2 = float(df['High'].iloc[:-1].tail(60).max())
 
         # Risk-filter inputs (used by core_risk_filters.py)
-        recent_returns = close.pct_change().tail(60)
+        recent_returns = close.pct_change().tail(30)
         worst_60d_pct  = float(recent_returns.min()) if not recent_returns.dropna().empty else 0.0
+        price_20d_ago  = float(close.iloc[-21]) if len(close) >= 21 else float(close.iloc[0])
+        return_20d     = (price - price_20d_ago) / price_20d_ago if price_20d_ago else 0.0
         bars_count     = len(df)
         first_bar_iso  = df.index[0].strftime("%Y-%m-%d") if len(df) else ""
 
@@ -150,19 +257,33 @@ def fetch_stock_technicals(symbol: str) -> Dict:
 
         false_breakout_risk = "HIGH" if false_breakout else "LOW"
 
+        # Compute volume ratios for the last 5 days
+        avg_vol_20_series = volume.rolling(20).mean()
+        vol_ratios_5d = []
+        for d in range(5):
+            idx = -(5 - d)
+            if abs(idx) <= len(volume) and avg_vol_20_series.iloc[idx] > 0:
+                vol_ratios_5d.append(round(float(volume.iloc[idx] / avg_vol_20_series.iloc[idx]), 2))
+            else:
+                vol_ratios_5d.append(1.0)
+
         return {
             'symbol': symbol, 'price': round(price, 2), 'change_pct': round(change_pct, 2),
             'ema9': round(ema9, 2), 'ema21': round(ema21, 2),
             'ema20': round(ema20, 2), 'ema50': round(ema50, 2), 'ema200': round(ema200, 2),
             'rsi': round(rsi, 2), 'macd': round(macd_d['macd'], 2),
             'macd_signal': round(macd_d['signal'], 2), 'macd_histogram': round(macd_d['histogram'], 2),
+            'macd_crossover_days_ago': macd_crossover_days_ago,
             'atr': round(atr, 2), 'atr_pct': round(atr / price * 100, 2) if price else 0, 'obv': round(obv, 0),
+            'adx': round(adx, 2),
             'volume': int(volume.iloc[-1]), 'avg_volume_20d': int(avg_vol_20),
             'volume_ratio': round(vol_ratio, 2),
+            'vol_ratios_5d': vol_ratios_5d,
             'high_52w': round(high_52w, 2), 'low_52w': round(low_52w, 2),
             'resistance_1': round(resistance_1, 2), 'resistance_2': round(resistance_2, 2),
             'support_1': round(support_1, 2),
             'worst_60d_pct': round(worst_60d_pct, 4),
+            'return_20d': round(return_20d * 100, 2),
             'bars_count':    bars_count,
             'first_bar':     first_bar_iso,
             'near_52w_high': near_52w_high,
@@ -207,12 +328,66 @@ def fetch_prices_bulk(symbols: list) -> Dict[str, float]:
         try:
             # Multi-symbol return: data[<ticker>][<field>]
             # Single-symbol return: data[<field>]  (no outer level)
-            if len(symbols) == 1:
-                close = data["Close"].dropna()
+            ticker_key = f"{sym}.NS"
+            if isinstance(data.columns, pd.MultiIndex):
+                if ticker_key in data.columns.levels[0]:
+                    close = data[ticker_key]["Close"].dropna()
+                else:
+                    continue
             else:
-                close = data[f"{sym}.NS"]["Close"].dropna()
+                close = data["Close"].dropna()
+            
             if len(close):
                 out[sym] = float(close.iloc[-1])
+        except Exception:
+            continue
+    return out
+
+
+def fetch_prices_and_changes_bulk(symbols: list) -> Dict[str, Dict]:
+    """
+    Fetch live prices, daily returns, and volume ratios for many NSE symbols in ONE yfinance call.
+    Returns {symbol: {price, change_pct, volume_ratio}}.
+    """
+    if not symbols:
+        return {}
+    tickers = [f"{s}.NS" for s in symbols]
+    try:
+        data = yf.download(
+            tickers, period="5d", group_by="ticker",
+            progress=False, threads=True, auto_adjust=False,
+        )
+    except Exception as e:
+        print(f"[bulk_prices] yfinance error: {e}")
+        return {}
+
+    out = {}
+    for sym in symbols:
+        try:
+            ticker_key = f"{sym}.NS"
+            if isinstance(data.columns, pd.MultiIndex):
+                if ticker_key in data.columns.levels[0]:
+                    df_sym = data[ticker_key].dropna(subset=["Close"])
+                else:
+                    continue
+            else:
+                df_sym = data.dropna(subset=["Close"])
+            
+            if len(df_sym) >= 2:
+                price = float(df_sym["Close"].iloc[-1])
+                price_yest = float(df_sym["Close"].iloc[-2])
+                change_pct = ((price - price_yest) / price_yest * 100) if price_yest else 0.0
+                
+                # Volume ratio over the 5d average
+                vol = float(df_sym["Volume"].iloc[-1]) if "Volume" in df_sym.columns else 0.0
+                avg_vol = float(df_sym["Volume"].mean()) if "Volume" in df_sym.columns and len(df_sym) > 0 else 1.0
+                vol_ratio = vol / avg_vol if avg_vol else 1.0
+                
+                out[sym] = {
+                    "price": round(price, 2),
+                    "change_pct": round(change_pct, 2),
+                    "volume_ratio": round(vol_ratio, 2)
+                }
         except Exception:
             continue
     return out
@@ -223,30 +398,79 @@ def fetch_nifty_levels() -> Dict:
         df = yf.Ticker("^NSEI").history(period="1y")
         if df.empty:
             return {'level': 0, 'change': 0, 'change_pct': 0, 'status': 'error',
-                    'ema50': 0, 'ema200': 0, 'regime': 'UNKNOWN'}
+                    'ema20': 0, 'ema50': 0, 'ema200': 0, 'regime': 'UNKNOWN',
+                    'nifty_crossover': False, 'nifty_crossover_days_ago': -1,
+                    'signals': {'s1': False, 's2': False, 's3': False}}
         df = df.dropna(subset=["Close"])
         close  = df['Close']
         price  = float(close.iloc[-1])
         prev   = float(close.iloc[-2]) if len(close) > 1 else price
         chg    = price - prev
-        ema50  = float(close.ewm(span=50).mean().iloc[-1])
+        
+        # Calculate EMAs
+        ema20_s = close.ewm(span=20).mean()
+        ema50_s = close.ewm(span=50).mean()
+        
+        ema20  = float(ema20_s.iloc[-1])
+        ema50  = float(ema50_s.iloc[-1])
         ema200 = float(close.ewm(span=200).mean().iloc[-1])
-        if price > ema50 > ema200:
+        
+        # Trend Signals
+        s1 = price > ema20
+        s2 = price > ema50
+        s3 = ema20 > ema50
+        
+        # Dynamic Crossover Detection (EMA20 vs EMA50 within last 5 sessions)
+        crossover = False
+        crossover_days = -1
+        for d in range(5):
+            older = -(d + 2)
+            newer = -(d + 1)
+            if abs(older) <= len(ema20_s):
+                o20, o50 = float(ema20_s.iloc[older]), float(ema50_s.iloc[older])
+                n20, n50 = float(ema20_s.iloc[newer]), float(ema50_s.iloc[newer])
+                if (o20 <= o50 and n20 > n50) or (o20 >= o50 and n20 < n50):
+                    crossover = True
+                    crossover_days = d
+                    break
+
+        bullish_signals = sum([s1, s2, s3])
+        if bullish_signals == 3:
             regime = "GREEN"
-        elif price < ema50 < ema200:
-            regime = "RED"
-        else:
+        elif bullish_signals == 2:
             regime = "AMBER"
+        else:
+            regime = "RED"
+            
+        # Fetch India VIX
+        india_vix = 0.0
+        try:
+            vix_df = yf.Ticker("^INDIAVIX").history(period="2d")
+            if not vix_df.empty:
+                india_vix = float(vix_df['Close'].iloc[-1])
+        except Exception as vix_exc:
+            print(f"[data_fetcher] India VIX error: {vix_exc}")
+
         return {
             'level': round(price, 2), 'change': round(chg, 2),
             'change_pct': round(chg / prev * 100 if prev else 0, 2),
-            'status': 'ok', 'ema50': round(ema50, 2), 'ema200': round(ema200, 2),
+            'status': 'ok',
+            'ema20': round(ema20, 2),
+            'ema50': round(ema50, 2),
+            'ema200': round(ema200, 2),
             'regime': regime,
+            'nifty_crossover': crossover,
+            'nifty_crossover_days_ago': crossover_days,
+            'signals': {'s1': s1, 's2': s2, 's3': s3},
+            'vix': round(india_vix, 2)
         }
     except Exception as e:
         print(f"[data_fetcher] Nifty error: {e}")
         return {'level': 0, 'change': 0, 'change_pct': 0, 'status': 'error',
-                'ema50': 0, 'ema200': 0, 'regime': 'UNKNOWN'}
+                'ema20': 0, 'ema50': 0, 'ema200': 0, 'regime': 'UNKNOWN',
+                'nifty_crossover': False, 'nifty_crossover_days_ago': -1,
+                'signals': {'s1': False, 's2': False, 's3': False},
+                'vix': 0.0}
 
 
 def fetch_global_markets() -> Dict:
@@ -439,3 +663,31 @@ def _atr(df: pd.DataFrame, period: int = 14) -> float:
 def _obv(prices: pd.Series, volumes: pd.Series) -> float:
     direction = np.sign(prices.diff().fillna(0))
     return float((direction * volumes).cumsum().iloc[-1])
+
+
+def _adx(df: pd.DataFrame, period: int = 14) -> float:
+    try:
+        hi, lo, cl = df['High'], df['Low'], df['Close']
+        n = len(df)
+        if n < period * 2:
+            return 20.0
+        
+        # True Range
+        tr = pd.concat([hi - lo, (hi - cl.shift()).abs(), (lo - cl.shift()).abs()], axis=1).max(axis=1)
+        atr = tr.ewm(alpha=1/period, adjust=False).mean()
+        
+        up_move = hi.diff()
+        down_move = -lo.diff()
+        
+        plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0.0)
+        minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0.0)
+        
+        plus_di = 100 * pd.Series(plus_dm, index=df.index).ewm(alpha=1/period, adjust=False).mean() / atr.replace(0, float('nan'))
+        minus_di = 100 * pd.Series(minus_dm, index=df.index).ewm(alpha=1/period, adjust=False).mean() / atr.replace(0, float('nan'))
+        
+        dx = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, float('nan'))
+        adx = dx.ewm(alpha=1/period, adjust=False).mean()
+        
+        return float(adx.iloc[-1]) if not adx.dropna().empty else 20.0
+    except Exception:
+        return 20.0

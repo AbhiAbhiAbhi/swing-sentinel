@@ -46,16 +46,60 @@ def _tg_send(msg: str):
 
 # ── Risk filters + sectors ───────────────────────────────────────────────────
 try:
-    from core.risk_filters import apply_risk_filters
+    from core.risk_filters import apply_risk_filters, fetch_screener_shareholding
     from core.sectors       import get_sector, fetch_sector_pulse
 except ImportError:
     try:
-        from core_risk_filters import apply_risk_filters
+        from core_risk_filters import apply_risk_filters, fetch_screener_shareholding
         from core_sectors      import get_sector, fetch_sector_pulse
     except ImportError:
         def apply_risk_filters(sym, tech, sector_pulse=None): return True, []
         def get_sector(sym): return "OTHERS"
         def fetch_sector_pulse(): return {}
+
+
+_universes_cache_data = None
+_universes_cache_mtime = 0
+
+def get_index_membership(symbol: str) -> list:
+    global _universes_cache_data, _universes_cache_mtime
+    symbol = symbol.strip().upper()
+    cache_path = os.path.join(_ROOT, "data", "universes_cache.json")
+    if not os.path.exists(cache_path):
+        return []
+    
+    try:
+        mtime = os.path.getmtime(cache_path)
+        if _universes_cache_data is None or mtime > _universes_cache_mtime:
+            with open(cache_path, "r") as f:
+                _universes_cache_data = json.load(f)
+            _universes_cache_mtime = mtime
+    except Exception as exc:
+        logger.warning("[server] Failed to load universes_cache.json: %s", exc)
+        return []
+        
+    if not _universes_cache_data:
+        return []
+        
+    memberships = []
+    
+    key_mapping = {
+        "nifty50": "NIFTY50",
+        "niftynext50": "NIFTY NEXT 50",
+        "nifty100": "NIFTY100",
+        "nifty200": "NIFTY200",
+        "nifty500": "NIFTY500",
+        "niftymidcap150": "NIFTY MIDCAP 150",
+        "niftysmallcap250": "NIFTY SMALLCAP 250",
+        "fnolist": "F&O"
+    }
+    
+    for key, pretty_name in key_mapping.items():
+        symbols_list = _universes_cache_data.get(key, [])
+        if symbols_list and symbol in [s.strip().upper() for s in symbols_list]:
+            memberships.append(pretty_name)
+            
+    return memberships
 
 
 # ── Kite helper ──────────────────────────────────────────────────────────────
@@ -89,8 +133,10 @@ try:
         fetch_nifty_levels,
         fetch_prices_bulk,
         fetch_stock_technicals,
+        NSE_TICKERS,
     )
     from core.trade_plan import calculate_rr, calculate_trade_plan
+    from core.risk_filters import fetch_earnings_date
 except ImportError:
     from core_chartink_fetcher import fetch_chartink_stocks
     from core_data_fetcher import (
@@ -99,8 +145,10 @@ except ImportError:
         fetch_nifty_levels,
         fetch_prices_bulk,
         fetch_stock_technicals,
+        NSE_TICKERS,
     )
     from core_trade_plan import calculate_rr, calculate_trade_plan
+    from core_risk_filters import fetch_earnings_date
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────
@@ -277,6 +325,205 @@ def api_news_config():
         return jsonify({"status": "error", "message": str(exc)}), 500
 
 
+@app.route("/api/presets", methods=["GET", "POST"])
+def api_presets():
+    """GET custom scanner presets from data/presets.json; POST { ...presets } to overwrite."""
+    path = os.path.join(_ROOT, "data", "presets.json")
+    os.makedirs(os.path.join(_ROOT, "data"), exist_ok=True)
+    try:
+        if request.method == "POST":
+            presets = request.get_json(force=True, silent=True) or {}
+            tmp = f"{path}.tmp"
+            with open(tmp, "w") as f:
+                json.dump(presets, f, indent=2)
+            os.replace(tmp, path)
+            logger.info("[presets] Saved custom presets: count=%d", len(presets))
+            return jsonify({"status": "ok", "presets": presets})
+        
+        # GET method
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                presets = json.load(f)
+        else:
+            presets = {}
+        return jsonify({"status": "ok", "presets": presets})
+    except Exception as exc:
+        logger.error("[presets] Failed: %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+
+@app.route("/api/debate/<symbol>", methods=["POST"])
+def api_debate(symbol: str):
+    """
+    Triggers an adversarial Bull vs Bear debate for a specific stock ticker.
+    Receives custom header-selected model overrides from the POST body.
+    """
+    symbol = (symbol or "").strip().upper()
+    if not symbol:
+        return jsonify({"status": "error", "message": "Symbol is required"}), 400
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        force = body.get("force_refresh", False)
+        check_only = body.get("check_only", False)
+
+        # 1. Fetch live technicals for this stock
+        tech = fetch_stock_technicals(symbol)
+        if not tech:
+            return jsonify({"status": "error", "message": f"Could not fetch technical indicators for {symbol}"}), 404
+
+        # 2. Get recent headlines for this stock from news cache
+        stock_news = []
+        if _news_get is not None:
+            try:
+                # Get the latest aggregated news (read cached, very fast)
+                news_payload = _news_get(force=False)
+                stock_news = news_payload.get("stocks", {}).get(symbol, {}).get("headlines", [])
+            except Exception as news_exc:
+                logger.warning("[server/debate] Failed to retrieve news cache for %s: %s", symbol, news_exc)
+
+        # 3. Compile macro market context
+        nifty = fetch_nifty_levels()
+        fii   = fetch_fii_dii_flow(days=5)
+        market_context = {
+            "nifty": nifty,
+            "fii_dii": fii,
+            "sentiment": _sentiment(nifty, fii)
+        }
+
+        # 4. Extract LLM settings overrides
+        override_config = {}
+        if "bull_model" in body:
+            override_config["bull_agent"] = {
+                "provider": body.get("bull_provider", "gemini"),
+                "model": body["bull_model"],
+                "temperature": float(body.get("bull_temperature", 0.4))
+            }
+        if "bear_model" in body:
+            override_config["bear_agent"] = {
+                "provider": body.get("bear_provider", "gemini"),
+                "model": body["bear_model"],
+                "temperature": float(body.get("bear_temperature", 0.4))
+            }
+        if "judge_model" in body:
+            override_config["judge_agent"] = {
+                "provider": body.get("judge_provider", "gemini"),
+                "model": body["judge_model"],
+                "temperature": float(body.get("judge_temperature", 0.2))
+            }
+
+        # 5. Execute debate
+        try:
+            from core.debate_orchestrator import run_adversarial_debate
+        except ImportError:
+            from debate_orchestrator import run_adversarial_debate
+
+        result = run_adversarial_debate(
+            symbol=symbol,
+            technicals=tech,
+            recent_news=stock_news,
+            market_context=market_context,
+            sector=get_sector(symbol),
+            override_config=override_config,
+            force_refresh=force,
+            check_only=check_only
+        )
+
+        return jsonify(result)
+    except Exception as exc:
+        logger.error("[server/debate] Failed for %s: %s", symbol, exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route("/api/debate/config", methods=["GET", "POST"])
+def api_debate_config():
+    """GET debate configuration; POST to save changes."""
+    try:
+        from core.debate_orchestrator import load_debate_config, save_debate_config
+    except ImportError:
+        from debate_orchestrator import load_debate_config, save_debate_config
+
+    try:
+        if request.method == "POST":
+            body = request.get_json(force=True, silent=True) or {}
+            save_debate_config(body)
+            return jsonify({"status": "ok", "config": body})
+        return jsonify({"status": "ok", "config": load_debate_config()})
+    except Exception as exc:
+        logger.error("[server/debate/config] %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+def process_single_stock(stock, df_sym, sector_pulse, filters):
+    symbol = stock["symbol"]
+    try:
+        # Call fetch_stock_technicals passing the pre-fetched df_sym
+        tech = fetch_stock_technicals(symbol, df=df_sym)
+        if not tech:
+            return {"status": "error", "symbol": symbol, "reason": "No technical indicators available"}
+
+        passed, reasons, verdict = apply_risk_filters(symbol, tech, sector_pulse=sector_pulse, thresholds=filters)
+        if not passed:
+            return {
+                "status": "filtered",
+                "symbol": symbol,
+                "name": stock.get("name", symbol),
+                "reasons": reasons,
+                "verdict": "SKIP",
+                "index_membership": get_index_membership(symbol),
+            }
+
+        plan = calculate_trade_plan(tech)
+        entry_mid = (plan.get("entry_zone_min", 0) + plan.get("entry_zone_max", 0)) / 2
+        rr_raw    = calculate_rr({"price": entry_mid, "target": plan.get("target_2", 0), "sl": plan.get("stop_loss", 0)})
+        earn_days_until, earn_date_str, earn_source = fetch_earnings_date(symbol)
+        
+        return {
+            "status":     "success",
+            "symbol":     symbol,
+            "name":       stock.get("name", symbol),
+            "price":      tech["price"],
+            "change_pct": tech["change_pct"],
+            "rsi":        tech["rsi"],
+            "ema20":      tech["ema20"],
+            "macd":       tech["macd"],
+            "vol_ratio":  tech["volume_ratio"],
+            "vol_ratios_5d": tech.get("vol_ratios_5d", []),
+            "avg_volume_20d": tech.get("avg_volume_20d", 0),
+            "entry_min":  plan.get("entry_zone_min", 0),
+            "entry_max":  plan.get("entry_zone_max", 0),
+            "target_1":   plan.get("target_1", 0),
+            "target_2":   plan.get("target_2", 0),
+            "sl":         plan.get("stop_loss", 0),
+            "rr":         rr_raw if isinstance(rr_raw, str) else plan.get("rr_ratio", "N/A"),
+            "setup":      plan.get("setup_type", "—"),
+            "sector":     get_sector(symbol),
+            "verdict":    verdict,
+            "index_membership": get_index_membership(symbol),
+            # checklist-derived tags
+            "atr_pct":          tech.get("atr_pct", 0),
+            "near_52w_high":    tech.get("near_52w_high", False),
+            "dist_52w_pct":     tech.get("dist_52w_pct", 0),
+            "ema9_cross_ema21": tech.get("ema9_cross_ema21", "none"),
+            "ema9_cross_days_ago": tech.get("ema9_cross_days_ago", -1),
+            "rsi_pullback_zone": tech.get("rsi_pullback_zone", False),
+            "high_52w":         tech.get("high_52w", 0),
+            "weekly_trend":        tech.get("weekly_trend", "UNKNOWN"),
+            "base_days":           tech.get("base_days", 0),
+            "base_status":         tech.get("base_status", "UNKNOWN"),
+            "false_breakout_risk": tech.get("false_breakout_risk", "LOW"),
+            "false_breakout_desc": tech.get("false_breakout_desc", ""),
+            "earnings_days_until": earn_days_until,
+            "earnings_date":       earn_date_str,
+            "earnings_source":     earn_source,
+            "debate":              fetch_cached_debate_verdict(symbol),
+            "shareholding":        fetch_screener_shareholding(symbol),
+        }
+    except Exception as exc:
+        logger.warning("[scan] %s skipped in thread: %s", symbol, exc)
+        return {"status": "error", "symbol": symbol, "reason": str(exc)}
+
+
 @app.route("/api/scan", methods=["POST"])
 def api_scan():
     """
@@ -292,6 +539,12 @@ def api_scan():
         filters = body.get("filters", {})
         top_n   = int(filters.get("top_n", 30))
         logger.info("[scan] filters=%s top_n=%d", filters, top_n)
+
+        # Warm NSE calendar calendar cache on main thread to avoid parallel race condition
+        try:
+            fetch_earnings_date("RELIANCE")
+        except Exception as e:
+            logger.warning("[scan] Failed to warm NSE calendar: %s", e)
 
         nifty = fetch_nifty_levels()
         fii   = fetch_fii_dii_flow(days=5)
@@ -328,64 +581,73 @@ def api_scan():
         except Exception:
             sector_pulse = {}
 
-        scan_results  = []
-        filtered_out  = []   # [{symbol, name, reasons}]
-        for i, stock in enumerate(chartink_stocks, 1):
-            symbol = stock["symbol"]
-            logger.info("[scan] %d/%d  %s", i, len(chartink_stocks), symbol)
-            try:
-                tech = fetch_stock_technicals(symbol)
-                if not tech:
-                    continue
+        # Bulk download 200d history for all symbols to avoid sequential history downloads
+        tickers = [NSE_TICKERS.get(s["symbol"].upper(), f"{s['symbol']}.NS") for s in chartink_stocks]
+        logger.info("[scan] Bulk downloading 200d history for %d symbols...", len(tickers))
+        import yfinance as yf
+        try:
+            bulk_data = yf.download(
+                tickers, period="200d", group_by="ticker",
+                progress=False, threads=True, auto_adjust=True
+            )
+        except Exception as e:
+            logger.warning("[scan] Bulk download failed, will fetch individually: %s", e)
+            bulk_data = None
 
-                # ── Risk gating ───────────────────────────────────────────────
-                passed, reasons = apply_risk_filters(symbol, tech, sector_pulse=sector_pulse, thresholds=filters)
-                if not passed:
-                    logger.info("[scan]   %s skipped → %s", symbol, "; ".join(reasons))
-                    filtered_out.append({
-                        "symbol":  symbol,
-                        "name":    stock.get("name", symbol),
-                        "reasons": reasons,
-                    })
-                    continue
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        # Parallel execution with ThreadPoolExecutor
+        max_workers = min(16, len(chartink_stocks)) if chartink_stocks else 1
+        logger.info("[scan] Processing %d stocks in parallel with %d workers...", len(chartink_stocks), max_workers)
+        
+        results_by_idx = {}
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {}
+            for idx, stock in enumerate(chartink_stocks):
+                symbol = stock["symbol"]
+                ticker_key = NSE_TICKERS.get(symbol.upper(), f"{symbol}.NS")
+                
+                # Extract pre-fetched DataFrame for this ticker from bulk download
+                df_sym = None
+                if bulk_data is not None and not bulk_data.empty:
+                    try:
+                        if isinstance(bulk_data.columns, pd.MultiIndex):
+                            if ticker_key in bulk_data.columns.levels[0]:
+                                df_sym = bulk_data[ticker_key].dropna(subset=["Close"])
+                        else:
+                            df_sym = bulk_data.dropna(subset=["Close"])
+                    except Exception as e:
+                        logger.debug("[scan] Failed to extract bulk data for %s: %s", symbol, e)
+                
+                f = executor.submit(
+                    process_single_stock,
+                    stock=stock,
+                    df_sym=df_sym,
+                    sector_pulse=sector_pulse,
+                    filters=filters
+                )
+                futures[f] = idx
+                
+            for future in as_completed(futures):
+                idx = futures[future]
+                try:
+                    res = future.result()
+                    results_by_idx[idx] = res
+                except Exception as exc:
+                    logger.error("Stock index %d raised exception: %s", idx, exc)
 
-                plan = calculate_trade_plan(tech)
-                entry_mid = (plan.get("entry_zone_min", 0) + plan.get("entry_zone_max", 0)) / 2
-                rr_raw    = calculate_rr({"price": entry_mid, "target": plan.get("target_2", 0), "sl": plan.get("stop_loss", 0)})
-                scan_results.append({
-                    "symbol":     symbol,
-                    "name":       stock.get("name", symbol),
-                    "price":      tech["price"],
-                    "change_pct": tech["change_pct"],
-                    "rsi":        tech["rsi"],
-                    "ema20":      tech["ema20"],
-                    "macd":       tech["macd"],
-                    "vol_ratio":  tech["volume_ratio"],
-                    "entry_min":  plan.get("entry_zone_min", 0),
-                    "entry_max":  plan.get("entry_zone_max", 0),
-                    "target_1":   plan.get("target_1", 0),
-                    "target_2":   plan.get("target_2", 0),
-                    "sl":         plan.get("stop_loss", 0),
-                    "rr":         rr_raw if isinstance(rr_raw, str) else plan.get("rr_ratio", "N/A"),
-                    "setup":      plan.get("setup_type", "—"),
-                    "sector":     get_sector(symbol),
-                    "verdict":    "entry",
-                    # checklist-derived tags
-                    "atr_pct":          tech.get("atr_pct", 0),
-                    "near_52w_high":    tech.get("near_52w_high", False),
-                    "dist_52w_pct":     tech.get("dist_52w_pct", 0),
-                    "ema9_cross_ema21": tech.get("ema9_cross_ema21", "none"),
-                    "ema9_cross_days_ago": tech.get("ema9_cross_days_ago", -1),
-                    "rsi_pullback_zone": tech.get("rsi_pullback_zone", False),
-                    "high_52w":         tech.get("high_52w", 0),
-                    "weekly_trend":        tech.get("weekly_trend", "UNKNOWN"),
-                    "base_days":           tech.get("base_days", 0),
-                    "base_status":         tech.get("base_status", "UNKNOWN"),
-                    "false_breakout_risk": tech.get("false_breakout_risk", "LOW"),
-                    "false_breakout_desc": tech.get("false_breakout_desc", ""),
-                })
-            except Exception as exc:
-                logger.warning("[scan] %s skipped: %s", symbol, exc)
+        # Assemble ordered lists preserving original volume-sorted order
+        scan_results = []
+        filtered_out = []
+        for idx in sorted(results_by_idx.keys()):
+            res = results_by_idx[idx]
+            status = res.get("status")
+            if status == "success":
+                res.pop("status", None)
+                scan_results.append(res)
+            elif status == "filtered":
+                res.pop("status", None)
+                filtered_out.append(res)
 
         result = {
             "status":        "success",
@@ -426,11 +688,16 @@ def api_plan(symbol: str):
         entry_mid = (plan.get("entry_zone_min", 0) + plan.get("entry_zone_max", 0)) / 2
         rr_raw    = calculate_rr({"price": entry_mid, "target": plan.get("target_2", 0), "sl": plan.get("stop_loss", 0)})
 
+        earn_days_until, earn_date_str, earn_source = fetch_earnings_date(symbol)
+
         return jsonify({
             "status":     "success",
             "symbol":     symbol,
             "price":      tech.get("price", 0),
             "change_pct": tech.get("change_pct", 0),
+            "vol_ratio":  tech.get("volume_ratio", 1.0),
+            "vol_ratios_5d": tech.get("vol_ratios_5d", []),
+            "avg_volume_20d": tech.get("avg_volume_20d", 0),
             "atr":        tech.get("atr", 0),
             "atr_pct":    tech.get("atr_pct", 0),
             "rsi":        tech.get("rsi", 0),
@@ -448,6 +715,12 @@ def api_plan(symbol: str):
             "base_status":         tech.get("base_status", "UNKNOWN"),
             "false_breakout_risk": tech.get("false_breakout_risk", "LOW"),
             "false_breakout_desc": tech.get("false_breakout_desc", ""),
+            "earnings_days_until": earn_days_until,
+            "earnings_date":       earn_date_str,
+            "earnings_source":     earn_source,
+            "index_membership":    get_index_membership(symbol),
+            "debate":              fetch_cached_debate_verdict(symbol),
+            "shareholding":        fetch_screener_shareholding(symbol),
         })
     except Exception as exc:
         logger.error("[plan] %s failed: %s", symbol, exc)
@@ -472,7 +745,11 @@ def api_brief_latest():
     path  = os.path.join(_ROOT, "data", "daily_briefs", f"{today}.json")
     if os.path.exists(path):
         with open(path) as f:
-            return jsonify({"found": True, "data": json.load(f)})
+            data = json.load(f)
+        # Refresh sector + hydrate any fields the brief was written before (e.g.
+        # earnings_*) so the dashboard doesn't BLOCK on Unresolved earnings.
+        _hydrate_brief_missing_fields(data)
+        return jsonify({"found": True, "data": data})
     return jsonify({"found": False})
 
 
@@ -523,6 +800,40 @@ def _save_positions_csv(df, path: str) -> None:
     tmp = f"{path}.tmp"
     df.to_csv(tmp, index=False)
     os.replace(tmp, path)
+
+
+def fetch_cached_debate_verdict(symbol: str) -> dict:
+    """Find the latest cached debate file for symbol, return parsed dict or empty dict."""
+    try:
+        CACHE_DIR = os.path.join(_ROOT, "data", "due_diligence")
+        if not os.path.exists(CACHE_DIR):
+            return {}
+            
+        symbol = symbol.strip().upper()
+        files = os.listdir(CACHE_DIR)
+        matches = [f for f in files if f.startswith(f"{symbol}_") and f.endswith(".json")]
+        if not matches:
+            return {}
+            
+        # Sort to get the latest by date string in filename
+        matches.sort()
+        latest_file = matches[-1]
+        
+        path = os.path.join(CACHE_DIR, latest_file)
+        with open(path, "r", encoding="utf-8") as file:
+            data = json.load(file)
+            return {
+                "verdict": data.get("verdict"),
+                "conviction_score": data.get("conviction_score"),
+                "judge_rationale": data.get("judge_rationale"),
+                "top_red_flags": data.get("top_red_flags", []),
+                "top_triggers": data.get("top_triggers", []),
+                "bull_case": data.get("bull_case"),
+                "bear_case": data.get("bear_case"),
+            }
+    except Exception as e:
+        logger.warning("[debate_verdict] Failed to read cached debate for %s: %s", symbol, e)
+    return {}
 
 
 def _extract_snapshot(r) -> dict:
@@ -819,6 +1130,204 @@ def api_positions_post_mortem():
         return jsonify({"status": "error", "message": str(exc)}), 500
 
 
+@app.route("/api/positions/update-override", methods=["POST"])
+def api_positions_update_override():
+    """Update or insert qualitative/fundamental overrides in positions.csv."""
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        symbol = data.get("symbol")
+        if not symbol:
+            return jsonify({"status": "error", "message": "symbol is required"}), 400
+            
+        symbol = symbol.strip().upper()
+        notes = data.get("fundamental_notes", "").strip()
+        status = data.get("fundamental_status")
+        live_status_override = data.get("live_status")
+        
+        path = os.path.join(_ROOT, "data", "positions.csv")
+        os.makedirs(os.path.join(_ROOT, "data"), exist_ok=True)
+        
+        # Load or create positions.csv
+        if os.path.exists(path):
+            df = pd.read_csv(path)
+        else:
+            df = pd.DataFrame(columns=["Symbol", "Status"])
+            
+        _ensure_cols(df, [
+            "Fundamental_Notes", "Fundamental_Status", "Live_Status",
+            "Name", "Entry_Price", "Quantity", "Target_1", "Target_2",
+            "Current_SL", "Setup", "Status"
+        ])
+        
+        # Standardize Symbol search
+        df["Symbol"] = df["Symbol"].astype(str).str.strip().str.upper()
+        
+        # Check if symbol exists in open or bought positions
+        mask = (df["Symbol"] == symbol) & (df["Status"].astype(str).str.upper().isin(["OPEN", "BOUGHT"]))
+        
+        if mask.any():
+            # Update the latest matching row
+            idx = df[mask].index[-1]
+            if notes is not None:
+                df.at[idx, "Fundamental_Notes"] = notes
+            if status is not None:
+                df.at[idx, "Fundamental_Status"] = status
+            if live_status_override is not None:
+                df.at[idx, "Live_Status"] = live_status_override
+                
+            _save_positions_csv(df, path)
+            logger.info("[positions/update-override] Updated overrides for %s", symbol)
+            return jsonify({"status": "ok", "message": f"Overrides updated for {symbol}"})
+        else:
+            # If it doesn't exist, we insert it as an OPEN watchlist position
+            tech = fetch_stock_technicals(symbol) or {}
+            price = tech.get("price", 0.0)
+            
+            plan = calculate_trade_plan(tech)
+            
+            new_row = {
+                "Symbol": symbol,
+                "Name": tech.get("name", symbol),
+                "Entry_Price": price,
+                "Quantity": 0,  # 0 indicates watchlist/placeholder position
+                "Target_1": plan.get("target_1", 0),
+                "Target_2": plan.get("target_2", 0),
+                "Current_SL": plan.get("stop_loss", 0),
+                "Setup": plan.get("setup_type", "SWING"),
+                "Entry_Date": _now_date(),
+                "Status": "OPEN",
+                "Fundamental_Notes": notes,
+                "Fundamental_Status": status or "APPROVED",
+                "Live_Status": live_status_override or "WAITING"
+            }
+            
+            new_df = pd.DataFrame([new_row])
+            combined = pd.concat([df, new_df], ignore_index=True)
+            _save_positions_csv(combined, path)
+            logger.info("[positions/update-override] Created new watchlist row with overrides for %s", symbol)
+            return jsonify({"status": "ok", "message": f"Created new watchlist item with overrides for {symbol}"})
+            
+    except Exception as exc:
+        logger.error("[positions/update-override] Failed: %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route("/api/qualitative/<symbol>")
+def api_qualitative(symbol: str):
+    """Exposes qualitative indicators, longBusinessSummary (Moat), news, and financials from yfinance/news cache."""
+    symbol = (symbol or "").strip().upper()
+    if not symbol:
+        return jsonify({"status": "error", "message": "Symbol is required"}), 400
+    try:
+        # 1. Fetch yfinance details
+        import yfinance as yf
+        ticker = yf.Ticker(f"{symbol}.NS")
+        info = ticker.info or {}
+        
+        profile = info.get("longBusinessSummary") or "Corporate profile summary not available."
+        
+        # 2. Financial growth & margin indicators
+        rev_growth = info.get("revenueGrowth")
+        revenue_growth_pct = round(rev_growth * 100, 1) if rev_growth is not None else None
+        
+        ebitda_margins = info.get("ebitdaMargins")
+        ebitda_margin_pct = round(ebitda_margins * 100, 1) if ebitda_margins is not None else None
+        
+        # Star calculation (0-5 stars)
+        growth_stars = 2
+        if revenue_growth_pct is not None:
+            if revenue_growth_pct >= 20: growth_stars = 5
+            elif revenue_growth_pct >= 10: growth_stars = 4
+            elif revenue_growth_pct >= 5: growth_stars = 3
+            elif revenue_growth_pct < 0: growth_stars = 1
+            
+        moat_stars = 2
+        if ebitda_margin_pct is not None:
+            if ebitda_margin_pct >= 20: moat_stars = 5
+            elif ebitda_margin_pct >= 12: moat_stars = 4
+            elif ebitda_margin_pct >= 5: moat_stars = 3
+            elif ebitda_margin_pct < 0: moat_stars = 1
+            
+        # 3. Retrieve recent news headlines from pre-market news cache
+        corporate_actions = []
+        stock_news = []
+        if _news_get is not None:
+            try:
+                news_payload = _news_get(force=False)
+                stock_news = news_payload.get("stocks", {}).get(symbol, {}).get("headlines", [])
+            except Exception as news_exc:
+                logger.warning("[server/qualitative] Failed to retrieve news cache for %s: %s", symbol, news_exc)
+                
+        # Fallback to general yfinance news if pre-market news is empty
+        if not stock_news:
+            try:
+                yf_news = ticker.news or []
+                for n in yf_news:
+                    title = n.get("title", "")
+                    link = n.get("link", "#")
+                    publisher = n.get("publisher", "yfinance")
+                    pub_sec = n.get("providerPublishTime")
+                    pubDate = datetime.fromtimestamp(pub_sec).strftime("%Y-%m-%d") if pub_sec else ""
+                    stock_news.append({
+                        "title": title,
+                        "link": link,
+                        "source": publisher,
+                        "pubDate": pubDate
+                    })
+            except Exception as yf_news_exc:
+                logger.warning("[server/qualitative] Failed to retrieve yfinance news for %s: %s", symbol, yf_news_exc)
+                
+        # Format corporate actions list
+        for h in stock_news:
+            title = h.get("title", "")
+            title_lower = title.lower()
+            
+            # Classify event types
+            event_type = "NEWS"
+            if "block" in title_lower or "bulk" in title_lower:
+                event_type = "BULK / BLOCK DEAL"
+            elif "acquir" in title_lower or "takeover" in title_lower or "buyout" in title_lower:
+                event_type = "ACQUISITION / RESTRUCTURING"
+            elif "dividend" in title_lower or "bonus" in title_lower or "split" in title_lower:
+                event_type = "CORPORATE ACTION"
+            elif "earnings" in title_lower or "result" in title_lower or "quarter" in title_lower:
+                event_type = "EARNINGS DISCLOSURE"
+            elif "promoter" in title_lower or "stake" in title_lower:
+                event_type = "SHAREHOLDING CHANGE"
+                
+            corporate_actions.append({
+                "event_type": event_type,
+                "publisher": h.get("source") or h.get("publisher") or "Exchange Filing",
+                "title": title,
+                "link": h.get("link", "#")
+            })
+            
+        # 4. Get Nifty macro sentiment
+        nifty_sentiment = "NEUTRAL"
+        try:
+            nifty = fetch_nifty_levels()
+            fii = fetch_fii_dii_flow(days=5)
+            nifty_sentiment = _sentiment(nifty, fii)
+        except Exception:
+            pass
+            
+        return jsonify({
+            "status": "success",
+            "symbol": symbol,
+            "profile": profile,
+            "macro_sentiment": nifty_sentiment,
+            "revenue_growth_pct": revenue_growth_pct,
+            "growth_stars": growth_stars,
+            "ebitda_margin_pct": ebitda_margin_pct,
+            "moat_stars": moat_stars,
+            "corporate_actions": corporate_actions
+        })
+        
+    except Exception as exc:
+        logger.error("[qualitative] Failed for %s: %s", symbol, exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
 @app.route("/api/positions/close", methods=["POST"])
 def api_positions_close():
     """Manually close an active position in positions.csv (simulated exit)."""
@@ -940,6 +1449,7 @@ def api_results():
             "Buy_False_Breakout_Risk", "Buy_False_Breakout_Desc",
             "Buy_RSI", "Buy_ATR_Pct", "Buy_Vol_Ratio",
             "Post_Mortem_Why", "Post_Mortem_Maximize",
+            "Fundamental_Status", "Fundamental_Notes", "Live_Status",
         ])
 
         total = len(df)
@@ -1013,7 +1523,7 @@ def api_results():
                     "sl":          sl,
                     "pnl_pct":     pnl_pct,
                     "days_held":   days_held,
-                    "live_status": live_status,
+                    "live_status": str(r.get("Live_Status", "") or live_status),
                     "above_t1":    live_above_t1,
                     "above_t2":    live_above_t2,
                     "at_entry":    live_at_entry,
@@ -1021,6 +1531,11 @@ def api_results():
                     "t1_notified":    _truthy(r.get("T1_Notified")),
                     "entry_notified": _truthy(r.get("Entry_Notified")),
                     "entry_date":  entry_date_str,
+                    "index_membership": get_index_membership(sym),
+                    "fundamental_status": str(r.get("Fundamental_Status", "") or "APPROVED"),
+                    "fundamental_notes": str(r.get("Fundamental_Notes", "") or ""),
+                    "debate": fetch_cached_debate_verdict(sym),
+                    "shareholding": fetch_screener_shareholding(sym),
                 })
             except Exception:
                 continue
@@ -1079,7 +1594,7 @@ def api_results():
                     "sl":          sl,
                     "pnl_pct":     pnl_pct,
                     "days_held":   days_held,
-                    "live_status": live_status,
+                    "live_status": str(r.get("Live_Status", "") or live_status),
                     "above_t1":    live_above_t1,
                     "above_t2":    live_above_t2,
                     "at_entry":    live_at_entry,
@@ -1087,6 +1602,11 @@ def api_results():
                     "t1_notified":    _truthy(r.get("T1_Notified")),
                     "entry_notified": _truthy(r.get("Entry_Notified")),
                     "entry_date":  entry_date_str,
+                    "index_membership": get_index_membership(sym),
+                    "fundamental_status": str(r.get("Fundamental_Status", "") or "APPROVED"),
+                    "fundamental_notes": str(r.get("Fundamental_Notes", "") or ""),
+                    "debate": fetch_cached_debate_verdict(sym),
+                    "shareholding": fetch_screener_shareholding(sym),
                     **_extract_snapshot(r),
                 })
             except Exception:
@@ -1167,6 +1687,7 @@ def api_results():
                     "outcome":   str(r.get("Outcome", "")),
                     "entry_date": str(r.get("Entry_Date", "")),
                     "exit_date":  exit_date,
+                    "index_membership": get_index_membership(str(r.get("Symbol", ""))),
                     **_extract_snapshot(r),
                 })
             except Exception:
@@ -1717,20 +2238,41 @@ _HYDRATE_FIELDS = (
 
 def _hydrate_brief_missing_fields(brief: dict) -> None:
     stocks = brief.get("stocks") or []
+    # Always refresh sector from current mapping (mapping can change after brief was written)
+    for s in stocks:
+        sym = s.get("symbol", "")
+        if sym:
+            s["sector"] = get_sector(sym)
     needs = [s for s in stocks if any(s.get(f) in (None,) for f in _HYDRATE_FIELDS)]
-    if not needs:
-        return
-    logger.info("[scan] hydrating %d stale stock(s) with %s", len(needs), list(_HYDRATE_FIELDS))
-    for s in needs:
-        try:
-            tech = fetch_stock_technicals(s.get("symbol", ""))
-            if not tech:
-                continue
-            for f in _HYDRATE_FIELDS:
-                if s.get(f) is None and f in tech:
-                    s[f] = tech[f]
-        except Exception as exc:
-            logger.warning("[scan] hydrate %s failed: %s", s.get("symbol"), exc)
+    if needs:
+        logger.info("[scan] hydrating %d stale stock(s) with %s", len(needs), list(_HYDRATE_FIELDS))
+        for s in needs:
+            try:
+                tech = fetch_stock_technicals(s.get("symbol", ""))
+                if not tech:
+                    continue
+                for f in _HYDRATE_FIELDS:
+                    if s.get(f) is None and f in tech:
+                        s[f] = tech[f]
+            except Exception as exc:
+                logger.warning("[scan] hydrate %s failed: %s", s.get("symbol"), exc)
+
+    # Earnings fields were added later — hydrate them if the brief was written
+    # before that change (otherwise dashboard treats them as Unresolved and BLOCKs)
+    earn_needs = [s for s in stocks if "earnings_days_until" not in s]
+    if earn_needs:
+        logger.info("[scan] hydrating earnings for %d stale stock(s)", len(earn_needs))
+        for s in earn_needs:
+            try:
+                days_until, date_str, source = fetch_earnings_date(s.get("symbol", ""))
+                s["earnings_days_until"] = days_until
+                s["earnings_date"]       = date_str
+                s["earnings_source"]     = source
+            except Exception as exc:
+                logger.warning("[scan] earnings hydrate %s failed: %s", s.get("symbol"), exc)
+                s["earnings_days_until"] = None
+                s["earnings_date"]       = ""
+                s["earnings_source"]     = "unknown"
 
 
 def _now_date() -> str:
