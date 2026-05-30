@@ -139,18 +139,18 @@ body::after {
 }
 
 /* Typography elements */
-h1, h2, h3, .logo, .mcard .val, .rsum-card .val, .bias-card .val, .bias-final .total, .je-sym, .tv-modal-box h3, #pineModalTitle, #modalTitle {
+h1, h2, h3, .logo, .mcard .val, .rsum-card .val, .bias-card .val, .bias-final .total, .je-sym, #modalTitle {
   font-family: var(--font-heading);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
-.sym, .ca-sym, .f-inp, .f-preset-sel, .f-preset-inp, .tool-grid input, .tool-out-card .val, .pine-code, kbd, .ca-check-val, .entry-cl-item .value, #lastUpd {
+.sym, .ca-sym, .f-inp, .f-preset-sel, .f-preset-inp, .tool-grid input, .tool-out-card .val, .ca-check-val, .entry-cl-item .value, #lastUpd {
   font-family: var(--font-mono);
 }
 
 /* Glassmorphism Surface Base */
-.scard, .mcard, .acard, .rsum-card, .setup-card, .ca-vcard, .bias-card, .bias-final, .journal-wrap, .tool-card, .pos-wrap, .news-wrap, .tv-wrap, .stock-sel-bar, .entry-cl-wrap {
+.scard, .mcard, .acard, .rsum-card, .setup-card, .ca-vcard, .bias-card, .bias-final, .journal-wrap, .tool-card, .pos-wrap, .news-wrap, .stock-sel-bar, .entry-cl-wrap {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -180,7 +180,6 @@ body.light-theme .journal-wrap,
 body.light-theme .tool-card, 
 body.light-theme .pos-wrap, 
 body.light-theme .news-wrap, 
-body.light-theme .tv-wrap, 
 body.light-theme .stock-sel-bar, 
 body.light-theme .entry-cl-wrap {
   box-shadow: 0 10px 30px rgba(60, 52, 38, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
@@ -209,7 +208,7 @@ body.light-theme textarea:focus {
   box-shadow: 0 0 0 3px rgba(13, 156, 106, 0.15) !important;
 }
 
-button, .f-btn, .ca-btn, .buy-btn, .tv-btn, .je-del, .tv-del-btn, .btn-confirm, .btn-cancel, .sec-toggle {
+button, .f-btn, .ca-btn, .buy-btn, .je-del, .btn-confirm, .btn-cancel, .sec-toggle {
   transition: all .2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -308,33 +307,6 @@ body.light-theme .theme-toggle-btn:hover {
 }
 .theme-toggle-btn:hover svg {
   transform: rotate(15deg);
-}
-
-/* TV screener button */
-#tvBtn {
-  background: var(--card);
-  border: 1px solid var(--border);
-  color: var(--muted);
-  padding: 8px 14px;
-  border-radius: var(--radius-md);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.2s;
-  height: 36px;
-}
-#tvBtn:hover {
-  border-color: var(--border-hi);
-  color: var(--text);
-}
-#tvBtn svg {
-  transition: transform 0.2s;
-}
-#tvBtn:hover svg {
-  transform: scale(1.05);
 }
 
 /* scan button */
@@ -472,8 +444,8 @@ body.light-theme .theme-toggle-btn:hover {
 .empty-sub{font-size:13px}
 .empty code{background:var(--card);padding:2px 6px;border-radius:var(--radius-sm);font-size:12px}
 
-/* ── Buy button and TV button on stock card ──────────────── */
-.buy-btn, .tv-btn {
+/* ── Buy button on stock card ──────────────── */
+.buy-btn {
   padding: 4px 12px;
   border-radius: var(--radius-sm);
   font-size: 11px;
@@ -485,7 +457,7 @@ body.light-theme .theme-toggle-btn:hover {
   white-space: nowrap;
   flex-shrink: 0;
 }
-.scard:hover .buy-btn, .scard:hover .tv-btn {
+.scard:hover .buy-btn {
   opacity: 1;
   transform: scale(1);
 }
@@ -499,20 +471,6 @@ body.light-theme .theme-toggle-btn:hover {
   background: var(--green);
   color: #08090c;
 }
-.tv-btn {
-  background: rgba(249,115,22,.12);
-  color: var(--orange);
-  border: 1px solid var(--orange);
-}
-.tv-btn:hover {
-  background: var(--orange);
-  color: #08090c;
-}
-.tv-btn:disabled {
-  opacity: .4;
-  cursor: wait;
-}
-
 /* ── Buy modal ──────────────────────────────────────────── */
 #buyModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);z-index:500;align-items:center;justify-content:center}
 #buyModal.open{display:flex}
@@ -683,69 +641,6 @@ body.light-theme .theme-toggle-btn:hover {
 .news-feed-list .f-check small{color:var(--muted);font-size:9.5px;margin-left:4px}
 .news-tag-input{background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:var(--radius-md);font-size:11.5px;width:100%}
 
-/* ── TradingView Alert List ──────────────────────────────── */
-.tv-wrap{overflow:hidden;margin-bottom:20px}
-.tv-wrap-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
-.tv-alert-list{display:flex;flex-direction:column;max-height:320px;overflow-y:auto}
-.tv-alert-item{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:13px}
-.tv-alert-item:last-child{border:none}
-.tv-alert-item:hover{background:rgba(255,255,255,.02)}
-.tv-alert-sym{font-weight:700;min-width:90px;font-size:13px;color:var(--text)}
-.tv-alert-desc{flex:1;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tv-del-btn{background:var(--red-bg);color:var(--red);border:1px solid var(--red);padding:3px 10px;border-radius:var(--radius-sm);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;white-space:nowrap}
-.tv-del-btn:hover{background:var(--red);color:#fff}
-.tv-del-btn:disabled{opacity:.4;cursor:wait}
-#tvAlertsRefreshBtn{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:6px 12px;border-radius:var(--radius-md);font-size:11px;font-weight:600;cursor:pointer}
-#tvAlertsRefreshBtn:hover{color:var(--text);border-color:var(--border-hi)}
-
-/* ── TV Screener modal ──────────────────────────────────── */
-#tvModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);z-index:500;align-items:center;justify-content:center}
-#tvModal.open{display:flex}
-.tv-modal-box{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--radius-lg);
-  backdrop-filter: blur(20px);
-  padding:24px;
-  width:420px;
-  max-width:92vw;
-  max-height:90vh;
-  overflow-y:auto;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-}
-.tv-modal-box h3{font-size:16px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:8px}
-.tv-modal-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:16px 0 8px}
-.tv-cond-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)}
-.tv-cond-row:last-child{border:none}
-.tv-cond-row label{font-size:12px;color:var(--text);cursor:pointer;flex:1}
-.tv-cond-row input[type=checkbox]{cursor:pointer;accent-color:var(--orange);width:14px;height:14px;flex-shrink:0;margin-right:10px}
-.tv-screener-results{margin-top:18px;border-top:1px solid var(--border);padding-top:14px;display:none}
-.tv-screener-results.show{display:block}
-.tv-result-table{width:100%;border-collapse:collapse;font-size:12px}
-.tv-result-table th{text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.8px;padding:8px;border-bottom:1px solid var(--border)}
-.tv-result-table td{padding:8px;border-bottom:1px solid var(--border)}
-.tv-result-table tr:last-child td{border:none}
-.tv-result-table tr:hover td{background:rgba(255,255,255,.02)}
-#tvScanBtn{background:var(--orange);color:#08090c;border:none;border-radius:var(--radius-md);padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;width:100%;margin-top:8px;box-shadow: 0 4px 14px rgba(249, 115, 22, 0.3)}
-#tvScanBtn:hover{opacity:.9;box-shadow: 0 6px 20px rgba(249, 115, 22, 0.45)}
-#tvScanBtn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
-
-/* ── Pine Script modal ──────────────────────────────────── */
-#pineModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);z-index:600;align-items:center;justify-content:center}
-#pineModal.open{display:flex}
-.pine-code{background:#040608;border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:11px;color:#c9d1d9;line-height:1.5;max-height:220px;overflow:auto;white-space:pre;margin-bottom:8px;user-select:all}
-.tv-copy-btn{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue);padding:4px 12px;border-radius:var(--radius-md);font-size:11px;font-weight:700;cursor:pointer}
-.tv-copy-btn:hover{background:var(--blue);color:#08090c}
-.tv-copy-btn.copied{background:var(--green);color:#08090c;border-color:var(--green)}
-.pine-status-ok  {background:var(--green-bg);border:1px solid var(--green);color:var(--green)}
-.pine-status-err {background:var(--red-bg);  border:1px solid var(--red);  color:var(--red)}
-.pine-status-info{background:var(--blue-bg); border:1px solid var(--blue); color:var(--blue)}
-kbd{background:var(--card);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px}
-
-/* ── TV button in header ────────────────────────────────── */
-#tvBtn{display:flex;align-items:center;gap:8px;background:rgba(249,115,22,.1);color:var(--orange);border:1px solid var(--orange);border-radius:var(--radius-md);padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition: all 0.2s}
-#tvBtn:hover{background:var(--orange);color:#08090c;box-shadow: 0 4px 14px rgba(249, 115, 22, 0.25)}
-
 /* ── Tab navigation (Segmented Sliding Control) ─────────── */
 .tab-nav {
   background: rgba(17, 22, 34, 0.55);
@@ -887,8 +782,31 @@ body.light-theme .tab-btn.tab-analytics.active   {color:#7047A3 !important; back
 .ca-btn:hover{border-color:var(--border-hi);background: rgba(255,255,255,0.03)}
 .ca-btn.pine{background:rgba(249,115,22,.12);color:var(--orange);border-color:var(--orange)}
 .ca-btn.pine:hover{background:var(--orange);color:#08090c}
-.ca-btn.tv-push{background:rgba(165,180,252,.12);color:#A5B4FC;border-color:#A5B4FC}
-.ca-btn.tv-push:hover{background:#A5B4FC;color:#08090c}
+
+/* ── Setup Grade Breakdown (Analysis tab) ──────────────── */
+.grade-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;transition:border-color .2s}
+.grade-card:hover{border-color:var(--border-hi)}
+.grade-card-head{padding:14px 16px 10px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.grade-card-head .gc-left{display:flex;align-items:center;gap:12px;min-width:0}
+.grade-card-head .gc-sym{font-size:15px;font-weight:700;color:var(--text);white-space:nowrap}
+.grade-card-head .gc-name{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
+.grade-card-head .gc-price{font-size:14px;font-weight:700;color:var(--text);text-align:right;flex-shrink:0}
+.grade-card-head .gc-chg{font-size:10.5px;margin-top:2px}
+.grade-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--radius-sm);font-size:12px;font-weight:800;letter-spacing:.3px}
+.grade-badge.a{background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.3)}
+.grade-badge.b{background:rgba(245,158,11,.1);color:var(--yellow);border:1px solid rgba(245,158,11,.3)}
+.grade-badge.c{background:rgba(156,163,175,.1);color:var(--muted);border:1px solid rgba(156,163,175,.3)}
+.grade-factors{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--border);border-top:1px solid var(--border)}
+.grade-factor{background:var(--card);padding:10px 14px;display:flex;flex-direction:column;gap:4px}
+.gf-header{display:flex;justify-content:space-between;align-items:center}
+.gf-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.gf-score{font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;flex-shrink:0}
+.gf-score.full{background:rgba(16,185,129,.12);color:var(--green)}
+.gf-score.half{background:rgba(245,158,11,.12);color:var(--yellow)}
+.gf-score.zero{background:rgba(239,68,68,.1);color:var(--red)}
+.gf-detail{font-size:10px;color:var(--muted);line-height:1.4}
+.gf-detail b{color:var(--text);font-weight:600}
+@media(max-width:700px){.grade-factors{grid-template-columns:repeat(2,1fr)}}
 
 /* Bias score builder (Pre-Market tab) */
 .bias-builder{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
@@ -922,15 +840,15 @@ body.light-theme .tab-btn.tab-analytics.active   {color:#7047A3 !important; back
 .tab-section-head:first-child{margin-top:0}
 
 /* ── Chart Analysis Validation Cards ────────────────────── */
-.ca-validate-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-bottom:20px}
-.ca-vcard{overflow:hidden}
-.ca-vcard-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.ca-validate-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-bottom:20px;align-items:stretch}
+.ca-vcard{display:flex;flex-direction:column;height:100%;overflow:hidden;border:1px solid var(--border);border-radius:var(--radius-lg);background:rgba(255,255,255,0.015);box-sizing:border-box}
+.ca-vcard-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-shrink:0}
 .ca-vcard-head > div:first-child{min-width:0;flex:1;overflow:hidden}
 .ca-vcard-head > div:first-child > div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ca-vcard-head .sym{font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ca-vcard-head .px{font-size:15px;font-weight:700;text-align:right;white-space:nowrap;flex-shrink:0}
 .ca-vcard-head .chg{font-size:11px;margin-top:3px;white-space:nowrap}
-.ca-vcard-body{padding:12px 16px}
+.ca-vcard-body{padding:12px 16px;flex-grow:1}
 .ca-check-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px}
 .ca-check-row:last-child{border:none}
 .ca-check-icon{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;flex-shrink:0}
@@ -1133,6 +1051,7 @@ body.light-theme .analytics-subtab-btn.active {
 </style>
 </head>
 <body class="light-theme">
+
 <script>
   (function() {
     const theme = localStorage.getItem("swingSentinel_theme");
@@ -1149,67 +1068,6 @@ body.light-theme .analytics-subtab-btn.active {
 </script>
 
 <div id="toastArea"></div>
-
-<!-- TradingView Screener Modal -->
-<div id="tvModal">
-  <div class="tv-modal-box">
-    <h3>📺 TradingView Screener</h3>
-    <div class="modal-row">
-      <label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Market</label>
-      <select id="tvMarket" style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:100%;margin-top:4px">
-        <option value="india">India (NSE/BSE)</option>
-        <option value="us">US (S&amp;P 500)</option>
-      </select>
-    </div>
-    <div class="tv-modal-section">Conditions</div>
-    <div>
-      <div class="tv-cond-row"><label><input type="checkbox" id="tvc_rsi" checked> RSI between <input id="tvc_rsi_min" type="number" value="40" min="1" max="99" style="width:42px;background:var(--card);border:1px solid var(--border);color:var(--text);padding:2px 4px;border-radius:4px;font-size:11px"> – <input id="tvc_rsi_max" type="number" value="70" min="1" max="99" style="width:42px;background:var(--card);border:1px solid var(--border);color:var(--text);padding:2px 4px;border-radius:4px;font-size:11px"></label></div>
-      <div class="tv-cond-row"><label><input type="checkbox" id="tvc_ema" checked> Price above EMA20</label></div>
-      <div class="tv-cond-row"><label><input type="checkbox" id="tvc_ema_align" checked> EMA20 above EMA50</label></div>
-      <div class="tv-cond-row"><label><input type="checkbox" id="tvc_vol"> Volume above 1 000 000</label></div>
-      <div class="tv-cond-row"><label><input type="checkbox" id="tvc_positive_day"> Positive day (change &gt; 0)</label></div>
-    </div>
-    <div class="modal-row" style="margin-top:12px">
-      <label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Max Results</label>
-      <input id="tvLimit" type="number" value="50" min="5" max="200" style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:100%;margin-top:4px">
-    </div>
-    <div style="display:flex;gap:8px;margin-top:4px">
-      <button style="flex:1;padding:9px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;border:none;background:var(--card);color:var(--text);border:1px solid var(--border)" onclick="closeTVModal()">Cancel</button>
-      <button id="tvScanBtn" onclick="runTVScreener()">📺 Run Screener</button>
-    </div>
-    <div class="tv-screener-results" id="tvScreenerResults"></div>
-  </div>
-</div>
-
-<!-- Pine Script (post add-to-watchlist) Modal -->
-<div id="pineModal">
-  <div class="tv-modal-box" style="width:560px">
-    <h3 id="pineModalTitle">📺 TradingView Setup</h3>
-    <div id="pineTVStatus" style="font-size:12px;padding:8px 12px;border-radius:6px;margin-bottom:14px"></div>
-
-    <div class="tv-modal-section" style="display:flex;justify-content:space-between;align-items:center">
-      <span>1. S/R Zone Marker (paste into Pine Editor)</span>
-      <button class="tv-copy-btn" onclick="copyPineCode('pineCodeSR',this)">📋 Copy</button>
-    </div>
-    <pre id="pineCodeSR" class="pine-code"></pre>
-
-    <div class="tv-modal-section" style="display:flex;justify-content:space-between;align-items:center">
-      <span>2. Alert Conditions (Breakout · 9/21 Cross · RSI Pullback)</span>
-      <button class="tv-copy-btn" onclick="copyPineCode('pineCodeAlerts',this)">📋 Copy</button>
-    </div>
-    <pre id="pineCodeAlerts" class="pine-code"></pre>
-
-    <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5">
-      <b>How to apply:</b> Open the TradingView chart → press <kbd>Alt+E</kbd> for Pine Editor →
-      paste → Save → "Add to chart". For alerts: <kbd>Alt+A</kbd> → Condition: this indicator → pick the alert name.
-    </div>
-
-    <div style="display:flex;gap:8px;margin-top:14px">
-      <button style="flex:1;padding:9px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text)" onclick="closePineModal()">Close</button>
-      <a id="pineOpenTV" href="#" target="_blank" style="flex:1;padding:9px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;border:none;background:var(--orange);color:#0d1117;text-align:center;text-decoration:none">📺 Open TradingView Chart</a>
-    </div>
-  </div>
-</div>
 
 <!-- Add to Watchlist Modal -->
 <div id="buyModal">
@@ -1299,13 +1157,6 @@ body.light-theme .analytics-subtab-btn.active {
       <svg class="moon-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
       </svg>
-    </button>
-    <button id="tvBtn" onclick="openTVModal()" title="TradingView Screener">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px">
-        <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
-        <polyline points="17 2 12 7 7 2"></polyline>
-      </svg>
-      TV
     </button>
     <button id="scanBtn" onclick="runScan()">
       <div class="spinner"></div>
@@ -1752,33 +1603,6 @@ body.light-theme .analytics-subtab-btn.active {
   </div>
   </div>
 
-  <!-- TradingView Alerts (review stale before market opens) -->
-  <div id="sec_tv_alerts">
-  <div class="tab-section-head">
-    <span style="display:flex;align-items:center;gap:6px">
-      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--orange)">
-        <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
-        <polyline points="17 2 12 7 7 2"></polyline>
-      </svg>
-      TradingView Alerts <small style="font-weight:400;text-transform:none;letter-spacing:0;margin-left:6px">Remove stale ones</small>
-    </span>
-    <div style="display:flex;align-items:center;gap:8px">
-      <span class="pill" id="tvAlertPill">—</span>
-      <button id="tvAlertsRefreshBtn" onclick="loadTVAlerts()" title="Refresh TV alerts">↻ Refresh</button>
-      <button class="sec-toggle" onclick="toggleSection('sec_tv_alerts')" title="Expand / Shrink"><span class="chevron">▼</span></button>
-    </div>
-  </div>
-  <div class="sec-body">
-  <div class="tv-wrap" id="tvAlertsWrap">
-    <div class="tv-alert-list">
-      <div class="news-empty" style="padding:18px;text-align:center;color:var(--muted);font-size:13px">
-        Set <code style="background:var(--card);padding:1px 5px;border-radius:4px;font-size:11px">TV_SESSION</code> in .env and click ↻ to load alerts
-      </div>
-    </div>
-  </div>
-  </div>
-  </div>
-
   <!-- Pre-Market News -->
   <div id="sec_news">
   <div class="tab-section-head">
@@ -1897,7 +1721,6 @@ body.light-theme .analytics-subtab-btn.active {
       Scanned Stock Trade Plans <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">select a stock to load all calculators, alerts, and sizing</small>
     </span>
     <div style="display:flex;align-items:center;gap:8px">
-      <button onclick="caPushAll()" id="caPushAllBtn" style="background:rgba(165,180,252,.12);color:#A5B4FC;border:1px solid #A5B4FC;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">📺 Add All to TV Watchlist</button>
       <button class="sec-toggle" onclick="toggleSection('sec_stock_selector')" title="Expand / Shrink"><span class="chevron">▼</span></button>
     </div>
   </div>
@@ -1919,7 +1742,7 @@ body.light-theme .analytics-subtab-btn.active {
       Entry Checklist <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">all gates must pass before entering</small>
     </span>
     <div style="display:flex;align-items:center;gap:8px">
-      <span class="pill" id="entryClPill">11 checks</span>
+      <span class="pill" id="entryClPill">9 checks</span>
       <button class="sec-toggle" onclick="toggleSection('sec_entry_checklist')" title="Expand / Shrink"><span class="chevron">▼</span></button>
     </div>
   </div>
@@ -1934,7 +1757,7 @@ body.light-theme .analytics-subtab-btn.active {
         </svg>
         Position Entry Gates
       </h3>
-      <span class="entry-score" id="entryScoreBadge" style="background:var(--card);color:var(--muted);border:1px solid var(--border)">— / 11</span>
+      <span class="entry-score" id="entryScoreBadge" style="background:var(--card);color:var(--muted);border:1px solid var(--border)">— / 9</span>
     </div>
     <div class="entry-cl-body" id="entryChecklistBody">
       <!-- Populated by renderEntryChecklist() -->
@@ -1962,8 +1785,10 @@ body.light-theme .analytics-subtab-btn.active {
     <div class="tool-out">
       <div class="tool-out-card"><div class="lbl">Rupee Risk</div><div class="val" id="ps_out_risk">₹0</div></div>
       <div class="tool-out-card"><div class="lbl">Risk / Share</div><div class="val" id="ps_out_per_share">₹0</div></div>
-      <div class="tool-out-card"><div class="lbl">Quantity</div><div class="val" id="ps_out_qty">0</div></div>
-      <div class="tool-out-card"><div class="lbl">Capital Deployed</div><div class="val" id="ps_out_deployed">₹0</div></div>
+      <div class="tool-out-card"><div class="lbl">Base Quantity</div><div class="val" id="ps_out_qty">0</div></div>
+      <div class="tool-out-card" style="border: 1.5px solid var(--blue); background: rgba(59, 130, 246, 0.04);"><div class="lbl" style="color: var(--blue);">Suggested Qty (Adjusted)</div><div class="val" id="ps_out_qty_adj" style="color: var(--blue); font-weight: 800;">0</div></div>
+      <div class="tool-out-card"><div class="lbl">Base Capital Deployed</div><div class="val" id="ps_out_deployed">₹0</div></div>
+      <div class="tool-out-card" style="border: 1.5px solid var(--blue); background: rgba(59, 130, 246, 0.04);"><div class="lbl" style="color: var(--blue);">Suggested Deployed</div><div class="val" id="ps_out_deployed_adj" style="color: var(--blue); font-weight: 800;">₹0</div></div>
       <div class="tool-out-card"><div class="lbl">R:R Ratio</div><div class="val" id="ps_out_rr">—</div></div>
       <div class="tool-out-card"><div class="lbl">SL Risk %</div><div class="val" id="ps_out_chase">—</div></div>
       <div class="tool-out-card"><div class="lbl">T1 (50%) Price</div><div class="val" id="ps_out_t1_price" style="color:var(--yellow)">—</div></div>
@@ -2003,6 +1828,8 @@ body.light-theme .analytics-subtab-btn.active {
     <div id="rm_status" style="font-size:12px;color:var(--muted);margin:6px 0 0">Enter an NSE symbol or pick one from the Watchlist tab — levels match the scan card exactly.</div>
     <div class="tool-out" id="rm_plan_out" style="display:none">
       <div class="tool-out-card"><div class="lbl">Setup</div><div class="val" id="rm_setup">—</div></div>
+      <div class="tool-out-card" id="rm_setup_grade_card" style="display:none"><div class="lbl">Setup Grade</div><div class="val" id="rm_setup_grade">—</div></div>
+      <div class="tool-out-card" id="rm_expiry_multiplier_card" style="display:none"><div class="lbl">Expiry Sizing</div><div class="val" id="rm_expiry_multiplier">—</div></div>
       <div class="tool-out-card"><div class="lbl">Last Price</div><div class="val" id="rm_price">—</div></div>
       <div class="tool-out-card"><div class="lbl">Entry Zone</div><div class="val" id="rm_entry_zone">—</div></div>
       <div class="tool-out-card"><div class="lbl">Stop Loss</div><div class="val" id="rm_sl" style="color:var(--red)">—</div></div>
@@ -5830,6 +5657,31 @@ function renderStockCard(s, i) {
   const vStyle = vStyles[s.verdict] || "background:var(--card); color:var(--muted); border:1px solid var(--border); font-weight:700; border-radius:4px; padding:2px 6px;";
   const vBadge = s.verdict ? `<span class="tag" style="${vStyle}">${s.verdict}</span>` : "";
 
+  // Setup Grade Badge
+  let gradeBadge = "";
+  if (s.setup_grade) {
+    const gradeStyle = s.setup_grade === "A"
+      ? "background:rgba(16,185,129,0.12); color:var(--green); border:1px solid rgba(16,185,129,0.3);"
+      : s.setup_grade === "B"
+      ? "background:rgba(245,158,11,0.12); color:var(--yellow); border:1px solid rgba(245,158,11,0.3);"
+      : "background:rgba(156,163,175,0.12); color:var(--muted); border:1px solid rgba(156,163,175,0.3);";
+    
+    gradeBadge = `<span class="tag" style="${gradeStyle} font-weight:800;" title="Setup Quality Grade: ${s.setup_grade} (Score: ${s.setup_score || 0}/6.0)">Grade ${s.setup_grade} (${s.setup_score || 0})</span>`;
+  }
+
+  // Expiry Sizing Badge
+  let expiryBadge = "";
+  if (s.expiry_info) {
+    const exp = s.expiry_info;
+    if (exp.in_window && exp.multiplier < 1.0) {
+      const expStyle = exp.multiplier === 0.0
+        ? "background:rgba(239,68,68,0.12); color:var(--red); border:1px solid rgba(239,68,68,0.3);"
+        : "background:rgba(245,158,11,0.12); color:var(--yellow); border:1px solid rgba(245,158,11,0.3);";
+      
+      expiryBadge = `<span class="tag" style="${expStyle} font-weight:800;" title="F&O Expiry Window Sizing Reduction: ${exp.reason}">⚠️ Expiry: ${exp.multiplier}x size</span>`;
+    }
+  }
+
   let debateBadge = "";
   if (s.debate && s.debate.verdict) {
     const dv = s.debate.verdict;
@@ -5855,6 +5707,8 @@ function renderStockCard(s, i) {
       </div>
       <div class="tags">
         ${vBadge}
+        ${gradeBadge}
+        ${expiryBadge}
         ${debateBadge}
         ${s.setup?`<span class="tag t-setup">${s.setup.replace(/_/g," ")}</span>`:""}
         ${s.index_membership ? s.index_membership.map(idx => `<span class="tag t-index">${idx}</span>`).join("") : ""}
@@ -5866,9 +5720,47 @@ function renderStockCard(s, i) {
         ${s.rsi_pullback_zone?`<span class="tag t-pullback" title="RSI 40–55 reload zone in an uptrend (price > EMA50, EMA50 rising)">RSI Pullback 40–55</span>`:""}
         <button class="buy-btn" onclick="selectScannedStockForTrading(${i})" title="Open full plan in Trading tab">View Plan</button>
         <button class="buy-btn" onclick="openBuyModal(${i})">+ Watchlist</button>
-        <button class="tv-btn" onclick="tvAddToWatchlist('NSE:${s.symbol}',this)" title="Add to TradingView watchlist">📺 TV</button>
       </div>
     </div>`;
+}
+
+/* ── Setup & Expiry Badge Helper ───────────────────────────── */
+function renderSetupAndExpiryBadges(p) {
+  // Setup Grade Badge
+  let gradeStyle = "";
+  let gradeText = p.setup_grade || "—";
+  if (p.setup_grade === "A") {
+    gradeStyle = "color:var(--green); font-weight:800; background:rgba(16,185,129,0.1); padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid rgba(16,185,129,0.25);";
+  } else if (p.setup_grade === "B") {
+    gradeStyle = "color:var(--yellow); font-weight:800; background:rgba(245,158,11,0.1); padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid rgba(245,158,11,0.25);";
+  } else if (p.setup_grade === "C") {
+    gradeStyle = "color:var(--muted); font-weight:800; background:rgba(156,163,175,0.1); padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid rgba(156,163,175,0.25);";
+  } else {
+    gradeStyle = "color:var(--muted); background:rgba(255,255,255,0.03); padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid var(--border);";
+    gradeText = "N/A";
+  }
+  const scoreVal = p.setup_score !== undefined && p.setup_score !== null && String(p.setup_score).trim() !== "" ? p.setup_score : "—";
+  const gradeHtml = `<span style="${gradeStyle}" title="Setup Quality Grade: ${gradeText} (Score: ${scoreVal}/6.0)">${gradeText}</span>`;
+
+  // Expiry Multiplier Badge
+  const multVal = p.expiry_multiplier !== undefined && p.expiry_multiplier !== null && String(p.expiry_multiplier).trim() !== "" ? parseFloat(p.expiry_multiplier) : 1.0;
+  const reason = p.expiry_reason || "Normal size / Expiry sizing N/A";
+  
+  let expiryStyle = "";
+  let expiryText = "";
+  if (isNaN(multVal) || multVal === 1.0) {
+    expiryStyle = "color:var(--muted); background:rgba(255,255,255,0.03); padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid var(--border); margin-left:4px;";
+    expiryText = reason.toLowerCase().includes("cash") ? "Cash 1x" : "Expiry 1x";
+  } else if (multVal === 0.0) {
+    expiryStyle = "color:var(--red); font-weight:800; background:rgba(239,68,68,0.12); padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid rgba(239,68,68,0.25); margin-left:4px;";
+    expiryText = "⚠️ 0x (Skip)";
+  } else {
+    expiryStyle = "color:var(--yellow); font-weight:800; background:rgba(245,158,11,0.12); padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid rgba(245,158,11,0.25); margin-left:4px;";
+    expiryText = `⚠️ ${multVal}x`;
+  }
+  const expiryHtml = `<span style="${expiryStyle}" title="Expiry sizing details: ${reason}">${expiryText}</span>`;
+
+  return `<div style="display:inline-flex; gap:4px; margin-top:2px; vertical-align:middle;">${gradeHtml}${expiryHtml}</div>`;
 }
 
 /* ── Snapshot Badge Helper ─────────────────────────────────── */
@@ -6072,7 +5964,7 @@ function renderWatchlist(r) {
   }).join("");
   const setups = setupCards ? `<div class="setup-grid">${setupCards}</div>` : "";
 
-  // ── Active Positions table (live status, T1/T2/SL all visible) ──────
+  // ── Active Watchlist / Pending Positions table ───────────────────────
   const STATUS_STYLE = {
     "T2_REACHED": "background:var(--green-bg);color:var(--green);border:1px solid var(--green)",
     "T1_REACHED": "background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)",
@@ -6087,14 +5979,15 @@ function renderWatchlist(r) {
     "AT_ENTRY":   "AT ENTRY",
     "WAITING":    "WAITING",
   };
-  const activeRows = (r.active_positions || []).map(p => {
+
+  const watchlistRows = (r.watchlist_positions || []).map(p => {
     const pnlCls = p.pnl_pct >= 0 ? "up" : "down";
     const status = p.live_status || "WAITING";
     const badge = `<span class="outcome-badge" style="${STATUS_STYLE[status]||STATUS_STYLE.WAITING}" title="${p.entry_notified?'Entry alert fired':'Entry alert NOT fired yet'}">${STATUS_LABEL[status]}</span>`;
-    // Highlight T1/T2 cells if price has crossed them
     const t1Cls = p.above_t1 ? 'style="color:var(--yellow);font-weight:700"' : 'style="color:var(--muted)"';
     const t2Cls = p.above_t2 ? 'style="color:var(--green);font-weight:700"'  : 'style="color:var(--muted)"';
     const slCls = p.below_sl ? 'style="color:var(--red);font-weight:700"'    : 'style="color:var(--red)"';
+
     return `<tr>
       <td>
         <b>${p.symbol}</b>
@@ -6104,7 +5997,59 @@ function renderWatchlist(r) {
           </div>
         ` : ""}
       </td>
-      <td><small style="color:var(--muted)">${p.setup||"—"}</small>${renderSnapshotBadge(p)}</td>
+      <td>
+        <small style="color:var(--muted)">${p.setup||"—"}</small>
+        <div style="margin-top:2px;">${renderSetupAndExpiryBadges(p)}</div>
+        ${renderSnapshotBadge(p)}
+      </td>
+      <td>₹${fmtP(p.entry)} <small style="color:var(--muted)">→</small> <b>₹${fmtP(p.current)}</b></td>
+      <td><span ${t1Cls}>₹${fmtP(p.target_1)}</span></td>
+      <td><span ${t2Cls}>₹${fmtP(p.target_2)}</span></td>
+      <td><span ${slCls}>₹${fmtP(p.sl)}</span></td>
+      <td class="${pnlCls}"><b>${p.pnl_pct>=0?"+":""}${fmt(p.pnl_pct)}%</b></td>
+      <td>${p.days_held||0}d</td>
+      <td>${badge}</td>
+      <td style="text-align:center">
+        <div style="display:flex; gap:6px; justify-content:center; align-items:center;">
+          <button class="ca-btn" onclick="buyStockDirectly('${p.symbol}')" style="padding:4px 8px; font-size:11px; border-color:var(--green); background:rgba(16,185,129,0.1); color:var(--green)" title="Buy position and transition to Active BOUGHT status">🛍️ Buy</button>
+          <button class="remove-btn" onclick="removeStockFromWatchlist('${p.symbol}')" title="Remove from watchlist" style="background:transparent; border:none; color:var(--red); cursor:pointer; font-size:16px; padding:2px 6px; border-radius:4px; transition: background 0.2s;">🗑️</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join("");
+
+  const watchlistBlock = (r.watchlist_positions||[]).length
+    ? `<div class="sec-head" style="margin-top:18px"><span class="sec-title">▶ Watchlist / Pending Entry</span><span class="pill">${(r.watchlist_positions||[]).length} pending</span></div>
+       <div class="pos-wrap"><table class="pos-table">
+         <thead><tr><th>Symbol</th><th>Setup</th><th>Entry → LTP</th><th>T1</th><th>T2</th><th>SL</th><th>P&L</th><th>Held</th><th>Status</th><th style="width:100px; text-align:center">Action</th></tr></thead>
+         <tbody>${watchlistRows}</tbody>
+       </table></div>`
+    : "";
+
+  // ── Active Positions table (live status, T1/T2/SL all visible) ──────
+  const activeRows = (r.active_positions || []).map(p => {
+    const pnlCls = p.pnl_pct >= 0 ? "up" : "down";
+    const status = p.live_status || "WAITING";
+    const badge = `<span class="outcome-badge" style="${STATUS_STYLE[status]||STATUS_STYLE.WAITING}" title="${p.entry_notified?'Entry alert fired':'Entry alert NOT fired yet'}">${STATUS_LABEL[status]}</span>`;
+    // Highlight T1/T2 cells if price has crossed them
+    const t1Cls = p.above_t1 ? 'style="color:var(--yellow);font-weight:700"' : 'style="color:var(--muted)"';
+    const t2Cls = p.above_t2 ? 'style="color:var(--green);font-weight:700"'  : 'style="color:var(--muted)"';
+    const slCls = p.below_sl ? 'style="color:var(--red);font-weight:700"'    : 'style="color:var(--red)"';
+
+    return `<tr>
+      <td>
+        <b>${p.symbol}</b>
+        ${p.index_membership && p.index_membership.length ? `
+          <div style="display:flex;gap:3px;margin-top:4px;flex-wrap:wrap">
+            ${p.index_membership.map(idx => `<span class="tag t-index" style="font-size:8px;padding:1px 4px;line-height:1">${idx}</span>`).join("")}
+          </div>
+        ` : ""}
+      </td>
+      <td>
+        <small style="color:var(--muted)">${p.setup||"—"}</small>
+        <div style="margin-top:2px;">${renderSetupAndExpiryBadges(p)}</div>
+        ${renderSnapshotBadge(p)}
+      </td>
       <td>₹${fmtP(p.entry)} <small style="color:var(--muted)">→</small> <b>₹${fmtP(p.current)}</b></td>
       <td><span ${t1Cls}>₹${fmtP(p.target_1)}</span></td>
       <td><span ${t2Cls}>₹${fmtP(p.target_2)}</span></td>
@@ -6118,7 +6063,7 @@ function renderWatchlist(r) {
     </tr>`;
   }).join("");
   const activeBlock = (r.active_positions||[]).length
-    ? `<div class="sec-head" style="margin-top:18px"><span class="sec-title">▶ Active Positions</span><span class="pill">${r.active_count||0} open</span></div>
+    ? `<div class="sec-head" style="margin-top:18px"><span class="sec-title">▶ Active Portfolio Positions</span><span class="pill">${r.active_count||0} open</span></div>
        <div class="pos-wrap"><table class="pos-table">
          <thead><tr><th>Symbol</th><th>Setup</th><th>Entry → LTP</th><th>T1</th><th>T2</th><th>SL</th><th>P&L</th><th>Held</th><th>Status</th><th style="width:50px; text-align:center">Action</th></tr></thead>
          <tbody>${activeRows}</tbody>
@@ -6145,14 +6090,14 @@ function renderWatchlist(r) {
     </tr>`;
   }).join("");
   const closedBlock = closedRows
-    ? `<div class="sec-head" style="margin-top:18px"><span class="sec-title">▶ Closed Trades</span><span class="pill">${r.closed||0} closed</span></div>
+    ? `<div class="sec-head" style="margin-top:18px"><span class="sec-title">▶ Closed Trades Journal</span><span class="pill">${r.closed||0} closed</span></div>
        <div class="pos-wrap"><table class="pos-table">
          <thead><tr><th>Symbol</th><th>Setup</th><th>Entry → Exit</th><th>P&L</th><th>Held</th><th>Outcome</th></tr></thead>
          <tbody>${closedRows}</tbody>
        </table></div>`
     : "";
 
-  wrap.innerHTML = summary + setups + activeBlock + closedBlock;
+  wrap.innerHTML = summary + setups + watchlistBlock + activeBlock + closedBlock;
 }
 
 /* ── Full render from data object ────────────────────────── */
@@ -6768,10 +6713,38 @@ async function saveQualitativeNotes(symbol, btn) {
 
 async function buyStockDirectly(symbol) {
   try {
+    let payload = { symbol: symbol };
+    
+    // Check if the currently loaded stock in Trading tools matches the symbol to execute
+    if (_selectedTradeStock && _selectedTradeStock.symbol === symbol) {
+      const entryVal = parseFloat(document.getElementById("ps_entry")?.value) || 0;
+      const slVal    = parseFloat(document.getElementById("ps_sl")?.value)    || 0;
+      const tgtVal   = parseFloat(document.getElementById("ps_target")?.value)|| 0;
+      
+      // Extract suggested quantity from the adjusted output element
+      const qtyEl = document.getElementById("ps_out_qty_adj");
+      const qtyVal = qtyEl ? parseInt(qtyEl.textContent.replace(/,/g, "")) : 1;
+      
+      payload = {
+        symbol: symbol,
+        entry_price: entryVal,
+        sl: slVal,
+        target_1: entryVal + (tgtVal - entryVal) / 2,
+        target_2: tgtVal,
+        quantity: qtyVal,
+        setup: _selectedTradeStock.setup || "SWING",
+        setup_grade: _selectedTradeStock.setup_grade || "",
+        setup_score: _selectedTradeStock.setup_score || "",
+        expiry_multiplier: _selectedTradeStock.expiry_info ? _selectedTradeStock.expiry_info.multiplier : 1.0,
+        expiry_reason: _selectedTradeStock.expiry_info ? _selectedTradeStock.expiry_info.reason : ""
+      };
+    }
+
     const resp = await apiFetch("/api/positions/buy", {
       method: "POST",
-      body: JSON.stringify({ symbol })
+      body: JSON.stringify(payload)
     });
+    
     if (resp.status === "ok") {
       toast(`🛍️ ${symbol} bought at ₹${resp.entry_price}!`, "success");
       
@@ -6874,26 +6847,6 @@ async function confirmBuy() {
       toast(`${symbol} added to watchlist`, "success");
     }
     await loadPositions();
-
-    // ── TradingView setup: add to watchlist + show Pine Scripts ──
-    let tvStatus = { ok: false, label: "Not attempted" };
-    try {
-      const tv = await apiFetch("/api/tv/watchlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol: `NSE:${symbol}` }),
-      });
-      if (tv.error) {
-        tvStatus = { ok: false, label: `TV watchlist: ${tv.error}` };
-      } else if (tv.status === "already_in_watchlist") {
-        tvStatus = { ok: true, label: `Already in TradingView watchlist`, info: true };
-      } else {
-        tvStatus = { ok: true, label: `Added to TradingView watchlist ✓` };
-      }
-    } catch (e) {
-      tvStatus = { ok: false, label: `TV watchlist failed: ${e.message}` };
-    }
-    showPineModal(stock, tvStatus);
   } catch(err) {
     toast(`Failed: ${err.message}`, "error");
   } finally {
@@ -6902,125 +6855,9 @@ async function confirmBuy() {
   }
 }
 
-/* ── Pine Script generation + modal ──────────────────────── */
-function generatePineScripts(stock) {
-  const sym = stock.symbol || "STOCK";
-  const entry = +(stock.entry || stock.entry_min || stock.price || 0).toFixed(2);
-  const sl    = +(stock.sl || 0).toFixed(2);
-  const t1    = +(stock.target_1 || 0).toFixed(2);
-  const t2    = +(stock.target_2 || 0).toFixed(2);
-  const tvSym = `NSE:${sym}`;
-
-  const srMarker = `//@version=5
-indicator("S/R Zone — ${sym}", overlay=true)
-
-// Pre-filled from Swing Sentinel scan (${new Date().toISOString().slice(0,10)})
-breakout_price = ${entry}
-sl_price       = ${sl}
-target1        = ${t1}
-target2        = ${t2}
-
-hline(breakout_price, "Entry",  color=color.new(color.lime,   0), linewidth=2)
-hline(sl_price,       "Stop",   color=color.new(color.red,    0), linewidth=2, linestyle=hline.style_dashed)
-hline(target1,        "T1",     color=color.new(color.yellow, 0), linewidth=1, linestyle=hline.style_dotted)
-hline(target2,        "T2",     color=color.new(color.green,  0), linewidth=1, linestyle=hline.style_dotted)
-
-bgcolor(close >= sl_price and close <= breakout_price
-  ? color.new(color.red, 93) : na, title="Risk Zone")
-
-risk_pct = (breakout_price - sl_price) / breakout_price * 100
-rr1      = (target1 - breakout_price) / (breakout_price - sl_price)
-rr2      = (target2 - breakout_price) / (breakout_price - sl_price)
-
-if barstate.islast
-    label.new(bar_index + 2, breakout_price,
-      "ENTRY ₹" + str.tostring(breakout_price, "#.##") + "\\n" +
-      "SL    ₹" + str.tostring(sl_price,       "#.##") + "\\n" +
-      "Risk   "  + str.tostring(risk_pct, "#.1") + "%" + "\\n" +
-      "T1 R:R 1:" + str.tostring(rr1, "#.1") + "\\n" +
-      "T2 R:R 1:" + str.tostring(rr2, "#.1"),
-      style=label.style_label_left, color=color.new(color.lime, 75),
-      textcolor=color.white, size=size.small)`;
-
-  const alerts = `//@version=5
-indicator("Alerts — ${sym}", overlay=true)
-
-// ── 1) BREAKOUT (price > 20-day high + 1.5× avg vol) ──
-baseHigh = ta.highest(high, 20)[1]
-volAvg   = ta.sma(volume, 20)
-breakout = close > baseHigh * 1.005 and volume > 1.5 * volAvg
-alertcondition(breakout, "Breakout ${sym}",
-  "${sym} broke out above base on strong volume — check entry!")
-
-// ── 2) EMA 9/21 GOLDEN CROSS ──
-ema9     = ta.ema(close, 9)
-ema21    = ta.ema(close, 21)
-emaCross = ta.crossover(ema9, ema21)
-alertcondition(emaCross, "9/21 Cross ${sym}",
-  "${sym} EMA 9 crossed above EMA 21 — entry setup forming")
-
-// ── 3) RSI PULLBACK ENTRY ZONE ──
-rsi      = ta.rsi(close, 14)
-ema50    = ta.ema(close, 50)
-pullback = ta.crossover(rsi, 40) and close > ema50
-alertcondition(pullback, "RSI Pullback ${sym}",
-  "${sym} RSI re-entered 40-55 pullback zone above 50 EMA")
-
-// ── 4) TARGET / STOP ALERTS (pre-filled from scan) ──
-t1Hit = ta.crossover(close, ${t1})
-slHit = ta.crossunder(close, ${sl})
-alertcondition(t1Hit, "T1 Hit ${sym}", "${sym} crossed above T1 ₹${t1}")
-alertcondition(slHit, "SL Hit ${sym}", "${sym} broke below stop ₹${sl}")
-
-plot(baseHigh, "20D High", color=color.red,    style=plot.style_linebr)
-plot(ema9,     "EMA9",     color=color.aqua,   linewidth=1)
-plot(ema21,    "EMA21",    color=color.orange, linewidth=2)`;
-
-  return { srMarker, alerts, tvSym };
-}
-
-function showPineModal(stock, tvStatus) {
-  const { srMarker, alerts, tvSym } = generatePineScripts(stock);
-  document.getElementById("pineModalTitle").textContent = `📺 TradingView Setup — ${stock.symbol}`;
-  const statusEl = document.getElementById("pineTVStatus");
-  const cls = tvStatus.ok
-    ? (tvStatus.info ? "pine-status-info" : "pine-status-ok")
-    : "pine-status-err";
-  statusEl.className = cls;
-  statusEl.textContent = tvStatus.label;
-  document.getElementById("pineCodeSR").textContent     = srMarker;
-  document.getElementById("pineCodeAlerts").textContent = alerts;
-  document.getElementById("pineOpenTV").href =
-    `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSym)}`;
-  document.getElementById("pineModal").classList.add("open");
-}
-
-function closePineModal() {
-  document.getElementById("pineModal").classList.remove("open");
-}
-
-async function copyPineCode(blockId, btn) {
-  const txt = document.getElementById(blockId).textContent;
-  try {
-    await navigator.clipboard.writeText(txt);
-    const orig = btn.textContent;
-    btn.classList.add("copied");
-    btn.textContent = "✓ Copied";
-    setTimeout(() => { btn.classList.remove("copied"); btn.textContent = orig; }, 1500);
-  } catch {
-    toast("Copy failed — select & copy manually", "error");
-  }
-}
-
 // Close modals on backdrop click
 document.getElementById("buyModal").addEventListener("click", e => {
   if (e.target === document.getElementById("buyModal")) closeBuyModal();
-});
-document.getElementById("tvModal").addEventListener("click", e => {
-  if (e.target === document.getElementById("tvModal")) closeTVModal();
-});
-document.getElementById("pineModal").addEventListener("click", e => {
-  if (e.target === document.getElementById("pineModal")) closePineModal();
 });
 
 /* ── Add all stocks to positions ─────────────────────────── */
@@ -7041,24 +6878,6 @@ async function addAllToPositions() {
       toast(`Added ${d.added} stocks to watchlist`, "success");
     }
     loadPositions();
-
-    // ── Bulk-push to TradingView watchlist (one symbol at a time, parallel) ──
-    const newStocks = _scannedStocks.filter(s => !(d.skipped_symbols || []).includes(s.symbol));
-    if (newStocks.length) {
-      let tvAdded = 0, tvFailed = 0;
-      await Promise.all(newStocks.map(async s => {
-        try {
-          const tv = await apiFetch("/api/tv/watchlist", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ symbol: `NSE:${s.symbol}` }),
-          });
-          if (tv.error) tvFailed++; else tvAdded++;
-        } catch { tvFailed++; }
-      }));
-      if (tvAdded) toast(`📺 ${tvAdded} added to TradingView watchlist${tvFailed ? ` · ${tvFailed} failed` : ""}`, "success", 4000);
-      else if (tvFailed) toast(`📺 TV watchlist add failed for ${tvFailed} stocks (TV_SESSION?)`, "error", 5000);
-    }
   } catch(err) {
     toast(`Failed: ${err.message}`, "error");
   } finally {
@@ -7091,180 +6910,6 @@ async function loadFOBan() {
     const d = await apiFetch("/api/fo-ban");
     renderFOBan(d);
   } catch { /* silent */ }
-}
-
-/* ── TradingView ─────────────────────────────────────────── */
-
-/* 1. Add to TV Watchlist (stock card button) */
-async function tvAddToWatchlist(symbol, btn) {
-  if (!BASE) { toast("Start the server first", "error"); return; }
-  btn.disabled = true;
-  btn.textContent = "…";
-  try {
-    const d = await apiFetch("/api/tv/watchlist", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol }),
-    });
-    if (d.error) {
-      toast(`TV: ${d.error}`, "error");
-      btn.textContent = "📺 TV";
-    } else if (d.status === "already_in_watchlist") {
-      toast(`${symbol} already in TV watchlist`, "info", 2500);
-      btn.textContent = "✓ TV";
-    } else {
-      toast(`${symbol} added to TradingView watchlist`, "success", 3000);
-      btn.textContent = "✓ TV";
-    }
-  } catch (e) {
-    toast(`TV error: ${e.message}`, "error");
-    btn.textContent = "📺 TV";
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-/* 2. TV Alerts panel */
-async function loadTVAlerts() {
-  if (!BASE) return;
-  const btn = document.getElementById("tvAlertsRefreshBtn");
-  if (btn) btn.classList.add("loading");
-  try {
-    const d = await apiFetch("/api/tv/alerts");
-    renderTVAlerts(d);
-  } catch (e) {
-    document.getElementById("tvAlertsWrap").innerHTML =
-      `<div style="padding:16px;text-align:center;color:var(--red);font-size:13px">Error: ${e.message}</div>`;
-  } finally {
-    if (btn) btn.classList.remove("loading");
-  }
-}
-
-function renderTVAlerts(data) {
-  const wrap = document.getElementById("tvAlertsWrap");
-  const pill = document.getElementById("tvAlertPill");
-  if (data.error) {
-    wrap.innerHTML = `<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">${data.error}</div>`;
-    if (pill) pill.textContent = "—";
-    return;
-  }
-  // TV returns {alerts: [...]} or [{...}, ...]
-  const alerts = Array.isArray(data) ? data : (data.alerts || data.data || []);
-  if (pill) pill.textContent = `${alerts.length} alert${alerts.length !== 1 ? "s" : ""}`;
-  if (!alerts.length) {
-    wrap.innerHTML = `<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">No active alerts on TradingView</div>`;
-    return;
-  }
-  wrap.innerHTML = `<div class="tv-alert-list">${alerts.map(a => {
-    const sym  = a.symbol || a.name || a.ticker || "—";
-    const desc = a.message || a.description || a.name || "";
-    const id   = a.id || a.alert_id || "";
-    return `<div class="tv-alert-item">
-      <span class="tv-alert-sym">${sym}</span>
-      <span class="tv-alert-desc" title="${desc}">${desc || "—"}</span>
-      ${id ? `<button class="tv-del-btn" onclick="tvDeleteAlert(${id},this)">✕ Delete</button>` : ""}
-    </div>`;
-  }).join("")}</div>`;
-}
-
-async function tvDeleteAlert(id, btn) {
-  btn.disabled = true;
-  btn.textContent = "…";
-  try {
-    const d = await apiFetch(`/api/tv/alert/${id}`, { method: "DELETE" });
-    if (d.error) { toast(`TV: ${d.error}`, "error"); btn.disabled = false; btn.textContent = "✕ Delete"; return; }
-    toast("Alert deleted", "success", 2000);
-    btn.closest(".tv-alert-item").remove();
-    // Update count pill
-    const remaining = document.querySelectorAll(".tv-alert-item").length;
-    const pill = document.getElementById("tvAlertPill");
-    if (pill) pill.textContent = `${remaining} alert${remaining !== 1 ? "s" : ""}`;
-  } catch (e) {
-    toast(`TV error: ${e.message}`, "error");
-    btn.disabled = false;
-    btn.textContent = "✕ Delete";
-  }
-}
-
-/* 3. TV Screener modal */
-function openTVModal() {
-  document.getElementById("tvModal").classList.add("open");
-  document.getElementById("tvScreenerResults").classList.remove("show");
-  document.getElementById("tvScreenerResults").innerHTML = "";
-}
-
-function closeTVModal() {
-  document.getElementById("tvModal").classList.remove("open");
-}
-
-async function runTVScreener() {
-  const btn = document.getElementById("tvScanBtn");
-  btn.disabled = true;
-  btn.textContent = "Scanning…";
-  const resDiv = document.getElementById("tvScreenerResults");
-  resDiv.classList.remove("show");
-
-  const market = document.getElementById("tvMarket").value;
-  const limit  = parseInt(document.getElementById("tvLimit").value) || 50;
-  const conds  = [];
-  if (document.getElementById("tvc_rsi").checked) {
-    const rMin = parseFloat(document.getElementById("tvc_rsi_min").value) || 40;
-    const rMax = parseFloat(document.getElementById("tvc_rsi_max").value) || 70;
-    conds.push({ indicator: "RSI", op: "between", value: [rMin, rMax] });
-  }
-  if (document.getElementById("tvc_ema").checked)
-    conds.push({ indicator: "close", op: "above", value: "EMA20" });
-  if (document.getElementById("tvc_ema_align").checked)
-    conds.push({ indicator: "EMA20", op: "above", value: "EMA50" });
-  if (document.getElementById("tvc_vol").checked)
-    conds.push({ indicator: "volume", op: "above", value: 1000000 });
-  if (document.getElementById("tvc_positive_day").checked)
-    conds.push({ indicator: "change", op: "above", value: 0 });
-
-  try {
-    const d = await apiFetch("/api/tv/screener", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ market, conditions: conds, limit }),
-    });
-    if (d.error) { toast(`TV Screener: ${d.error}`, "error"); return; }
-    renderTVScreenerResults(d, resDiv);
-  } catch (e) {
-    toast(`TV Screener error: ${e.message}`, "error");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "📺 Run Screener";
-  }
-}
-
-function renderTVScreenerResults(data, container) {
-  const results = data.results || [];
-  container.classList.add("show");
-  if (!results.length) {
-    container.innerHTML = `<div style="color:var(--muted);font-size:13px;text-align:center;padding:12px">No results matched</div>`;
-    return;
-  }
-  container.innerHTML = `
-    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
-      ${data.total || results.length} matches from TradingView
-    </div>
-    <table class="tv-result-table">
-      <thead><tr>
-        <th>Symbol</th><th>Price</th><th>Chg%</th><th>RSI</th><th>EMA20</th><th>Vol</th>
-      </tr></thead>
-      <tbody>${results.map(r => {
-        const chg = r.change || 0;
-        const cls = chg >= 0 ? "up" : "down";
-        return `<tr>
-          <td><b>${r.symbol || ""}</b><span class="tv-badge">TV</span><br><span style="font-size:10px;color:var(--muted)">${(r.description||"").substring(0,20)}</span></td>
-          <td>${r.close ? fmt(r.close, 2) : "—"}</td>
-          <td class="${cls}">${chg >= 0 ? "▲" : "▼"} ${Math.abs(chg).toFixed(2)}%</td>
-          <td>${r.RSI ? (+r.RSI).toFixed(0) : "—"}</td>
-          <td>${r.EMA20 ? fmt(+r.EMA20, 0) : "—"}</td>
-          <td style="color:var(--muted)">${r.volume ? fmtVol(r.volume) : "—"}</td>
-        </tr>`;
-      }).join("")}</tbody>
-    </table>`;
 }
 
 /* ── Sector Pulse ────────────────────────────────────────── */
@@ -7370,7 +7015,6 @@ async function init() {
     loadMarket();
     loadGlobal();
     loadFOBan();
-    loadTVAlerts();
     loadSectors();
     loadPositions();
     checkKiteStatus();
@@ -7820,9 +7464,8 @@ const CHECKLIST_ITEMS = {
     "Look for 9 EMA crossing above 21 EMA on daily chart",
     "Note stocks with RSI 40–55 in uptrends (continuation setups)",
     "Mark exact breakout level and stop-loss zone on each chart",
-    "Set price alerts on TradingView / broker app",
+    "Set price alerts on broker app",
     "Shortlist 3–5 candidates max — don't overload watchlist",
-    "Add shortlisted stocks to TradingView watchlist",
   ],
   premarket: [
     "Check GIFT Nifty direction (live from 6:30 AM)",
@@ -7832,7 +7475,6 @@ const CHECKLIST_ITEMS = {
     "Note major news: RBI, budget, geopolitical events",
     "Determine market bias: bullish / bearish / neutral",
     "Re-check watchlist — still aligned with market direction?",
-    "Review TradingView alerts — remove stale ones before market opens",
   ],
   chart: [
     "Check weekly chart first — confirm key S/R zones",
@@ -7921,7 +7563,7 @@ function switchTab(tabId) {
   // Trigger tab-specific refresh
   if (tabId === "analysis")   { renderBiasBuilder(); renderChartAnalysis(); renderCAChecklist(); renderStockValidation(); }
   if (tabId === "trading")    { renderEntryGates(); renderEntryChecklist(); renderStockSelector(); recalcPosSize(); recalcTrail(); }
-  if (tabId === "portfolio")  { renderReviewMetrics(); renderJournalList(); }
+  if (tabId === "portfolio")  { loadPositions(); renderReviewMetrics(); renderJournalList(); }
   if (tabId === "analytics")  { loadPositions(); }
   // Scroll to top of tab
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -8026,86 +7668,100 @@ function renderChartAnalysis() {
     return;
   }
 
-  list.innerHTML = `<div class="ca-list">${stocks.map((s, i) => {
+  /* ── Helper: compute grading factors client-side or use API breakdown ── */
+  function getGradeBreakdown(s) {
+    // If API sent grading_breakdown, use it directly
+    if (s.grading_breakdown && Object.keys(s.grading_breakdown).length) {
+      return s.grading_breakdown;
+    }
+    // Fallback: replicate grade_setup() logic from expiry_grading.py
+    const price = parseFloat(s.price || 0);
+    const ema20 = parseFloat(s.ema20 || 0);
+    const ema50 = parseFloat(s.ema50 || 0);
+    const bd = {};
+
+    // 1. Trend alignment
+    let bits = 0;
+    if (price && ema20 && price > ema20) bits++;
+    if (ema20 && ema50 && ema20 > ema50) bits++;
+    if ((s.weekly_trend || "").toUpperCase() === "BULLISH") bits++;
+    bd.trend = bits === 3 ? 1.0 : bits === 2 ? 0.5 : 0.0;
+
+    // 2. Clean structure
+    const setup = (s.setup || "").toUpperCase();
+    const structured = ["BREAKOUT", "PULLBACK", "SUPPORT_BOUNCE"].includes(setup);
+    const baseOk = ["STABLE_BASE", "CONSOLIDATING"].includes(s.base_status);
+    const boRiskLow = (s.false_breakout_risk || "LOW") === "LOW";
+    const clean = baseOk && boRiskLow;
+    bd.structure = (structured && clean) ? 1.0 : (structured || clean) ? 0.5 : 0.0;
+
+    // 3. Volume
+    const vr = parseFloat(s.vol_ratio || 1.0);
+    bd.volume = vr >= 1.5 ? 1.0 : vr >= 1.0 ? 0.5 : 0.0;
+
+    // 4. Landmines
+    let lm = 1.0;
+    if (parseFloat(s.return_20d || 0) > 25.0) lm -= 0.5;
+    if (parseFloat(s.adx || 0) < 20.0) lm -= 0.5;
+    bd.landmines = Math.max(0.0, lm);
+
+    return bd;
+  }
+
+  function scoreClass(v) { return v >= 1.0 ? "full" : v >= 0.5 ? "half" : "zero"; }
+  function scoreLabel(v) { return v >= 1.0 ? "1.0" : v >= 0.5 ? "0.5" : "0.0"; }
+
+  list.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:14px;">${stocks.map((s, i) => {
     const chgCls = (s.change_pct || 0) >= 0 ? "up" : "down";
-    return `<div class="ca-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-      <div style="display: flex; align-items: center; gap: 16px;">
-        <div style="min-width: 90px;">
-          <div class="ca-sym">${s.symbol}</div>
-          <div class="ca-name">${s.name || s.symbol}</div>
+    const bd = getGradeBreakdown(s);
+    const score = Object.values(bd).reduce((a, b) => a + b, 0);
+    const grade = s.setup_grade || (score >= 5.0 ? "A" : score >= 3.5 ? "B" : "C");
+    const gradeCls = grade === "A" ? "a" : grade === "B" ? "b" : "c";
+
+    // Raw values for detail lines
+    const price = parseFloat(s.price || 0);
+    const ema20 = parseFloat(s.ema20 || 0);
+    const ema50 = parseFloat(s.ema50 || 0);
+    const vr = parseFloat(s.vol_ratio || 1);
+    const ret20 = parseFloat(s.return_20d || 0);
+    const adxVal = parseFloat(s.adx || 0);
+
+    return `<div class="grade-card">
+      <div class="grade-card-head">
+        <div class="gc-left">
+          <div>
+            <div class="gc-sym">${s.symbol}</div>
+            <div class="gc-name">${s.name || s.symbol}</div>
+          </div>
         </div>
-        <div class="ca-meta">
-          <span><b>₹${fmtP(s.price)}</b> <span class="${chgCls}">${(s.change_pct||0)>=0?"▲":"▼"} ${Math.abs(s.change_pct||0).toFixed(2)}%</span></span>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="text-align:right">
+            <div class="gc-price">₹${fmtP(s.price)}</div>
+            <div class="gc-chg ${chgCls}">${(s.change_pct||0)>=0?"▲":"▼"} ${Math.abs(s.change_pct||0).toFixed(2)}%</div>
+          </div>
+          <div class="grade-badge ${gradeCls}" title="Setup Quality Score: ${score.toFixed(1)} / 6.0">Grade ${grade} <span style="font-weight:400;opacity:.7">${score.toFixed(1)}/6</span></div>
         </div>
       </div>
-      <div class="ca-actions">
-        <button class="ca-btn pine" onclick="caShowPineAndTV(${i}, this)" style="padding:4px 10px; font-size:11px">Pine + TV</button>
+      <div class="grade-factors">
+        <div class="grade-factor">
+          <div class="gf-header"><span class="gf-label">① Trend</span><span class="gf-score ${scoreClass(bd.trend)}">${scoreLabel(bd.trend)}</span></div>
+          <div class="gf-detail">P <b>${price > ema20 ? ">": "<"} EMA20</b> · EMA20 ${ema20 > ema50 ? ">":"<"} EMA50 · Wk: <b>${s.weekly_trend || "—"}</b></div>
+        </div>
+        <div class="grade-factor">
+          <div class="gf-header"><span class="gf-label">② Structure</span><span class="gf-score ${scoreClass(bd.structure)}">${scoreLabel(bd.structure)}</span></div>
+          <div class="gf-detail">Setup: <b>${s.setup || "—"}</b> · Base: <b>${s.base_status || "—"}</b> · BO Risk: <b>${s.false_breakout_risk || "—"}</b></div>
+        </div>
+        <div class="grade-factor">
+          <div class="gf-header"><span class="gf-label">③ Volume</span><span class="gf-score ${scoreClass(bd.volume)}">${scoreLabel(bd.volume)}</span></div>
+          <div class="gf-detail">Vol Ratio: <b>${vr.toFixed(2)}x</b> ${vr >= 1.5 ? "(strong ≥1.5)" : vr >= 1.0 ? "(ok ≥1.0)" : "(weak <1.0)"}</div>
+        </div>
+        <div class="grade-factor">
+          <div class="gf-header"><span class="gf-label">④ Landmines</span><span class="gf-score ${scoreClass(bd.landmines)}">${scoreLabel(bd.landmines)}</span></div>
+          <div class="gf-detail">20d Ret: <b>${ret20.toFixed(1)}%</b>${ret20 > 25 ? " ⚠️":""} · ADX: <b>${adxVal.toFixed(1)}</b>${adxVal < 20 ? " ⚠️":""}</div>
+        </div>
       </div>
     </div>`;
   }).join("")}</div>`;
-}
-
-async function caShowPine(idx) {
-  const s = _scannedStocks[idx];
-  if (!s) return;
-  showPineModal({ ...s, entry: s.entry_min || s.price }, { ok: true, info: true, label: "Pine ready — copy into TV Pine editor" });
-}
-
-/* Merged action: add to TV watchlist + open Pine modal in a single click */
-async function caShowPineAndTV(idx, btn) {
-  const s = _scannedStocks[idx];
-  if (!s) return;
-  const originalLabel = btn ? btn.textContent : "";
-  if (btn) { btn.disabled = true; btn.textContent = "…"; }
-
-  let tvStatus = { ok: false, label: "Not attempted" };
-  if (BASE) {
-    try {
-      const tv = await apiFetch("/api/tv/watchlist", {
-        method: "POST",
-        body: JSON.stringify({ symbol: `NSE:${s.symbol}` }),
-      });
-      if (tv.error) {
-        tvStatus = { ok: false, label: `TV watchlist: ${tv.error}` };
-      } else if (tv.status === "already_in_watchlist") {
-        tvStatus = { ok: true, info: true, label: "Already in TradingView watchlist" };
-      } else {
-        tvStatus = { ok: true, label: "Added to TradingView watchlist ✓" };
-      }
-    } catch (e) {
-      tvStatus = { ok: false, label: `TV watchlist failed: ${e.message}` };
-    }
-  }
-
-  showPineModal({ ...s, entry: s.entry_min || s.price }, tvStatus);
-
-  if (btn) {
-    btn.disabled = false;
-    btn.textContent = tvStatus.ok ? "✓ Done" : originalLabel;
-  }
-}
-
-async function caPushAll() {
-  if (!BASE || !_scannedStocks.length) {
-    toast("No scanned stocks. Run Scan Now first.", "error");
-    return;
-  }
-  const btn = document.getElementById("caPushAllBtn");
-  btn.disabled = true;
-  btn.textContent = "…";
-  let added = 0, failed = 0;
-  await Promise.all(_scannedStocks.map(async s => {
-    try {
-      const tv = await apiFetch("/api/tv/watchlist", {
-        method: "POST",
-        body: JSON.stringify({ symbol: `NSE:${s.symbol}` }),
-      });
-      if (tv.error) failed++; else added++;
-    } catch { failed++; }
-  }));
-  toast(`📺 ${added} added · ${failed} failed`, added ? "success" : "error", 4500);
-  btn.disabled = false;
-  btn.textContent = "📺 Add All to TV Watchlist";
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -8137,17 +7793,51 @@ function recalcPosSize() {
   }
 
   const deployed = qty * entry;
+
+  // Setup & Expiry Multiplier logic
+  let mult = 1.0;
+  let isExpiryReduced = false;
+  let expiryReason = "";
+  if (_selectedTradeStock) {
+    const s = _selectedTradeStock;
+    if (s.expiry_info && s.expiry_info.in_window && s.expiry_info.multiplier !== undefined) {
+      mult = s.expiry_info.multiplier;
+      expiryReason = s.expiry_info.reason || "";
+      if (mult < 1.0) {
+        isExpiryReduced = true;
+      }
+    } else if (s.expiry_multiplier !== undefined) {
+      mult = parseFloat(s.expiry_multiplier);
+      expiryReason = s.expiry_reason || "";
+      if (mult < 1.0) {
+        isExpiryReduced = true;
+      }
+    }
+  }
+
+  // Calculate Adjusted Suggested Quantity
+  let qtyAdj = Math.floor(qty * mult);
+  let isCappedAdj = false;
+  if (entry > 0) {
+    const maxQtyByAlloc = Math.floor(maxAlloc / entry);
+    if (qtyAdj > maxQtyByAlloc) {
+      qtyAdj = maxQtyByAlloc;
+      isCappedAdj = true;
+    }
+  }
+  const deployedAdj = qtyAdj * entry;
+
   const rr       = riskPerShr > 0 ? (tgt - entry) / riskPerShr : 0;
   const chasePct = sl > 0 ? ((entry - sl) / entry * 100) : 0;
 
-  // Blended Targets and returns
+  // Blended Targets and returns (based on suggested adjusted quantity for realistic profit projection)
   const t1 = entry > 0 && tgt > entry ? entry + (tgt - entry) / 2 : 0;
-  const qtyT1 = Math.floor(qty / 2);
-  const qtyT2 = qty - qtyT1;
+  const qtyT1 = Math.floor(qtyAdj / 2);
+  const qtyT2 = qtyAdj - qtyT1;
   const t1Profit = t1 > entry ? (t1 - entry) * qtyT1 : 0;
   const t2Profit = tgt > entry ? (tgt - entry) * qtyT2 : 0;
   const totalBlendedProfit = t1Profit + t2Profit;
-  const blendedRisk = riskPerShr * qty;
+  const blendedRisk = riskPerShr * qtyAdj;
   const blendedRR = blendedRisk > 0 ? totalBlendedProfit / blendedRisk : 0;
 
   const rrCls    = rr >= 2 ? "up" : rr >= 1.5 ? "neutral" : "down";
@@ -8156,8 +7846,14 @@ function recalcPosSize() {
 
   document.getElementById("ps_out_risk").textContent      = `₹${fmt(risk,0)}`;
   document.getElementById("ps_out_per_share").textContent = `₹${fmt(riskPerShr,2)}`;
+  
+  // Base Sizing
   document.getElementById("ps_out_qty").textContent       = qty.toLocaleString("en-IN");
   document.getElementById("ps_out_deployed").textContent  = `₹${fmt(deployed,0)}`;
+
+  // Adjusted Sizing
+  document.getElementById("ps_out_qty_adj").textContent   = qtyAdj.toLocaleString("en-IN");
+  document.getElementById("ps_out_deployed_adj").textContent = `₹${fmt(deployedAdj,0)}`;
   
   const rrEl    = document.getElementById("ps_out_rr");
   rrEl.textContent = rr > 0 ? `1:${rr.toFixed(2)}` : "—";
@@ -8175,14 +7871,85 @@ function recalcPosSize() {
   blendedRrEl.textContent = blendedRR > 0 ? `1:${blendedRR.toFixed(2)}` : "—";
   blendedRrEl.className = `val ${blendedRrCls}`;
 
-  // Warning badge
+  // Sizing Confluence Diagnostics Banner (Always Visible)
   const warningContainer = document.getElementById("ps_warning_container");
   if (warningContainer) {
-    if (isCapped && maxAlloc > 0) {
-      warningContainer.innerHTML = `<div class="alloc-warning">⚠️ Capped at 20% Allocation limit (₹${fmt(maxAlloc,0)})</div>`;
-    } else {
-      warningContainer.innerHTML = "";
+    let html = "";
+    
+    // 1. Setup Quality Grade Factor
+    let setupGradeVal = "—";
+    let setupGradeScore = "";
+    let setupGradeStyle = "background:rgba(255,255,255,0.03); color:var(--muted); border:1px solid var(--border);";
+    
+    if (_selectedTradeStock) {
+      const g = _selectedTradeStock.setup_grade || "C";
+      const sc = _selectedTradeStock.setup_score !== undefined && _selectedTradeStock.setup_score !== null ? _selectedTradeStock.setup_score : "0.0";
+      setupGradeVal = g;
+      setupGradeScore = ` (${sc}/6.0)`;
+      if (g === "A") {
+        setupGradeStyle = "background:rgba(16,185,129,0.08); color:var(--green); border:1px solid rgba(16,185,129,0.25); font-weight:700;";
+      } else if (g === "B") {
+        setupGradeStyle = "background:rgba(245,158,11,0.08); color:var(--yellow); border:1px solid rgba(245,158,11,0.25); font-weight:700;";
+      } else {
+        setupGradeStyle = "background:rgba(156,163,175,0.08); color:var(--muted); border:1px solid rgba(156,163,175,0.25); font-weight:700;";
+      }
     }
+    
+    // 2. F&O Expiry Sizing Factor
+    let expiryValText = "1.0x (Default)";
+    let expiryValStyle = "background:rgba(255,255,255,0.03); color:var(--muted); border:1px solid var(--border);";
+    let expiryValTitle = "No expiry sizing constraint applied.";
+    
+    if (_selectedTradeStock) {
+      expiryValTitle = expiryReason || "Normal sizing applied.";
+      if (mult === 0.0) {
+        expiryValText = "0.0x (Hard Skip)";
+        expiryValStyle = "background:rgba(239,68,68,0.08); color:var(--red); border:1px solid rgba(239,68,68,0.25); font-weight:700;";
+      } else if (mult < 1.0) {
+        expiryValText = `⚠️ ${mult}x (Reduced)`;
+        expiryValStyle = "background:rgba(245,158,11,0.08); color:var(--yellow); border:1px solid rgba(245,158,11,0.25); font-weight:700;";
+      } else {
+        const isFO = expiryReason.toLowerCase().includes("expiry") || expiryReason.toLowerCase().includes("normal");
+        expiryValText = isFO ? "1.0x (Normal)" : "1.0x (Cash stock)";
+        expiryValStyle = "background:rgba(16,185,129,0.08); color:var(--green); border:1px solid rgba(16,185,129,0.25); font-weight:700;";
+      }
+    }
+    
+    // 3. Capital Allocation limit check
+    let allocText = "Normal Risk Allocation";
+    let allocStyle = "background:rgba(16,185,129,0.08); color:var(--green); border:1px solid rgba(16,185,129,0.25); font-weight:700;";
+    if (isCapped) {
+      allocText = `⚠️ Capped allocation (20% cap)`;
+      allocStyle = "background:rgba(245,158,11,0.08); color:var(--yellow); border:1px solid rgba(245,158,11,0.25); font-weight:700;";
+    }
+    
+    html += `
+      <div style="display:flex; flex-direction:column; gap:8px; width:100%; margin-top:16px; padding:12px; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; width: 100%;">
+        <div style="font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.8px;">Sizing &amp; Allocation Factor Diagnostics:</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:stretch; width: 100%;">
+          <div style="flex:1; min-width:140px; padding:8px; border-radius:4px; text-align:center; font-size:11px; ${setupGradeStyle}">
+            <b>Setup Quality:</b> Grade ${setupGradeVal}${setupGradeScore}
+          </div>
+          <div style="flex:1; min-width:140px; padding:8px; border-radius:4px; text-align:center; font-size:11px; ${expiryValStyle}" title="${expiryValTitle}">
+            <b>Expiry Sizing:</b> ${expiryValText}
+          </div>
+          <div style="flex:1.2; min-width:165px; padding:8px; border-radius:4px; text-align:center; font-size:11px; ${allocStyle}">
+            ${allocText}
+          </div>
+        </div>
+        ${isExpiryReduced ? `
+          <div style="font-size:11px; color:var(--yellow); background:rgba(245,158,11,0.04); border:1px solid rgba(245,158,11,0.15); padding:6px 10px; border-radius:4px; font-style:italic; text-align:center; margin-top:4px;">
+            ⚠️ Expiry size reduction of <b>${Math.round((1.0 - mult) * 100)}%</b> applied: ${expiryReason}
+          </div>
+        ` : ""}
+        ${(isCapped && maxAlloc > 0) ? `
+          <div style="font-size:11px; color:var(--yellow); background:rgba(245,158,11,0.04); border:1px solid rgba(245,158,11,0.15); padding:6px 10px; border-radius:4px; font-style:italic; text-align:center; margin-top:2px;">
+            ⚠️ Capital deployment exceeded 20% limit. Base allocation capped at <b>₹${fmt(maxAlloc,0)}</b>.
+          </div>
+        ` : ""}
+      </div>
+    `;
+    warningContainer.innerHTML = html;
   }
 
   // Auto-update the entry checklist
@@ -8249,6 +8016,42 @@ function renderPlanCard(p) {
   const chgCls = (p.change_pct || 0) >= 0 ? "up" : "down";
   const chgArr = (p.change_pct || 0) >= 0 ? "▲" : "▼";
   document.getElementById("rm_setup").textContent     = (p.setup || "—").replace(/_/g, " ");
+
+  // Setup Grade Badge
+  const gradeCard = document.getElementById("rm_setup_grade_card");
+  const gradeVal = document.getElementById("rm_setup_grade");
+  if (gradeCard && gradeVal) {
+    if (p.setup_grade) {
+      const gradeStyle = p.setup_grade === "A"
+        ? "background:rgba(16,185,129,0.12); color:var(--green); border:1px solid rgba(16,185,129,0.3); font-weight:800; border-radius:4px; padding:2px 6px; font-size: 13.5px;"
+        : p.setup_grade === "B"
+        ? "background:rgba(245,158,11,0.12); color:var(--yellow); border:1px solid rgba(245,158,11,0.3); font-weight:800; border-radius:4px; padding:2px 6px; font-size: 13.5px;"
+        : "background:rgba(156,163,175,0.12); color:var(--muted); border:1px solid rgba(156,163,175,0.3); font-weight:800; border-radius:4px; padding:2px 6px; font-size: 13.5px;";
+      gradeVal.innerHTML = `<span style="${gradeStyle}">Grade ${p.setup_grade} (${p.setup_score || 0})</span>`;
+      gradeCard.style.display = "";
+    } else {
+      gradeCard.style.display = "none";
+    }
+  }
+
+  // Expiry Sizing Badge
+  const expiryCard = document.getElementById("rm_expiry_multiplier_card");
+  const expiryVal = document.getElementById("rm_expiry_multiplier");
+  if (expiryCard && expiryVal) {
+    const mult = p.expiry_info ? p.expiry_info.multiplier : (p.expiry_multiplier !== undefined ? p.expiry_multiplier : 1.0);
+    const reason = p.expiry_info ? p.expiry_info.reason : (p.expiry_reason || "");
+    const inWindow = p.expiry_info ? p.expiry_info.in_window : (mult < 1.0);
+    
+    if (inWindow && mult < 1.0) {
+      const expStyle = mult === 0.0
+        ? "background:rgba(239,68,68,0.12); color:var(--red); border:1px solid rgba(239,68,68,0.3); font-weight:800; border-radius:4px; padding:2px 6px; font-size: 13.5px;"
+        : "background:rgba(245,158,11,0.12); color:var(--yellow); border:1px solid rgba(245,158,11,0.3); font-weight:800; border-radius:4px; padding:2px 6px; font-size: 13.5px;";
+      expiryVal.innerHTML = `<span style="${expStyle}" title="${reason}">⚠️ ${mult}x size</span>`;
+      expiryCard.style.display = "";
+    } else {
+      expiryCard.style.display = "none";
+    }
+  }
   document.getElementById("rm_price").innerHTML       = `₹${fmtP(p.price)} <span class="${chgCls}" style="font-size:11px">${chgArr}${Math.abs(p.change_pct||0).toFixed(2)}%</span>`;
   document.getElementById("rm_entry_zone").textContent = `₹${fmtP(p.entry_min)} – ₹${fmtP(p.entry_max)}`;
   document.getElementById("rm_sl").textContent        = `₹${fmtP(p.sl)}`;
@@ -8259,42 +8062,10 @@ function renderPlanCard(p) {
   const atrTxt = p.atr ? `₹${fmt(p.atr,2)}` : (p.atr_pct ? `${(+p.atr_pct).toFixed(2)}%` : "—");
   document.getElementById("rm_atr_val").textContent   = atrTxt;
 
-  // Render automated technical indicators and gauges dynamically
-  const v = getStockValidation(p);
+  // Render Buy Position button directly
   const gaugesEl = document.getElementById("rm_technical_gauges");
   if (gaugesEl) {
     gaugesEl.innerHTML = `
-      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;font-weight:700">Automated Technical Health:</div>
-      <!-- Row 1: Weekly Trend & False Breakout Risk Pills -->
-      <div style="display:flex;gap:8px;align-items:center;justify-content:space-between">
-        <!-- Weekly Trend -->
-        <div class="ca-gauge-pill ${v.weeklyTrendClass}" style="flex:1;text-align:center;padding:6px;border-radius:6px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid ${v.weeklyTrendColor};background:${v.weeklyTrendBg};color:${v.weeklyTrendColor}">
-          ${v.weeklyTrendIcon} Weekly Trend: ${v.weeklyTrendVal}
-        </div>
-        <!-- False Breakout Risk -->
-        <div class="ca-gauge-pill ${v.fbClass}" style="flex:1;text-align:center;padding:6px;border-radius:6px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid ${v.fbColor};background:${v.fbBg};color:${v.fbColor}">
-          ${v.fbIcon} Breakout: ${v.fbVal}
-        </div>
-      </div>
-
-      <!-- False Breakout Danger Banner if HIGH RISK -->
-      ${v.fbRisk === "HIGH" ? `
-        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:8px 10px;font-size:10.5px;color:#FCA5A5;font-style:italic;line-height:1.4">
-          ⚠ ${v.fbDesc}
-        </div>
-      ` : ""}
-
-      <!-- Row 2: Consolidation Pattern Base Meter -->
-      <div style="display:flex;flex-direction:column;gap:4px">
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
-          <span style="color:var(--muted)">Consolidation Base:</span>
-          <span style="font-weight:700;color:${v.baseColor}">${v.baseDays} Days (${v.baseLabel})</span>
-        </div>
-        <div class="ca-meter-bar-container" style="height:6px;width:100%;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden">
-          <div class="ca-meter-bar-fill" style="height:100%;width:${v.baseBarPct}%;background:${v.baseColor};border-radius:3px;transition:width 0.4s ease"></div>
-        </div>
-      </div>
-      
       <div style="display:flex;justify-content:flex-end;margin-top:8px">
         <button class="ca-btn" onclick="buyStockDirectly('${p.symbol}')" style="font-size:12px;padding:6px 16px;background:var(--green);color:#08090c;border:none;border-radius:6px;font-weight:700;cursor:pointer;box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3)">🛍️ Buy Position</button>
       </div>
@@ -8516,7 +8287,7 @@ function updateCAChecklistPill() {
 
 /* ══════════════════════════════════════════════════════════
    CHART ANALYSIS — Per-Stock Validation Matrix
-   Runs 8 checks per stock from scan data
+   Runs 8-point scorecard checks per stock from scan data
    ══════════════════════════════════════════════════════════ */
 
 function _caCheck(pass, warn) {
@@ -8530,97 +8301,126 @@ function getStockValidation(s) {
   const vol = parseFloat(s.vol_ratio) || 0;
   const chg = parseFloat(s.change_pct) || 0;
   const ema9x21 = s.ema9_cross_ema21 || "";
+  const setup = s.setup || "unknown";
+  const hasPattern = setup !== "unknown" && setup !== "";
 
-  // ca1: Weekly Trend resampled Weekly EMA30 (previously Daily EMA200 proxy)
+  // 1. Daily trend direction — EMA20 > EMA50 alignment
+  const emaAligned = s.ema_aligned !== false; // from scan filter
+  const ca1 = { label: "Daily trend (20 > 50 EMA)", ..._caCheck(emaAligned, false),
+    val: emaAligned ? "Aligned ✓" : "Misaligned ✗" };
+
+  // 2. Daily pattern base duration
+  const baseDays = parseInt(s.base_days) || 0;
+  const ca2 = { label: "Consolidation base duration", ..._caCheck(baseDays >= 20, baseDays >= 5),
+    val: baseDays > 0 ? `${baseDays} days` : "No base" };
+
+  // 3. Volatility contraction (VCP) — proxy: ATR% < 3.5 = tight base
+  const atrRaw = s.atr_pct;
+  const hasAtr = atrRaw !== undefined && atrRaw !== null && parseFloat(atrRaw) > 0;
+  const atrPct = hasAtr ? parseFloat(atrRaw) : 0;
+  const ca3 = hasAtr
+    ? { label: "Volatility contracting (VCP)", ..._caCheck(atrPct < 3.5, atrPct < 5),
+        val: `ATR ${atrPct.toFixed(1)}%` }
+    : { label: "Volatility contracting (VCP)", cls: "na", icon: "?",
+        val: "N/A" };
+
+  // 4. Institutional Accumulation (FII/DII Net Buying)
+  let instOk = false;
+  let instWarn = false;
+  let instVal = "No Data";
+  if (s.shareholding && s.shareholding.status === "success") {
+    const sh = s.shareholding;
+    const cls = sh.classification || "NEUTRAL";
+    const score = sh.consensus_score !== undefined ? sh.consensus_score : 0.0;
+    if (cls === "ACCUMULATION" || score >= 3.0) {
+      instOk = true;
+      instVal = `Accumulation (+${score})`;
+    } else if (cls === "DISTRIBUTION" || score <= -3.0) {
+      instOk = false;
+      instVal = `Distribution (${score})`;
+    } else {
+      instWarn = true;
+      instVal = `Neutral (${score >= 0 ? "+" : ""}${score})`;
+    }
+  }
+  const ca4 = { label: "Institutional Accumulation", ..._caCheck(instOk && !instWarn, instWarn), val: instVal };
+
+  // 5. Sector strength — pct from EMA20 check
+  const sector = s.sector || "OTHERS";
+  const secInfo = _sectorPulse[sector] || {};
+  const hasSectorInfo = sector !== "OTHERS" && secInfo.pct_from_ema20 !== undefined;
+  const pctFromEma = hasSectorInfo ? (parseFloat(secInfo.pct_from_ema20) || 0) : 0;
+  const sectorStatus = hasSectorInfo ? (pctFromEma >= 0 ? "GREEN" : pctFromEma >= -2.0 ? "AMBER" : "RED") : "GREEN";
+  const secOk = sectorStatus === "GREEN";
+  const secWarn = sectorStatus === "AMBER";
+  const ca5 = { label: `Sector (${sector}) vs EMA20`, ..._caCheck(secOk, secWarn),
+    val: hasSectorInfo ? `${sectorStatus} (${pctFromEma >= 0 ? "+" : ""}${pctFromEma.toFixed(2)}% vs EMA20)` : "—" };
+
+  // 6. RSI health — Sweet Spot (40-65)
+  const rsiOk = rsi >= 40 && rsi <= 65;
+  const rsiWarn = (rsi >= 30 && rsi < 40) || (rsi > 65 && rsi <= 75);
+  const ca6 = { label: "RSI Sweet Spot (40-65)", ..._caCheck(rsiOk, rsiWarn),
+    val: rsi ? `RSI ${rsi.toFixed(0)}` : "—" };
+
+  // 7. Fresh MACD golden crossover
+  const macdCross = parseInt(s.macd_crossover_days_ago);
+  const macdCrossOk = macdCross >= 0 && macdCross <= 3;
+  const ca7 = { label: "Fresh MACD crossover", ..._caCheck(macdCrossOk, false),
+    val: macdCrossOk ? `Crossed ${macdCross}d ago ✓` : macdCross >= 0 ? `Late Trend (${macdCross}d ago) ✗` : "No Cross in 4d ✗" };
+
+  // 8. Relative Strength vs Nifty
+  const relStr = parseFloat(s.relative_strength) || 0;
+  const relStrOk = relStr > 0;
+  const ca8 = { label: "Relative Strength vs Nifty", ..._caCheck(relStrOk, false),
+    val: `${relStr >= 0 ? "+" : ""}${relStr.toFixed(2)}% vs Nifty` };
+
+  // 9. Volume Spike (≥1.5x 20-day average)
+  const avgVol = parseFloat(s.avg_volume_20d) || 0;
+  let volThreshold = 1.5;
+  let volTier = "Midcap";
+  if (s.symbol) {
+    if (avgVol > 5000000) {
+      volThreshold = 1.25;
+      volTier = "Largecap";
+    } else if (avgVol < 1000000) {
+      volThreshold = 2.0;
+      volTier = "Smallcap";
+    }
+  }
+  const volOk = vol >= volThreshold;
+  const volWarn = vol >= 1.0 && vol < volThreshold;
+  const ca9 = { label: `Volume ≥ ${volThreshold}× 20d Avg (${volTier})`, ..._caCheck(volOk, volWarn),
+    val: vol > 0 ? `${vol.toFixed(2)}×` : "—" };
+
+  const checks = [ca1, ca2, ca3, ca4, ca5, ca6, ca7, ca8, ca9];
+  const coreChecks = checks;
+  const scored = checks.filter(c => c.cls !== "na");
+  const passCount = scored.filter(c => c.cls === "pass").length;
+  const total = scored.length;
+  const scoreClass = passCount >= total - 1 ? "strong" : passCount >= Math.ceil(total * 0.6) ? "moderate" : "weak";
+  const scoreLabel = passCount >= total - 1 ? "STRONG" : passCount >= Math.ceil(total * 0.6) ? "MODERATE" : "WEAK";
+
+  // Retain additional UI-support variables computed for general template layout
   const wTrend = s.weekly_trend || "BULLISH";
   const wTrendOk = wTrend === "BULLISH";
-  const ca1 = { label: "Weekly trend (Weekly EMA30)", ..._caCheck(wTrendOk, false),
-    val: wTrendOk ? "Bullish (Above EMA30) ✓" : "Bearish (Below EMA30) ✗" };
-
   const weeklyTrendVal = wTrendOk ? "BULLISH" : "BEARISH";
   const weeklyTrendColor = wTrendOk ? "var(--green)" : "var(--red)";
   const weeklyTrendBg = wTrendOk ? "var(--green-bg)" : "var(--red-bg)";
   const weeklyTrendIcon = wTrendOk ? "↗" : "↘";
   const weeklyTrendClass = wTrendOk ? "pass" : "fail";
 
-  // ca2: Daily trend direction — EMA20 > EMA50 alignment
-  const emaAligned = s.ema_aligned !== false; // from scan filter
-  const ca2 = { label: "Daily trend (20 > 50 EMA)", ..._caCheck(emaAligned, false),
-    val: emaAligned ? "Aligned ✓" : "Misaligned ✗" };
+  const fbRisk = s.false_breakout_risk || "LOW";
+  const fbDesc = s.false_breakout_desc || "";
+  const fbVal = fbRisk === "HIGH" ? "HIGH RISK" : "LOW RISK";
+  const fbColor = fbRisk === "HIGH" ? "var(--red)" : "var(--green)";
+  const fbBg = fbRisk === "HIGH" ? "var(--red-bg)" : "var(--green-bg)";
+  const fbIcon = fbRisk === "HIGH" ? "⚠" : "✓";
+  const fbClass = fbRisk === "HIGH" ? "fail" : "pass";
 
-  // ca3: Chart pattern
-  const setup = s.setup || "unknown";
-  const hasPattern = setup !== "unknown" && setup !== "";
-  const ca3 = { label: "Pattern identified", ..._caCheck(hasPattern, false),
-    val: hasPattern ? setup.replace(/_/g," ") : "—" };
-
-  // ca4: Volatility contraction (VCP) — proxy: ATR% < 3.5 = tight base
-  const atrRaw = s.atr_pct;
-  const hasAtr = atrRaw !== undefined && atrRaw !== null && parseFloat(atrRaw) > 0;
-  const atrPct = hasAtr ? parseFloat(atrRaw) : 0;
-  const ca4 = hasAtr
-    ? { label: "Volatility contracting (VCP)", ..._caCheck(atrPct < 3.5, atrPct < 5),
-        val: `ATR ${atrPct.toFixed(1)}%` }
-    : { label: "Volatility contracting (VCP)", cls: "na", icon: "?",
-        val: "N/A" };
-
-  // ca5: Sector strength
-  const sector = s.sector || "OTHERS";
-  const secInfo = _sectorPulse[sector] || {};
-  const secStrong = (secInfo.change_pct || 0) >= 0;
-  const ca5 = { label: `Sector (${sector}) trending`, ..._caCheck(secStrong, false),
-    val: secInfo.change_pct !== undefined ? `${secInfo.change_pct >= 0 ? "+" : ""}${secInfo.change_pct.toFixed(2)}%` : "—" };
-
-  // ca6: RSI health — no overbought, no bearish divergence (proxy: RSI < 75 & > 30)
-  const rsiOk = rsi > 0 && rsi <= 75 && rsi >= 30;
-  const rsiWarn = rsi > 65 && rsi <= 75;
-  const ca6 = { label: "RSI healthy (no divergence)", ..._caCheck(rsiOk && !rsiWarn, rsiWarn),
-    val: rsi ? `RSI ${rsi.toFixed(0)}` : "—" };
-
-  // ca7: F&O ban — check against known ban list from data
-  const foBanEl = document.getElementById("foBanChips");
-  const banSymbols = foBanEl ? Array.from(foBanEl.querySelectorAll(".ban-chip")).map(c => c.textContent.trim()) : [];
-  const isBanned = banSymbols.includes(s.symbol);
-  const ca7 = { label: "Not in F&O ban list", ..._caCheck(!isBanned, false),
-    val: isBanned ? "BANNED ✗" : "Clear ✓" };
-
-  // ca8: No earnings within 5 days (cooling window & upcoming results)
-  let earnDays = s.earnings_days_until;
-  if (earnDays === undefined) {
-    if (s.earnings_near) earnDays = 3; // fallback
-  }
-  let earnOk = true;
-  let earnVal = "Clear ✓";
-  let earnWarn = false;
-  if (earnDays !== undefined && earnDays !== null) {
-    if (earnDays >= 0 && earnDays <= 5) {
-      earnOk = false;
-      earnVal = `Upcoming in ${earnDays}d (${s.earnings_date || 'near'}) ✗`;
-    } else if (earnDays < 0 && earnDays >= -5) {
-      earnOk = false;
-      earnVal = `Reported ${Math.abs(earnDays)}d ago — Letting dust settle ✗`;
-    } else if (earnDays < 0) {
-      earnVal = `Reported ${Math.abs(earnDays)}d ago ✓`;
-    } else if (earnDays > 5) {
-      earnVal = `In ${earnDays}d ✓`;
-    }
-  } else if (earnDays === undefined) {
-    earnOk = false;
-    earnWarn = true;
-    earnVal = "Unresolved earnings data ✗";
-  } else {
-    earnOk = true;
-    earnVal = "No upcoming earnings ✓";
-  }
-  const ca8 = { label: "No results within 5 days", ..._caCheck(earnOk, earnWarn), val: earnVal };
-
-  // ca9: Daily pattern base duration
-  const baseDays = parseInt(s.base_days) || 0;
   const baseStatus = s.base_status || "VOLATILE";
   let baseColor = "var(--red)";
   let baseLabel = "Volatile / No Base";
   let baseBarPct = 10;
-
   if (baseDays >= 20) {
     baseColor = "var(--green)";
     baseLabel = "STABLE BASE";
@@ -8630,76 +8430,6 @@ function getStockValidation(s) {
     baseLabel = "CONSOLIDATING";
     baseBarPct = Math.min(100, Math.round((baseDays / 20) * 100));
   }
-
-  const ca9 = { label: "Consolidation base duration", ..._caCheck(baseDays >= 20, baseDays >= 5),
-    val: baseDays > 0 ? `${baseDays} days` : "No base" };
-
-  // ca10: False breakout risk
-  const fbRisk = s.false_breakout_risk || "LOW";
-  const fbDesc = s.false_breakout_desc || "";
-  const fbOk = fbRisk === "LOW";
-  const ca10 = { label: "False breakout risk (trap)", ..._caCheck(fbOk, false),
-    val: fbRisk === "HIGH" ? "HIGH RISK ✗" : "Low Risk ✓" };
-
-  const fbVal = fbRisk === "HIGH" ? "HIGH RISK" : "LOW RISK";
-  const fbColor = fbRisk === "HIGH" ? "var(--red)" : "var(--green)";
-  const fbBg = fbRisk === "HIGH" ? "var(--red-bg)" : "var(--green-bg)";
-  const fbIcon = fbRisk === "HIGH" ? "⚠" : "✓";
-  const fbClass = fbRisk === "HIGH" ? "fail" : "pass";
-
-  // ca11: Trend Strength / ADX
-  const adx = parseFloat(s.adx) || 25;
-  const adxOk = adx >= 30;
-  const adxWarn = adx < 20;
-  const ca11 = { label: "Trend Strength (ADX)", ..._caCheck(adxOk, adxWarn),
-    val: `ADX ${adx.toFixed(0)} (${adxOk ? "Strong" : adxWarn ? "Weak" : "Moderate"})` };
-
-  // ca12: Fresh MACD golden crossover
-  const macdCross = parseInt(s.macd_crossover_days_ago);
-  const macdCrossOk = macdCross >= 0 && macdCross <= 3;
-  const ca12 = { label: "Fresh MACD crossover", ..._caCheck(macdCrossOk, false),
-    val: macdCrossOk ? `Crossed ${macdCross}d ago ✓` : macdCross >= 0 ? `Late Trend (${macdCross}d ago) ✗` : "No Cross in 4d ✗" };
-
-  // ca13: Relative Strength vs Nifty
-  const relStr = parseFloat(s.relative_strength) || 0;
-  const relStrOk = relStr > 0;
-  const ca13 = { label: "Relative Strength vs Nifty", ..._caCheck(relStrOk, false),
-    val: `${relStr >= 0 ? "+" : ""}${relStr.toFixed(2)}% vs Nifty` };
-
-  // ca14: Market-Dip Acid Test
-  const acidFailed = s.acid_test_failed || false;
-  const acidPrice = parseFloat(s.acid_test_price) || 0;
-  const ca14 = acidPrice > 0
-    ? { label: "Market-Dip Acid Test", ..._caCheck(!acidFailed, false),
-        val: acidFailed ? `Cracked support ₹${acidPrice} ✗` : `Held ₹${acidPrice} support on dip ✓` }
-    : { label: "Market-Dip Acid Test", cls: "na", icon: "?",
-        val: "No support set (Acid Test)" };
-
-  // ca15: Liquidity / average daily volume check
-  const avgVol = parseInt(s.avg_volume_20d) || 0;
-  const volOk = avgVol >= 100000;
-  const ca15 = avgVol > 0
-    ? { label: "Liquidity Guard (>100k daily shares)", ..._caCheck(volOk, false),
-        val: volOk ? `${(avgVol / 1000).toFixed(0)}k shares ✓` : `${(avgVol / 1000).toFixed(0)}k shares (Thin Volume) ✗` }
-    : { label: "Liquidity Guard (>100k daily shares)", cls: "na", icon: "?",
-        val: "N/A" };
-
-  // ca16: 1-Month Run-up check
-  const runup = parseFloat(s.return_20d);
-  const runupOk = isNaN(runup) || runup <= 25.0;
-  const ca16 = !isNaN(runup)
-    ? { label: "Month Run-up (not extended >25%)", ..._caCheck(runupOk, !runupOk),
-        val: runupOk ? `${runup >= 0 ? "+" : ""}${runup.toFixed(1)}% ✓` : `${runup >= 0 ? "+" : ""}${runup.toFixed(1)}% (Overextended) ✗` }
-    : { label: "Month Run-up (not extended >25%)", cls: "na", icon: "?",
-        val: "N/A" };
-
-  const checks = [ca1, ca2, ca3, ca4, ca5, ca6, ca7, ca8, ca9, ca10, ca11, ca12, ca13, ca14, ca15, ca16];
-  const coreChecks = [ca2, ca3, ca4, ca5, ca6, ca7, ca8, ca11, ca12, ca13, ca14];
-  const scored = checks.filter(c => c.cls !== "na");
-  const passCount = scored.filter(c => c.cls === "pass").length;
-  const total = scored.length;
-  const scoreClass = passCount >= total - 1 ? "strong" : passCount >= Math.ceil(total * 0.6) ? "moderate" : "weak";
-  const scoreLabel = passCount >= total - 1 ? "STRONG" : passCount >= Math.ceil(total * 0.6) ? "MODERATE" : "WEAK";
 
   return {
     checks,
@@ -8817,8 +8547,8 @@ function computeCompositeScore(s, v) {
     score += 3;
   }
   
-  // Category 8: Sector Strength (5 pts)
-  const secStrong = (secInfo.change_pct || 0) >= 0;
+  // Category 8: Sector Strength (5 pts) - aligned with pct_from_ema20 >= 0
+  const secStrong = (parseFloat(secInfo.pct_from_ema20) || 0) >= 0;
   if (secStrong) {
     score += 5;
   }
@@ -8957,6 +8687,13 @@ function computeCompositeScore(s, v) {
     reasons.push("Qualitative: Lack of technical reversal (-15)");
   }
   
+  // Setup Grade C Cap (Max 50 pts to avoid low quality setups reaching Top Picks)
+  const sGrade = s.setup_grade || "C";
+  if (sGrade === "C") {
+    score = Math.min(score, 50);
+    reasons.push("Low Quality Setup (Grade C Cap)");
+  }
+
   return { score: Math.max(0, Math.round(score)), eligible: eligible, reasons: reasons };
 }
 
@@ -9006,6 +8743,31 @@ function renderStockValidation() {
     const ribbon = tier
       ? `<div style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:5px;font-size:10px;font-weight:800;letter-spacing:0.3px;background:${tier.bg};color:${tier.color};border:1px solid ${tier.color};margin-bottom:5px">${tier.icon} ${tier.label} · ${item.score}</div>`
       : "";
+    // Setup Grade Badge
+    let gradeBadge = "";
+    if (s.setup_grade) {
+      const gradeStyle = s.setup_grade === "A"
+        ? "background:rgba(16,185,129,0.12); color:var(--green); border:1px solid rgba(16,185,129,0.3);"
+        : s.setup_grade === "B"
+        ? "background:rgba(245,158,11,0.12); color:var(--yellow); border:1px solid rgba(245,158,11,0.3);"
+        : "background:rgba(156,163,175,0.12); color:var(--muted); border:1px solid rgba(156,163,175,0.3);";
+      
+      gradeBadge = `<span class="tag" style="${gradeStyle} font-weight:800; font-size:10px; margin-left:6px;" title="Setup Quality Grade: ${s.setup_grade} (Score: ${s.setup_score || 0}/6.0)">Grade ${s.setup_grade} (${s.setup_score || 0})</span>`;
+    }
+
+    // Expiry Sizing Badge
+    let expiryBadge = "";
+    if (s.expiry_info) {
+      const exp = s.expiry_info;
+      if (exp.in_window && exp.multiplier < 1.0) {
+        const expStyle = exp.multiplier === 0.0
+          ? "background:rgba(239,68,68,0.12); color:var(--red); border:1px solid rgba(239,68,68,0.3);"
+          : "background:rgba(245,158,11,0.12); color:var(--yellow); border:1px solid rgba(245,158,11,0.3);";
+        
+        expiryBadge = `<span class="tag" style="${expStyle} font-weight:800; font-size:10px; margin-left:6px;" title="F&O Expiry Window Sizing Reduction: ${exp.reason}">⚠️ Expiry: ${exp.multiplier}x size</span>`;
+      }
+    }
+
     return `<div class="ca-vcard" style="${cardStyle}">
       <div class="ca-vcard-head">
         <div>
@@ -9013,6 +8775,8 @@ function renderStockValidation() {
           <div style="display:flex;align-items:center;gap:6px">
             <div class="sym">${s.symbol}</div>
             <button onclick="removeStockFromWatchlist('${s.symbol}')" title="Remove from watchlist" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:2px;border-radius:4px;line-height:1">🗑️</button>
+            ${gradeBadge}
+            ${expiryBadge}
           </div>
           <div style="font-size:11px;color:var(--muted)">${s.name || s.symbol}</div>
           ${s.index_membership && s.index_membership.length ? `
@@ -9100,6 +8864,61 @@ function renderStockValidation() {
 
       </div>
 
+      <!-- Setup Grade Factor Breakdown (4 analysis-time factors) -->
+      <div style="padding:10px 16px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.015)">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:700;display:flex;justify-content:space-between;align-items:center">
+          <span>Setup Grade Breakdown</span>
+          <span class="grade-badge ${(s.setup_grade||'C') === 'A' ? 'a' : (s.setup_grade||'C') === 'B' ? 'b' : 'c'}" style="font-size:9px;padding:2px 7px">Grade ${s.setup_grade || 'C'} <span style="font-weight:400;opacity:.7">${s.setup_score || '0'}/6</span></span>
+        </div>
+        ${(function(){
+          const _p = parseFloat(s.price||0), _e20 = parseFloat(s.ema20||0), _e50 = parseFloat(s.ema50||0);
+          const _vr = parseFloat(s.vol_ratio||1), _r20 = parseFloat(s.return_20d||0), _adx = parseFloat(s.adx||0);
+          const _bd = s.grading_breakdown && Object.keys(s.grading_breakdown).length ? s.grading_breakdown : null;
+          // Compute scores if no breakdown from API
+          let t_bits = 0;
+          if (_p && _e20 && _p > _e20) t_bits++;
+          if (_e20 && _e50 && _e20 > _e50) t_bits++;
+          if ((s.weekly_trend||'').toUpperCase() === 'BULLISH') t_bits++;
+          const t_sc = _bd ? _bd.trend : (t_bits===3?1.0:t_bits===2?0.5:0.0);
+
+          const _setup = (s.setup||'').toUpperCase();
+          const _struct = ['BREAKOUT','PULLBACK','SUPPORT_BOUNCE'].includes(_setup);
+          const _baseOk = ['STABLE_BASE','CONSOLIDATING'].includes(s.base_status);
+          const _boLow = (s.false_breakout_risk||'LOW')==='LOW';
+          const _clean = _baseOk && _boLow;
+          const st_sc = _bd ? _bd.structure : ((_struct&&_clean)?1.0:(_struct||_clean)?0.5:0.0);
+
+          const v_sc = _bd ? _bd.volume : (_vr>=1.5?1.0:_vr>=1.0?0.5:0.0);
+
+          let lm = 1.0;
+          if (_r20 > 25.0) lm -= 0.5;
+          if (_adx < 20.0) lm -= 0.5;
+          const l_sc = _bd ? _bd.landmines : Math.max(0, lm);
+
+          function _cls(v){return v>=1.0?'full':v>=0.5?'half':'zero'}
+          function _lbl(v){return v>=1.0?'1.0':v>=0.5?'0.5':'0.0'}
+
+          return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'
+            + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:7px 10px">'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;font-weight:700;color:var(--muted)">① TREND</span><span class="gf-score '+_cls(t_sc)+'">'+_lbl(t_sc)+'</span></div>'
+            + '<div style="font-size:9.5px;color:var(--muted);line-height:1.4">P <b style="color:var(--text)">'+(_p>_e20?'>':'<')+' EMA20</b> · EMA20 '+(_e20>_e50?'>':'<')+' EMA50 · Wk: <b style="color:var(--text)">'+(s.weekly_trend||'—')+'</b></div>'
+            + '</div>'
+            + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:7px 10px">'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;font-weight:700;color:var(--muted)">② STRUCTURE</span><span class="gf-score '+_cls(st_sc)+'">'+_lbl(st_sc)+'</span></div>'
+            + '<div style="font-size:9.5px;color:var(--muted);line-height:1.4">Setup: <b style="color:var(--text)">'+(s.setup||'—')+'</b> · Base: <b style="color:var(--text)">'+(s.base_status||'—')+'</b></div>'
+            + '</div>'
+            + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:7px 10px">'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;font-weight:700;color:var(--muted)">③ VOLUME</span><span class="gf-score '+_cls(v_sc)+'">'+_lbl(v_sc)+'</span></div>'
+            + '<div style="font-size:9.5px;color:var(--muted);line-height:1.4">Vol Ratio: <b style="color:var(--text)">'+_vr.toFixed(2)+'x</b> '+(_vr>=1.5?'(strong)':_vr>=1.0?'(ok)':'(weak)')+'</div>'
+            + '</div>'
+            + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:7px 10px">'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;font-weight:700;color:var(--muted)">④ LANDMINES</span><span class="gf-score '+_cls(l_sc)+'">'+_lbl(l_sc)+'</span></div>'
+            + '<div style="font-size:9.5px;color:var(--muted);line-height:1.4">20d Ret: <b style="color:var(--text)">'+_r20.toFixed(1)+'%</b>'+(_r20>25?' ⚠️':'')+ ' · ADX: <b style="color:var(--text)">'+_adx.toFixed(1)+'</b>'+(_adx<20?' ⚠️':'')+'</div>'
+            + '</div>'
+            + '</div>';
+        })()}
+      </div>
+
       <!-- Core Checklist in a Clean 2-Column Grid -->
       <div class="ca-vcard-body" style="padding:12px 16px;background:rgba(0,0,0,0.1)">
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:700">General Setup Verification:</div>
@@ -9161,7 +8980,6 @@ function renderStockValidation() {
           : `<span class="ca-score weak" style="border:1px solid var(--red); background:rgba(239,68,68,0.12); color:#ef4444; font-weight:bold" title="Gatekeeper Blocks: ${item.reasons.join('; ')}">⚠️ BLOCKED: ${item.reasons[0]}</span>`
         }
         <div style="display:flex;gap:6px">
-          <button class="ca-btn pine" onclick="caShowPine(${item.originalIdx})" style="font-size:10px;padding:4px 8px">📋 Pine</button>
           <button class="ca-btn" onclick="selectStockForTrading(${item.originalIdx})" style="font-size:10px;padding:4px 8px;background:var(--blue-bg);color:var(--blue);border-color:var(--blue)">→ Trading</button>
         </div>
       </div>
@@ -9191,8 +9009,21 @@ function renderEntryChecklist() {
 
   const riskPerShare = Math.max(0, entry - sl);
   const riskAmount   = capital * riskPct / 100;
-  const qty          = riskPerShare > 0 ? Math.floor(riskAmount / riskPerShare) : 0;
+  
+  // Sizer calculations (Base)
+  const baseQty      = riskPerShare > 0 ? Math.floor(riskAmount / riskPerShare) : 0;
+  
+  // Clamping at 20%
+  const maxAlloc = capital * 0.20;
+  let qty = baseQty;
+  if (entry > 0) {
+    const maxQtyByAlloc = Math.floor(maxAlloc / entry);
+    if (qty > maxQtyByAlloc) {
+      qty = maxQtyByAlloc;
+    }
+  }
   const deployed     = qty * entry;
+  
   const rr           = riskPerShare > 0 ? (target - entry) / riskPerShare : 0;
   const chasePct     = entry > 0 && sl > 0 ? ((entry - sl) / entry * 100) : 0;
 
@@ -9220,8 +9051,8 @@ function renderEntryChecklist() {
   }
 
   // Combined Scoring Logic for Volume
-  let gateOk = false;
-  let gateWarn = false;
+  let volOk = false;
+  let volWarn = false;
   let volStatusCls = "var(--muted)";
   let volDetails = "Select a stock to check";
 
@@ -9230,159 +9061,23 @@ function renderEntryChecklist() {
     const daysAbove = volRatios.filter(r => r > 1.0).length;
 
     if (vol >= volThreshold) {
-      gateOk = true;
+      volOk = true;
       volStatusCls = "var(--green)";
       volDetails = `${ss.symbol}: ${vol.toFixed(2)}× volume meets ${volTier} threshold of ${volThreshold}×.`;
     } else if (vol >= 1.0 && vol < volThreshold) {
       if (daysAbove >= 3) {
-        gateWarn = true;
+        volWarn = true;
         volStatusCls = "var(--yellow)";
         volDetails = `${ss.symbol}: ${vol.toFixed(2)}× volume is low-energy, but sustained accumulation is confirmed (${daysAbove}/5 days > 1.0× volume). [Half Position]`;
       } else {
-        gateOk = false;
+        volOk = false;
         volStatusCls = "var(--red)";
         volDetails = `${ss.symbol}: ${vol.toFixed(2)}× volume is low-energy and lacks backing (${daysAbove}/5 days > 1.0×).`;
       }
     } else {
-      gateOk = false;
+      volOk = false;
       volStatusCls = "var(--red)";
       volDetails = `${ss.symbol}: False breakout on below-average volume (${vol.toFixed(2)}×).`;
-    }
-  }
-  // Multi-timeframe Market Regime scoring for Gate 07
-  const niftyInfo = window._marketState?.nifty || {};
-  const niftyLevel = niftyInfo.level || 0;
-  
-  let gate07Ok = false;
-  let gate07Warn = false;
-  let gate07Cls = "var(--muted)";
-  let gate07Sub = "Regime: unknown";
-  let gate07Val = "—";
-
-  if (niftyLevel > 0) {
-    const s1 = niftyInfo.signals?.s1;
-    const s2 = niftyInfo.signals?.s2;
-    const s3 = niftyInfo.signals?.s3;
-    const co = niftyInfo.nifty_crossover;
-    const coDays = niftyInfo.nifty_crossover_days_ago;
-    const vix = parseFloat(niftyInfo.vix) || 0;
-
-    let bullishCount = 0;
-    if (s1) bullishCount++;
-    if (s2) bullishCount++;
-    if (s3) bullishCount++;
-
-    const s1Label = s1 ? "🟢 Nifty > 20 EMA" : "🔴 Nifty < 20 EMA";
-    const s2Label = s2 ? "🟢 Nifty > 50 EMA" : "🔴 Nifty < 50 EMA";
-    const s3Label = s3 ? "🟢 20 EMA > 50 EMA" : "🔴 20 EMA < 50 EMA";
-    
-    let coLabel = "";
-    if (co && coDays >= 0) {
-      coLabel = ` · ⚠️ Transition signal! Recent EMA cross ${coDays} sessions ago.`;
-    }
-
-    let vixLabel = "";
-    let vixSizingModifier = "";
-    if (vix > 0) {
-      if (vix < 15.0) {
-        vixLabel = ` · 🟢 India VIX: ${vix.toFixed(1)} (Calm)`;
-      } else if (vix >= 15.0 && vix <= 20.0) {
-        vixLabel = ` · 🟡 India VIX: ${vix.toFixed(1)} (Normal)`;
-      } else {
-        vixLabel = ` · 🔴 India VIX: ${vix.toFixed(1)} (Elevated!)`;
-        vixSizingModifier = " ⚠️ VOLATILITY OVERLAY: Scale down position sizing by 25% due to high VIX.";
-      }
-    }
-
-    if (bullishCount === 3) {
-      gate07Ok = true;
-      gate07Cls = "var(--green)";
-      gate07Val = "GREEN";
-      gate07Sub = `Regime: GREEN (3/3 Bullish). ${s1Label} · ${s2Label} · ${s3Label}${coLabel}${vixLabel}.${vixSizingModifier || " Full position sizing allowed."}`;
-    } else if (bullishCount === 2) {
-      gate07Warn = true;
-      gate07Cls = "var(--yellow)";
-      gate07Val = "AMBER";
-      gate07Sub = `Regime: AMBER (2/3 Bullish). ${s1Label} · ${s2Label} · ${s3Label}${coLabel}${vixLabel}.${vixSizingModifier || " Normal pullback; reduce sizing to 50–75%."}`;
-    } else {
-      gate07Ok = false;
-      gate07Cls = "var(--red)";
-      gate07Val = "RED";
-      gate07Sub = `Regime: RED (${bullishCount}/3 Bullish). ${s1Label} · ${s2Label} · ${s3Label}${coLabel}${vixLabel}.${vixSizingModifier || " Skip fresh longs or reduce to 25% sizing (A+ setups only)."}`;
-    }
-  } else {
-    // Fallback if Nifty info is missing but regime string exists
-    const regimeVal = window._marketState?.regime || "";
-    if (regimeVal) {
-      if (regimeVal === "GREEN") {
-        gate07Ok = true;
-        gate07Cls = "var(--green)";
-        gate07Val = "GREEN";
-        gate07Sub = "Regime: GREEN. Full position sizing allowed.";
-      } else if (regimeVal === "AMBER") {
-        gate07Warn = true;
-        gate07Cls = "var(--yellow)";
-        gate07Val = "AMBER";
-        gate07Sub = "Regime: AMBER. Normal pullback within uptrend; reduce sizing to 50–75%.";
-      } else {
-        gate07Ok = false;
-        gate07Cls = "var(--red)";
-        gate07Val = "RED";
-        gate07Sub = "Regime: RED. Skip fresh longs or reduce to 25% sizing (A+ setups only).";
-      }
-    }
-  }
-
-  // Sector index Alignment Gate 10
-  const sectorName = (ss.sector || "").toUpperCase();
-  const sectorInfo = _sectorPulse[sectorName] || {};
-  const hasSectorInfo = Object.keys(sectorInfo).length > 0 && sectorInfo.pct_from_ema20 !== undefined;
-
-  let gate10Ok = false;
-  let gate10Warn = false;
-  let gate10Cls = "var(--muted)";
-  let gate10Val = "—";
-  let gate10Sub = "Select a stock to check";
-
-  if (ss.symbol) {
-    if (sectorName === "OTHERS" || !sectorName || !hasSectorInfo) {
-      gate10Ok = true;
-      gate10Val = "N/A";
-      gate10Cls = "var(--muted)";
-      gate10Sub = `Sector: ${ss.sector || "OTHERS"} (No sector index data; sizing defaults to Nifty regime)`;
-    } else {
-      const pctFromEma = parseFloat(sectorInfo.pct_from_ema20) || 0;
-      
-      // Determine Combined Nifty/Sector Sizing Matrix
-      let combinedSizing = "";
-      if (gate07Val === "GREEN" && pctFromEma >= 0) {
-        combinedSizing = "🟢 BEST CASE: Broad market and sector are both bullish. Full position sizing supported.";
-      } else if (gate07Val === "RED" && pctFromEma >= 0) {
-        combinedSizing = "🟡 SECTOR OUTPERFORMANCE: Sector is strong enough to swim against broad market. Allow entry at 50–75% position size.";
-      } else if (gate07Val === "GREEN" && pctFromEma < -2.0) {
-        combinedSizing = "🔴 SECTOR UNDERPERFORMANCE TRAP: Market looks healthy but money is rotating out of this sector. SKIP trade.";
-      } else if (gate07Val === "RED" && pctFromEma < -2.0) {
-        combinedSizing = "🔴 WORST CASE: Broad market and sector are both in downtrends. Hard skip.";
-      } else {
-        combinedSizing = "🟡 CHOPPY REGIME / PULLBACK: Reduced position sizing recommended (50% or less).";
-      }
-
-      if (pctFromEma >= 0) {
-        gate10Ok = true;
-        gate10Val = "GREEN";
-        gate10Cls = "var(--green)";
-        gate10Sub = `${sectorName} Index is above its 20 DMA (+${pctFromEma.toFixed(2)}%).${combinedSizing}`;
-      } else if (pctFromEma >= -2.0) {
-        gate10Warn = true;
-        gate10Val = "AMBER";
-        gate10Cls = "var(--yellow)";
-        gate10Sub = `${sectorName} Index is in 2% pullback below 20 DMA (${pctFromEma.toFixed(2)}%). Sizing down recommended.${combinedSizing}`;
-      } else {
-        gate10Ok = false;
-        gate10Val = "RED";
-        gate10Cls = "var(--red)";
-        gate10Sub = `${sectorName} Index is >2% below its 20 DMA (${pctFromEma.toFixed(2)}%). Sector trend is bearish.${combinedSizing}`;
-      }
     }
   }
 
@@ -9414,47 +9109,17 @@ function renderEntryChecklist() {
       val: rr > 0 ? `1:${rr.toFixed(2)}` : "—",
       valCls: rr >= 2 ? "var(--green)" : rr >= 1.5 ? "var(--yellow)" : "var(--red)" },
 
-    { num: "05", label: "Price broken above resistance / base clearly",
-      sub: ss.symbol ? `${ss.symbol}: ${ss.setup || "—"} pattern` : "Select a stock to check",
-      ok: ss.setup && ss.setup !== "unknown",
-      val: ss.setup ? "Confirmed" : "—",
-      valCls: ss.setup ? "var(--green)" : "var(--muted)" },
-
-    { num: "06", label: `Volume ≥ ${volThreshold}× 20-day average (${volTier})`,
-      sub: volDetails,
-      ok: gateOk, warn: gateWarn,
-      val: vol > 0 ? `${vol.toFixed(1)}×` : "—",
-      valCls: volStatusCls },
-
-    { num: "07", label: "Multi-timeframe market regime score",
-      sub: gate07Sub,
-      ok: gate07Ok, warn: gate07Warn,
-      val: gate07Val,
-      valCls: gate07Cls },
-
-    { num: "08", label: "Not F&O expiry day (Thursday)",
-      sub: isExpiry ? "Today: Thursday (F&O Expiry). ⚠️ ADVISORY: Use limit orders at key levels only. Avoid entries in the last 90 minutes." : `Today: ${dayName} (Safe entry day)`,
-      ok: !isExpiry, warn: isExpiry,
-      val: isExpiry ? "EXPIRY DAY" : dayName,
-      valCls: isExpiry ? "var(--yellow)" : "var(--green)" },
-
-    { num: "09", label: "Entry within 3% of breakout level",
+    { num: "05", label: "Entry within 3% of breakout level",
       sub: `Chase: ${chasePct.toFixed(1)}%`,
       ok: chasePct > 0 && chasePct <= 3, warn: chasePct > 3 && chasePct <= 5,
       val: chasePct > 0 ? `${chasePct.toFixed(1)}%` : "—",
       valCls: chasePct <= 3 ? "var(--green)" : "var(--red)" },
 
-    { num: "10", label: "Sector index trend alignment",
-      sub: gate10Sub,
-      ok: gate10Ok, warn: gate10Warn,
-      val: gate10Val,
-      valCls: gate10Cls },
-
-    { num: "11", label: "Max 3-5 open positions — within limit",
+    { num: "06", label: "Max 3-5 open positions — within limit",
       sub: `Currently ~${activeCount} active (estimated from portfolio)`,
       ok: activeCount <= 5, warn: activeCount > 3 && activeCount <= 5,
       val: `${activeCount} open`,
-      valCls: activeCount <= 5 ? "var(--green)" : "var(--red)" },
+      valCls: activeCount <= 5 ? "var(--green)" : "var(--red)" }
   ];
 
   const passCount = checks.filter(c => c.ok).length;
@@ -9463,6 +9128,7 @@ function renderEntryChecklist() {
   body.innerHTML = checks.map(c => {
     const iconCls = c.ok ? "pass" : c.warn ? "warn" : (c.val === "—" ? "neutral" : "fail");
     const iconTxt = c.ok ? "✓" : c.warn ? "!" : (c.val === "—" ? "—" : "✗");
+    
     return `<div class="entry-cl-item">
       <span class="num">${c.num}</span>
       <span class="icon ${iconCls}">${iconTxt}</span>
@@ -9473,15 +9139,27 @@ function renderEntryChecklist() {
 
   // Update badge
   if (badge) {
-    const scoreCls = passCount >= 8 ? "var(--green-bg)" : passCount >= 5 ? "var(--yellow-bg)" : "var(--red-bg)";
-    const scoreCol = passCount >= 8 ? "var(--green)" : passCount >= 5 ? "var(--yellow)" : "var(--red)";
-    const scoreBorder = passCount >= 8 ? "var(--green)" : passCount >= 5 ? "var(--yellow)" : "var(--red)";
+    const scoreCls = passCount >= 5 ? "var(--green-bg)" : passCount >= 3 ? "var(--yellow-bg)" : "var(--red-bg)";
+    const scoreCol = passCount >= 5 ? "var(--green)" : passCount >= 3 ? "var(--yellow)" : "var(--red)";
+    const scoreBorder = passCount >= 5 ? "var(--green)" : passCount >= 3 ? "var(--yellow)" : "var(--red)";
     badge.style.background   = scoreCls;
     badge.style.color        = scoreCol;
     badge.style.borderColor  = scoreBorder;
     badge.textContent = `${passCount} / ${checks.length} pass`;
   }
   if (pill) pill.textContent = `${passCount}/${checks.length} pass`;
+}
+
+function toggleGate07Details(btn) {
+  const container = btn.nextElementSibling;
+  const chevron = btn.querySelector(".gate-chevron");
+  if (container.style.display === "none") {
+    container.style.display = "flex";
+    chevron.style.transform = "rotate(180deg)";
+  } else {
+    container.style.display = "none";
+    chevron.style.transform = "rotate(0deg)";
+  }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -9540,7 +9218,6 @@ function renderStockSelector() {
           <td style="padding:10px 14px; text-align:center" onclick="event.stopPropagation();">
             <div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
               <button class="ca-btn" onclick="buyStockDirectly('${s.symbol}')" style="padding:4px 10px; font-size:11px; border-color:var(--green); background:rgba(16,185,129,0.1); color:var(--green)" title="Buy and add to portfolio">🛍️ Buy</button>
-              <button class="ca-btn pine" onclick="caShowPineAndTV(${i}, this)" style="padding:4px 10px; font-size:11px">Pine + TV</button>
               <button class="ca-btn" title="Remove from watchlist" style="padding:4px 8px; font-size:11px; border-color:var(--red); background:rgba(239,68,68,0.1); color:var(--red)" onclick="removeStockFromWatchlist('${s.symbol}')">🗑️</button>
             </div>
           </td>
@@ -9583,6 +9260,9 @@ function selectStockForTrading(idx) {
     target_1:   s.target_1,
     target_2:   s.target_2,
     rr:         s.rr,
+    setup_grade: s.setup_grade,
+    setup_score: s.setup_score,
+    expiry_info: s.expiry_info,
   });
 
   // Auto-fill Trail stop
@@ -9627,6 +9307,9 @@ function selectScannedStockForTrading(idx) {
     target_1:   s.target_1,
     target_2:   s.target_2,
     rr:         s.rr,
+    setup_grade: s.setup_grade,
+    setup_score: s.setup_score,
+    expiry_info: s.expiry_info,
   });
 
   // Auto-fill Trail stop
@@ -9919,13 +9602,14 @@ function renderAnalytics(r) {
   const activeRows = activeTrades.length === 0 
     ? `<tr><td colspan="4" class="empty-sub" style="text-align:center; padding:40px;">No active validation trades. Click "Buy" on watchlist setups inside Trading Tools to initiate real-time tracking.</td></tr>`
     : activeTrades.map(p => {
-        const pnlCls = p.pnl_pct >= 0 ? "up" : "down";
+        const pnlVal = (p.pnl_pct !== undefined && p.pnl_pct !== null) ? Number(p.pnl_pct) : 0.00;
+        const pnlCls = pnlVal >= 0 ? "up" : "down";
         const isSel = (_selectedPMTrade && _selectedPMTrade.symbol === p.symbol && _selectedPMTrade.entry_date === p.entry_date && _selectedPMTrade.isActive);
         const activeHighlight = isSel ? "border:1px solid var(--purple); background:rgba(139, 92, 246, 0.1);" : "";
           
         return `<tr style="${activeHighlight}">
           <td><b>${p.symbol}</b><br><small style="color:var(--muted); font-size:10px;">${p.entry_date}</small></td>
-          <td><b class="${pnlCls}">${p.pnl_pct >= 0 ? "+" : ""}${p.pnl_pct.toFixed(2)}%</b><br><small style="color:var(--muted); font-size:10px;">₹${fmt(p.current, 1)}</small></td>
+          <td><b class="${pnlCls}">${pnlVal >= 0 ? "+" : ""}${pnlVal.toFixed(2)}%</b><br><small style="color:var(--muted); font-size:10px;">₹${fmt(p.current, 1)}</small></td>
           <td style="vertical-align:middle; padding:8px 12px;">${renderStrategyLadder(p)}</td>
           <td style="text-align:center;">
             <button class="action-btn" style="background:var(--purple); color:#fff; border:none; border-radius:4px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer;" onclick="selectActiveTrade('${p.symbol}', '${p.entry_date}')">Track</button>

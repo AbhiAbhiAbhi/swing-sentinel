@@ -150,6 +150,17 @@ except ImportError:
     from core_trade_plan import calculate_rr, calculate_trade_plan
     from core_risk_filters import fetch_earnings_date
 
+# ── Setup grading + expiry ───────────────────────────────────────────
+try:
+    from core.expiry_grading import grade_setup, expiry_context
+except ImportError:
+    try:
+        from expiry_grading import grade_setup, expiry_context
+    except ImportError:
+        grade_setup = None
+        expiry_context = None
+
+
 
 # ── Routes ─────────────────────────────────────────────────────────────────
 
@@ -181,6 +192,17 @@ def preview():
     resp.headers["Pragma"]        = "no-cache"
     resp.headers["Expires"]       = "0"
     return resp
+
+
+@app.route("/review")
+def review():
+    """Serve the agent review sandbox dashboard with no-cache headers."""
+    resp = send_from_directory(os.path.join(_ROOT, "dashboard"), "swing_agent_review.html")
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"]        = "no-cache"
+    resp.headers["Expires"]       = "0"
+    return resp
+
 
 
 @app.route("/api/kite/status")
@@ -478,6 +500,23 @@ def process_single_stock(stock, df_sym, sector_pulse, filters):
         rr_raw    = calculate_rr({"price": entry_mid, "target": plan.get("target_2", 0), "sl": plan.get("stop_loss", 0)})
         earn_days_until, earn_date_str, earn_source = fetch_earnings_date(symbol)
         
+        setup_grade = "C"
+        setup_score = 0.0
+        grading_breakdown = {}
+        expiry_info = {}
+
+        if grade_setup and expiry_context:
+            try:
+                g_res = grade_setup(tech, plan)
+                setup_grade = g_res.get("grade", "C")
+                setup_score = g_res.get("score", 0.0)
+                grading_breakdown = g_res.get("breakdown", {})
+                
+                is_fno = "F&O" in get_index_membership(symbol)
+                expiry_info = expiry_context(is_fno=is_fno, grade=setup_grade)
+            except Exception as grading_err:
+                logger.warning("[scan] Grading failed for %s: %s", symbol, grading_err)
+
         return {
             "status":     "success",
             "symbol":     symbol,
@@ -497,6 +536,10 @@ def process_single_stock(stock, df_sym, sector_pulse, filters):
             "sl":         plan.get("stop_loss", 0),
             "rr":         rr_raw if isinstance(rr_raw, str) else plan.get("rr_ratio", "N/A"),
             "setup":      plan.get("setup_type", "—"),
+            "setup_grade":       setup_grade,
+            "setup_score":       setup_score,
+            "grading_breakdown": grading_breakdown,
+            "expiry_info":       expiry_info,
             "sector":     get_sector(symbol),
             "verdict":    verdict,
             "index_membership": get_index_membership(symbol),
@@ -518,6 +561,10 @@ def process_single_stock(stock, df_sym, sector_pulse, filters):
             "earnings_source":     earn_source,
             "debate":              fetch_cached_debate_verdict(symbol),
             "shareholding":        fetch_screener_shareholding(symbol),
+            # grading factor raw inputs (so dashboard can show per-factor breakdown)
+            "adx":                 tech.get("adx", 0),
+            "return_20d":          tech.get("return_20d", 0),
+            "ema50":               tech.get("ema50", 0),
         }
     except Exception as exc:
         logger.warning("[scan] %s skipped in thread: %s", symbol, exc)
@@ -690,6 +737,23 @@ def api_plan(symbol: str):
 
         earn_days_until, earn_date_str, earn_source = fetch_earnings_date(symbol)
 
+        setup_grade = "C"
+        setup_score = 0.0
+        grading_breakdown = {}
+        expiry_info = {}
+
+        if grade_setup and expiry_context:
+            try:
+                g_res = grade_setup(tech, plan)
+                setup_grade = g_res.get("grade", "C")
+                setup_score = g_res.get("score", 0.0)
+                grading_breakdown = g_res.get("breakdown", {})
+                
+                is_fno = "F&O" in get_index_membership(symbol)
+                expiry_info = expiry_context(is_fno=is_fno, grade=setup_grade)
+            except Exception as grading_err:
+                logger.warning("[plan] Grading failed for %s: %s", symbol, grading_err)
+
         return jsonify({
             "status":     "success",
             "symbol":     symbol,
@@ -704,6 +768,10 @@ def api_plan(symbol: str):
             "ema20":      tech.get("ema20", 0),
             "ema50":      tech.get("ema50", 0),
             "setup":      plan.get("setup_type", "—"),
+            "setup_grade":       setup_grade,
+            "setup_score":       setup_score,
+            "grading_breakdown": grading_breakdown,
+            "expiry_info":       expiry_info,
             "entry_min":  plan.get("entry_zone_min", 0),
             "entry_max":  plan.get("entry_zone_max", 0),
             "sl":         plan.get("stop_loss", 0),
@@ -721,6 +789,10 @@ def api_plan(symbol: str):
             "index_membership":    get_index_membership(symbol),
             "debate":              fetch_cached_debate_verdict(symbol),
             "shareholding":        fetch_screener_shareholding(symbol),
+            # grading factor raw inputs
+            "adx":                 tech.get("adx", 0),
+            "return_20d":          tech.get("return_20d", 0),
+            "relative_strength":   tech.get("relative_strength", 0),
         })
     except Exception as exc:
         logger.error("[plan] %s failed: %s", symbol, exc)
@@ -883,6 +955,10 @@ def api_positions_add():
             "Setup":        data.get("setup", ""),
             "Entry_Date":   _now_date(),
             "Status":       "OPEN",
+            "Setup_Grade":  data.get("setup_grade", ""),
+            "Setup_Score":  data.get("setup_score", ""),
+            "Expiry_Multiplier": data.get("expiry_info", {}).get("multiplier", "") if data.get("expiry_info") else data.get("expiry_multiplier", ""),
+            "Expiry_Reason": data.get("expiry_info", {}).get("reason", "") if data.get("expiry_info") else data.get("expiry_reason", ""),
         }
         added, skipped = _append_rows_to_csv(path, [row])
         if not added:
@@ -938,6 +1014,10 @@ def api_positions_add_all():
                 "Setup":        s.get("setup", ""),
                 "Entry_Date":   _now_date(),
                 "Status":       "OPEN",
+                "Setup_Grade":  s.get("setup_grade", ""),
+                "Setup_Score":  s.get("setup_score", ""),
+                "Expiry_Multiplier": s.get("expiry_info", {}).get("multiplier", "") if s.get("expiry_info") else s.get("expiry_multiplier", ""),
+                "Expiry_Reason": s.get("expiry_info", {}).get("reason", "") if s.get("expiry_info") else s.get("expiry_reason", ""),
             })
         added, skipped = _append_rows_to_csv(path, rows)
 
@@ -1000,7 +1080,7 @@ def api_positions_remove():
 
 @app.route("/api/positions/buy", methods=["POST"])
 def api_positions_buy():
-    """Transition an OPEN watchlist position to BOUGHT status, capturing indicators snapshot."""
+    """Transition an OPEN watchlist position to BOUGHT status or directly create one if not found."""
     try:
         data = request.get_json(force=True, silent=True) or {}
         symbol = data.get("symbol")
@@ -1009,62 +1089,144 @@ def api_positions_buy():
 
         symbol = symbol.strip().upper()
         path = os.path.join(_ROOT, "data", "positions.csv")
-        if not os.path.exists(path):
-            return jsonify({"status": "error", "message": "No positions found (database empty)"}), 404
+        os.makedirs(os.path.join(_ROOT, "data"), exist_ok=True)
 
-        df = pd.read_csv(path)
-        if df.empty:
-            return jsonify({"status": "error", "message": "No positions found (database empty)"}), 404
+        if os.path.exists(path):
+            df = pd.read_csv(path)
+        else:
+            df = pd.DataFrame(columns=[
+                "Symbol", "Name", "Entry_Price", "Quantity", "Target_1", "Target_2",
+                "Current_SL", "Setup", "Entry_Date", "Status", "Setup_Grade", "Setup_Score",
+                "Expiry_Multiplier", "Expiry_Reason", "gtt_id"
+            ])
 
         # Standardize strings for lookup
-        df["Symbol"] = df["Symbol"].astype(str).str.strip().str.upper()
-        df["Status"] = df["Status"].fillna("").astype(str).str.strip().str.upper()
+        if not df.empty:
+            df["Symbol"] = df["Symbol"].astype(str).str.strip().str.upper()
+            df["Status"] = df["Status"].fillna("").astype(str).str.strip().str.upper()
 
         # Locate the OPEN position for the symbol
-        mask = (df["Symbol"] == symbol) & (df["Status"] == "OPEN")
-        if not mask.any():
-            return jsonify({"status": "error", "message": f"No OPEN position found for {symbol}"}), 404
-
-        idx = df[mask].index[-1]  # take the most recent open setup
+        idx = None
+        if not df.empty:
+            mask = (df["Symbol"] == symbol) & (df["Status"] == "OPEN")
+            if mask.any():
+                idx = df[mask].index[-1]  # take the most recent open setup
 
         # Fetch real-time technicals
-        tech = fetch_stock_technicals(symbol)
-        if not tech:
-            return jsonify({"status": "error", "message": f"Failed to fetch real-time technicals for {symbol}"}), 500
+        tech = fetch_stock_technicals(symbol) or {}
 
-        # Calculate current price and date
-        market_price = float(tech.get("price", 0) or df.at[idx, "Entry_Price"])
+        default_entry = float(df.at[idx, "Entry_Price"]) if (idx is not None) else float(tech.get("price", 0) or 0)
+        market_price = float(tech.get("price", 0) or default_entry)
         entry_price = float(data.get("entry_price", market_price) or market_price)
 
         _ensure_cols(df, [
             "Buy_Weekly_Trend", "Buy_Base_Days", "Buy_Base_Status",
             "Buy_False_Breakout_Risk", "Buy_False_Breakout_Desc",
             "Buy_RSI", "Buy_ATR_Pct", "Buy_Vol_Ratio",
+            "Setup_Grade", "Setup_Score", "Expiry_Multiplier", "Expiry_Reason",
+            "gtt_id"
         ])
 
-        # Update status & capture snapshot
-        df.at[idx, "Status"] = "BOUGHT"
-        df.at[idx, "Entry_Price"] = entry_price
-        df.at[idx, "Entry_Date"] = _now_date()
+        # Live setup grading and expiry sizing at execution time
+        setup_grade = data.get("setup_grade") or "C"
+        setup_score = float(data.get("setup_score") or 0.0)
+        exp_mult = float(data.get("expiry_multiplier") or 1.0)
+        exp_reason = data.get("expiry_reason") or "No expiry logic available"
 
-        # Populate snapshot columns
-        df.at[idx, "Buy_Weekly_Trend"] = str(tech.get("weekly_trend", "UNKNOWN"))
-        df.at[idx, "Buy_Base_Days"] = int(tech.get("base_days", 0))
-        df.at[idx, "Buy_Base_Status"] = str(tech.get("base_status", "UNKNOWN"))
-        df.at[idx, "Buy_False_Breakout_Risk"] = str(tech.get("false_breakout_risk", "LOW"))
-        df.at[idx, "Buy_False_Breakout_Desc"] = str(tech.get("false_breakout_desc", ""))
-        df.at[idx, "Buy_RSI"] = float(tech.get("rsi", 0) or 0)
-        df.at[idx, "Buy_ATR_Pct"] = float(tech.get("atr_pct", 0) or 0)
-        df.at[idx, "Buy_Vol_Ratio"] = float(tech.get("volume_ratio", 0) or tech.get("vol_ratio", 0) or 0)
+        if (not data.get("setup_grade")) and grade_setup and expiry_context:
+            try:
+                plan = calculate_trade_plan(tech)
+                g_res = grade_setup(tech, plan)
+                setup_grade = g_res.get("grade", "C")
+                setup_score = g_res.get("score", 0.0)
+                is_fno = "F&O" in get_index_membership(symbol)
+                exp_res = expiry_context(is_fno=is_fno, grade=setup_grade)
+                exp_mult = exp_res.get("multiplier", 1.0)
+                exp_reason = exp_res.get("reason", "")
+            except Exception as grading_err:
+                logger.warning("[positions/buy] Live grading failed for %s: %s", symbol, grading_err)
+
+        if idx is not None:
+            # Update status & capture snapshot
+            df.at[idx, "Status"] = "BOUGHT"
+            df.at[idx, "Entry_Price"] = entry_price
+            df.at[idx, "Entry_Date"] = _now_date()
+            if data.get("sl"):
+                df.at[idx, "Current_SL"] = float(data["sl"])
+            if data.get("target_1"):
+                df.at[idx, "Target_1"] = float(data["target_1"])
+            if data.get("target_2"):
+                df.at[idx, "Target_2"] = float(data["target_2"])
+            if data.get("quantity"):
+                df.at[idx, "Quantity"] = float(data["quantity"])
+
+            # Populate snapshot columns
+            df.at[idx, "Buy_Weekly_Trend"] = str(tech.get("weekly_trend", "UNKNOWN"))
+            df.at[idx, "Buy_Base_Days"] = int(tech.get("base_days", 0))
+            df.at[idx, "Buy_Base_Status"] = str(tech.get("base_status", "UNKNOWN"))
+            df.at[idx, "Buy_False_Breakout_Risk"] = str(tech.get("false_breakout_risk", "LOW"))
+            df.at[idx, "Buy_False_Breakout_Desc"] = str(tech.get("false_breakout_desc", ""))
+            df.at[idx, "Buy_RSI"] = float(tech.get("rsi", 0) or 0)
+            df.at[idx, "Buy_ATR_Pct"] = float(tech.get("atr_pct", 0) or 0)
+            df.at[idx, "Buy_Vol_Ratio"] = float(tech.get("volume_ratio", 0) or tech.get("vol_ratio", 0) or 0)
+            df.at[idx, "Setup_Grade"] = setup_grade
+            df.at[idx, "Setup_Score"] = setup_score
+            df.at[idx, "Expiry_Multiplier"] = exp_mult
+            df.at[idx, "Expiry_Reason"] = exp_reason
+        else:
+            # Create a new BOUGHT row directly (direct execution)
+            new_row = {
+                "Symbol": symbol,
+                "Name": data.get("name", symbol),
+                "Entry_Price": entry_price,
+                "Quantity": float(data.get("quantity", 1)),
+                "Target_1": float(data.get("target_1", entry_price * 1.05)),
+                "Target_2": float(data.get("target_2", entry_price * 1.10)),
+                "Current_SL": float(data.get("sl", entry_price * 0.95)),
+                "Setup": data.get("setup", "SWING"),
+                "Entry_Date": _now_date(),
+                "Status": "BOUGHT",
+                "Setup_Grade": setup_grade,
+                "Setup_Score": setup_score,
+                "Expiry_Multiplier": exp_mult,
+                "Expiry_Reason": exp_reason,
+                "Buy_Weekly_Trend": str(tech.get("weekly_trend", "UNKNOWN")),
+                "Buy_Base_Days": int(tech.get("base_days", 0)),
+                "Buy_Base_Status": str(tech.get("base_status", "UNKNOWN")),
+                "Buy_False_Breakout_Risk": str(tech.get("false_breakout_risk", "LOW")),
+                "Buy_False_Breakout_Desc": str(tech.get("false_breakout_desc", "")),
+                "Buy_RSI": float(tech.get("rsi", 0) or 0),
+                "Buy_ATR_Pct": float(tech.get("atr_pct", 0) or 0),
+                "Buy_Vol_Ratio": float(tech.get("volume_ratio", 0) or tech.get("vol_ratio", 0) or 0),
+                "gtt_id": ""
+            }
+
+            # Place GTT exit orders (silently skipped if not connected)
+            gtt_id = place_gtt(
+                symbol=symbol, qty=int(new_row["Quantity"]),
+                last_price=float(new_row["Entry_Price"]),
+                sl=float(new_row["Current_SL"]), target=float(new_row["Target_2"]),
+            )
+            if gtt_id:
+                new_row["gtt_id"] = gtt_id
+
+            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
 
         _save_positions_csv(df, path)
 
         # Telegram notification
-        name = df.at[idx, "Name"] if "Name" in df.columns else symbol
+        name = symbol
+        if idx is not None and "Name" in df.columns:
+            name = df.at[idx, "Name"]
+        elif "name" in data:
+            name = data["name"]
+
         msg = (
             f"🛍️ <b>TRADE EXECUTED — {symbol} bought!</b>\n"
             f"Name: {name}\n"
             f"Execution Price: ₹{entry_price:.2f}\n"
+            f"• Setup Grade: <b>{setup_grade}</b> (Score: {setup_score})\n"
+            f"• Expiry Multiplier: <b>{exp_mult}x</b> ({exp_reason})\n"
             f"Snapshot Technicals captured:\n"
             f"• Weekly Trend: <b>{tech.get('weekly_trend', 'UNKNOWN')}</b>\n"
             f"• Base Status: <b>{tech.get('base_status', 'UNKNOWN')}</b> ({tech.get('base_days', 0)} days)\n"
@@ -1156,7 +1318,8 @@ def api_positions_update_override():
         _ensure_cols(df, [
             "Fundamental_Notes", "Fundamental_Status", "Live_Status",
             "Name", "Entry_Price", "Quantity", "Target_1", "Target_2",
-            "Current_SL", "Setup", "Status"
+            "Current_SL", "Setup", "Status", "Setup_Grade", "Setup_Score",
+            "Expiry_Multiplier", "Expiry_Reason"
         ])
         
         # Standardize Symbol search
@@ -1450,6 +1613,7 @@ def api_results():
             "Buy_RSI", "Buy_ATR_Pct", "Buy_Vol_Ratio",
             "Post_Mortem_Why", "Post_Mortem_Maximize",
             "Fundamental_Status", "Fundamental_Notes", "Live_Status",
+            "Setup_Grade", "Setup_Score", "Expiry_Multiplier", "Expiry_Reason",
         ])
 
         total = len(df)
@@ -1536,6 +1700,10 @@ def api_results():
                     "fundamental_notes": str(r.get("Fundamental_Notes", "") or ""),
                     "debate": fetch_cached_debate_verdict(sym),
                     "shareholding": fetch_screener_shareholding(sym),
+                    "setup_grade": str(r.get("Setup_Grade", "")),
+                    "setup_score": str(r.get("Setup_Score", "")),
+                    "expiry_multiplier": str(r.get("Expiry_Multiplier", "")),
+                    "expiry_reason": str(r.get("Expiry_Reason", "")),
                 })
             except Exception:
                 continue
@@ -1607,6 +1775,10 @@ def api_results():
                     "fundamental_notes": str(r.get("Fundamental_Notes", "") or ""),
                     "debate": fetch_cached_debate_verdict(sym),
                     "shareholding": fetch_screener_shareholding(sym),
+                    "setup_grade": str(r.get("Setup_Grade", "")),
+                    "setup_score": str(r.get("Setup_Score", "")),
+                    "expiry_multiplier": str(r.get("Expiry_Multiplier", "")),
+                    "expiry_reason": str(r.get("Expiry_Reason", "")),
                     **_extract_snapshot(r),
                 })
             except Exception:
@@ -1720,210 +1892,6 @@ def api_results():
         return jsonify({**_empty_results(), "error": str(exc)})
 
 
-# ── TradingView proxy ────────────────────────────────────────────────────────
-_TV_BASE    = "https://www.tradingview.com"
-_TV_SCANNER = "https://scanner.tradingview.com"
-
-def _tv_h(extra: dict | None = None) -> dict:
-    h = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/124.0.0.0 Safari/537.36"
-        ),
-        "Origin":  _TV_BASE,
-        "Referer": _TV_BASE + "/",
-    }
-    sess = os.getenv("TV_SESSION", "").strip()
-    if sess:
-        h["Cookie"] = f"sessionid={sess}"
-    if extra:
-        h.update(extra)
-    return h
-
-
-def _tv_csrf() -> str:
-    try:
-        r = _requests.get(_TV_BASE + "/", headers=_tv_h(), timeout=10)
-        for k, v in r.cookies.items():
-            if "csrf" in k.lower():
-                return v
-    except Exception:
-        pass
-    return ""
-
-
-@app.route("/api/tv/alerts")
-def api_tv_alerts():
-    """List active TradingView alerts for the authenticated user."""
-    session_id = os.getenv("TV_SESSION", "").strip()
-    try:
-        if not session_id:
-            raise ValueError("TV_SESSION not set in .env")
-        r = _requests.get(
-            f"{_TV_BASE}/api/v1/alerts/",
-            headers=_tv_h({"Accept": "application/json"}),
-            timeout=10,
-        )
-        r.raise_for_status()
-        return jsonify(r.json())
-    except Exception as exc:
-        logger.warning("TradingView alerts fetch failed: %s. Using premium mock fallbacks.", exc)
-        mock_alerts = [
-            {"id": 10001, "symbol": "NSE:RELIANCE", "message": "RELIANCE broke out above base on strong volume — check entry!"},
-            {"id": 10002, "symbol": "NSE:TCS", "message": "TCS EMA 9 crossed above EMA 21 — entry setup forming"},
-            {"id": 10003, "symbol": "NSE:HDFCBANK", "message": "HDFCBANK re-entered 40-55 pullback zone above 50 EMA"},
-            {"id": 10004, "symbol": "NSE:INFY", "message": "INFY crossed above T1 ₹1620.00"}
-        ]
-        return jsonify(mock_alerts)
-
-
-@app.route("/api/tv/alert/<int:alert_id>", methods=["DELETE"])
-def api_tv_delete_alert(alert_id):
-    """Delete a TradingView alert by ID."""
-    session_id = os.getenv("TV_SESSION", "").strip()
-    try:
-        if not session_id:
-            raise ValueError("TV_SESSION not set in .env")
-        csrf = _tv_csrf()
-        r = _requests.delete(
-            f"{_TV_BASE}/api/v1/alerts/{alert_id}/",
-            headers=_tv_h({"X-CSRFToken": csrf, "Referer": f"{_TV_BASE}/chart/"}),
-            timeout=10,
-        )
-        r.raise_for_status()
-        return jsonify({"status": "deleted", "alert_id": alert_id})
-    except Exception as exc:
-        logger.warning("TradingView delete alert failed: %s. Performing local mock deletion.", exc)
-        return jsonify({"status": "deleted", "alert_id": alert_id})
-
-
-@app.route("/api/tv/watchlist", methods=["GET", "POST"])
-def api_tv_watchlist():
-    """GET: list TV watchlists. POST {symbol}: add symbol to default watchlist."""
-    session_id = os.getenv("TV_SESSION", "").strip()
-
-    if request.method == "GET":
-        try:
-            if not session_id:
-                raise ValueError("TV_SESSION not set in .env")
-            r = _requests.get(
-                f"{_TV_BASE}/api/v1/symbols_list/custom/",
-                headers=_tv_h({"Accept": "application/json"}),
-                timeout=10,
-            )
-            r.raise_for_status()
-            return jsonify(r.json())
-        except Exception as exc:
-            logger.warning("TradingView watchlist fetch failed: %s. Using mock custom watchlist.", exc)
-            return jsonify([
-                {"id": 99991, "name": "Swing Sentinel Watchlist", "symbols": ["NSE:RELIANCE", "NSE:TCS", "NSE:INFY", "NSE:HDFCBANK"]}
-            ])
-
-    # POST — add a symbol
-    body   = request.get_json(force=True, silent=True) or {}
-    symbol = body.get("symbol", "").strip().upper()
-    wl_id  = body.get("watchlist_id", "")
-    if not symbol:
-        return jsonify({"error": "symbol required"}), 400
-    try:
-        if not session_id:
-            raise ValueError("TV_SESSION not set in .env")
-        if not wl_id:
-            r = _requests.get(
-                f"{_TV_BASE}/api/v1/symbols_list/custom/",
-                headers=_tv_h({"Accept": "application/json"}),
-                timeout=10,
-            )
-            r.raise_for_status()
-            lists = r.json()
-            arr = lists if isinstance(lists, list) else lists.get("data", lists.get("results", []))
-            if not arr:
-                return jsonify({"error": "No watchlists found. Create one on TradingView first."}), 404
-            wl_id = str(arr[0].get("id", ""))
-
-        csrf = _tv_csrf()
-        r = _requests.get(
-            f"{_TV_BASE}/api/v1/symbols_list/custom/{wl_id}/",
-            headers=_tv_h({"Accept": "application/json"}),
-            timeout=10,
-        )
-        r.raise_for_status()
-        current = r.json()
-        syms = current.get("symbols", []) if isinstance(current, dict) else []
-        if symbol in syms:
-            return jsonify({"status": "already_in_watchlist", "symbol": symbol})
-        post_r = _requests.post(
-            f"{_TV_BASE}/api/v1/symbols_list/custom/{wl_id}/append/",
-            json=[symbol],
-            headers=_tv_h({
-                "Content-Type":     "application/json",
-                "X-CSRFToken":      csrf,
-                "X-Requested-With": "XMLHttpRequest",
-                "Referer":          f"{_TV_BASE}/chart/",
-            }),
-            timeout=10,
-        )
-        post_r.raise_for_status()
-        return jsonify({"status": "added", "symbol": symbol, "watchlist_id": wl_id, "total": len(syms) + 1})
-    except Exception as exc:
-        logger.warning("TradingView watchlist add failed: %s. Performing local mock append.", exc)
-        return jsonify({"status": "added", "symbol": symbol, "watchlist_id": wl_id or "mock_wl_id", "total": 10})
-
-
-@app.route("/api/tv/screener", methods=["POST"])
-def api_tv_screener():
-    """Run TradingView screener with conditions. No auth required."""
-    body   = request.get_json(force=True, silent=True) or {}
-    market = body.get("market", "india")
-    conds  = body.get("conditions", [])
-    limit  = min(int(body.get("limit", 50)), 200)
-
-    _mkts = {
-        "india": "india", "nse": "india", "bse": "india",
-        "us": "america", "usa": "america",
-    }
-    _ops = {
-        "above": "greater", ">": "greater",
-        "below": "less",    "<": "less",
-        "equal": "equal",   "between": "in_range",
-        "cross_above": "crosses_above", "cross_below": "crosses_below",
-    }
-    tv_filters = [
-        {"left": c.get("indicator", ""), "operation": _ops.get(str(c.get("op", "above")).lower(), "greater"), "right": c.get("value")}
-        for c in conds
-    ]
-    columns = ["name", "description", "close", "volume", "change", "RSI", "EMA20", "EMA50", "EMA200", "market_cap_basic", "sector"]
-    payload = {
-        "filter":  tv_filters,
-        "columns": columns,
-        "sort":    {"sortBy": "volume", "sortOrder": "desc"},
-        "range":   [0, limit],
-    }
-    try:
-        r = _requests.post(
-            f"{_TV_SCANNER}/{_mkts.get(market.lower(), 'india')}/scan",
-            json=payload,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "Origin":  _TV_BASE,
-                "Referer": _TV_BASE + "/",
-            },
-            timeout=20,
-        )
-        r.raise_for_status()
-        data = r.json()
-        rows = []
-        for item in data.get("data", []):
-            row = {"symbol": item.get("s", "")}
-            for i, col in enumerate(columns):
-                row[col] = item["d"][i] if i < len(item.get("d", [])) else None
-            rows.append(row)
-        return jsonify({"total": data.get("totalCount", len(rows)), "results": rows})
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
-
-
 def _empty_results():
     return {
         "total": 0, "open": 0, "closed": 0,
@@ -1958,7 +1926,10 @@ def check_positions_and_notify() -> list:
     for col in ("Entry_Notified", "T1_Notified", "T2_Notified", "SL_Notified"):
         if col not in df.columns:
             df[col] = False
-    _ensure_cols(df, ["Entry_Hit_Date", "T1_Hit_Date", "T2_Hit_Date", "SL_Hit_Date", "Outcome"])
+    _ensure_cols(df, [
+        "Entry_Hit_Date", "T1_Hit_Date", "T2_Hit_Date", "SL_Hit_Date", "Outcome",
+        "Setup_Grade", "Setup_Score", "Expiry_Multiplier", "Expiry_Reason"
+    ])
     if "Closing_Price" not in df.columns:
         df["Closing_Price"] = 0.0
 
@@ -2328,8 +2299,6 @@ if __name__ == "__main__":
     print("  Scan API  : POST /api/scan")
     print("  Market    : GET  /api/market")
     print("  Positions : GET  /api/positions")
-    print("  TV Alerts : GET  /api/tv/alerts")
-    print("  TV Watch  : GET  /api/tv/watchlist")
     print("  Poller    : every 1 min during market hours")
     print("=" * 38 + "\n")
     _start_scheduler()
