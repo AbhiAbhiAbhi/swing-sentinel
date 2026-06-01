@@ -310,14 +310,17 @@ def filter_earnings_soon(symbol: str, window_days: int = EARNINGS_WINDOW_DAYS) -
 
 
 def filter_weak_sector(symbol: str, sector_pulse: Optional[dict] = None) -> Tuple[bool, str]:
-    """Reject if the stock's sector index is currently below its EMA20."""
+    """Reject if the stock's sector index is more than 2% below its EMA20 (RED sector - rotation trap)."""
     try:
-        from core_sectors import get_sector, is_sector_in_uptrend
+        from core_sectors import get_sector
         sector = get_sector(symbol)
         if sector == "OTHERS":
             return True, ""   # don't penalize unmapped stocks
-        if not is_sector_in_uptrend(symbol, pulse=sector_pulse):
-            return False, f"weak sector ({sector})"
+        if sector_pulse and sector in sector_pulse:
+            info = sector_pulse[sector]
+            pct = info.get("pct_from_ema20")
+            if pct is not None and pct < -2.0:
+                return False, f"weak sector RED ({sector} is {pct:.2f}% below EMA20)"
     except Exception as exc:
         logger.debug("[filter_weak_sector] %s: %s", symbol, exc)
     return True, ""
@@ -808,10 +811,11 @@ def filter_overextended_1m(tech: dict, max_runup_pct: float = 25.0) -> Tuple[boo
 
 def apply_risk_filters(symbol: str, tech: dict,
                        sector_pulse: Optional[dict] = None,
-                       thresholds: Optional[dict] = None) -> Tuple[bool, list, str]:
+                       thresholds: Optional[dict] = None) -> Tuple[bool, list, str, float]:
     """
     Run the complete, stacked filter stack and classify the stock into
     one of the four states: PASS, WATCH, WARNING, or SKIP.
+    Also calculates the regime multiplier based on Sector × Nifty alignment (Gate #9).
 
     `thresholds` is an optional dict from the UI with parameters.
     """
@@ -831,6 +835,7 @@ def apply_risk_filters(symbol: str, tech: dict,
     hard_skips = []
     warnings = []
     watch_state = "PASS"
+    regime_mult = 1.0
 
     # 1. Liquidity check
     if block_low_liquidity:
@@ -868,11 +873,59 @@ def apply_risk_filters(symbol: str, tech: dict,
     if not passed:
         hard_skips.append(reason)
 
-    # 6. Sector strength (Downgrade to warning/note instead of hard skip)
+    # 6. Sector × Nifty regime alignment (Gate #9)
+    # RED sector is a hard skip under all regimes. Sector Amber / Green passes but applies regime sizing.
     if block_sec:
-        passed, reason = filter_weak_sector(symbol, sector_pulse)
-        if not passed:
-            warnings.append(reason)
+        # Fetch sector and calculate its pct_from_ema20
+        from core_sectors import get_sector
+        sector = get_sector(symbol)
+        sec_info = sector_pulse.get(sector, {}) if sector_pulse else {}
+        pct = sec_info.get("pct_from_ema20")
+        
+        if sector == "OTHERS" or pct is None:
+            sector_status = "GREEN"
+            pct = 0.0
+        else:
+            if pct >= 0:
+                sector_status = "GREEN"
+            elif pct >= -2.0:
+                sector_status = "AMBER"
+            else:
+                sector_status = "RED"
+                
+        # Fetch broad Nifty regime
+        try:
+            from core_data_fetcher import fetch_nifty_levels
+        except ImportError:
+            from core.data_fetcher import fetch_nifty_levels
+        nifty_data = fetch_nifty_levels()
+        nifty_regime = nifty_data.get("regime", "GREEN").upper()
+        
+        # Core interaction matrix checks
+        if sector_status == "RED":
+            regime_mult = 0.0
+            if nifty_regime == "RED":
+                hard_skips.append(f"weak sector RED under RED broad market regime (HARD SKIP: Nifty RED, Sector RED - {sector} {pct:.2f}% below EMA20)")
+            else:
+                hard_skips.append(f"sector rotation trap (SKIP: Nifty {nifty_regime}, Sector RED - {sector} {pct:.2f}% below EMA20)")
+        else:
+            # Surviving cells -> determine multiplier
+            if nifty_regime == "GREEN":
+                if sector_status == "GREEN":
+                    regime_mult = 1.0
+                else: # AMBER
+                    regime_mult = 0.75
+            elif nifty_regime == "AMBER":
+                if sector_status == "GREEN":
+                    regime_mult = 0.75
+                else: # AMBER
+                    regime_mult = 0.5
+            elif nifty_regime == "RED":
+                # Nifty RED + Sector Green -> sector outperformance, valid at 0.5x size
+                if sector_status == "GREEN":
+                    regime_mult = 0.5
+                else: # AMBER
+                    regime_mult = 0.5
 
     # 7. Trend & Distance Alignment
     if block_trend_alignment:
@@ -927,5 +980,5 @@ def apply_risk_filters(symbol: str, tech: dict,
         passed_all = True
         reasons = []
 
-    return passed_all, reasons, verdict
+    return passed_all, reasons, verdict, regime_mult
 

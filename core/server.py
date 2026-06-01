@@ -53,7 +53,7 @@ except ImportError:
         from core_risk_filters import apply_risk_filters, fetch_screener_shareholding
         from core_sectors      import get_sector, fetch_sector_pulse
     except ImportError:
-        def apply_risk_filters(sym, tech, sector_pulse=None): return True, []
+        def apply_risk_filters(sym, tech, sector_pulse=None): return True, [], "PASS", 1.0
         def get_sector(sym): return "OTHERS"
         def fetch_sector_pulse(): return {}
 
@@ -484,15 +484,16 @@ def process_single_stock(stock, df_sym, sector_pulse, filters):
         if not tech:
             return {"status": "error", "symbol": symbol, "reason": "No technical indicators available"}
 
-        passed, reasons, verdict = apply_risk_filters(symbol, tech, sector_pulse=sector_pulse, thresholds=filters)
+        passed, reasons, verdict, regime_mult = apply_risk_filters(symbol, tech, sector_pulse=sector_pulse, thresholds=filters)
         if not passed:
             return {
                 "status": "filtered",
                 "symbol": symbol,
                 "name": stock.get("name", symbol),
                 "reasons": reasons,
-                "verdict": "SKIP",
+                "verdict": verdict,
                 "index_membership": get_index_membership(symbol),
+                "regime_multiplier": regime_mult,
             }
 
         plan = calculate_trade_plan(tech)
@@ -542,6 +543,8 @@ def process_single_stock(stock, df_sym, sector_pulse, filters):
             "expiry_info":       expiry_info,
             "sector":     get_sector(symbol),
             "verdict":    verdict,
+            "reasons":    reasons,
+            "regime_multiplier": regime_mult,
             "index_membership": get_index_membership(symbol),
             # checklist-derived tags
             "atr_pct":          tech.get("atr_pct", 0),
@@ -696,6 +699,83 @@ def api_scan():
                 res.pop("status", None)
                 filtered_out.append(res)
 
+        # ── Daily Cadence Rules for OPEN watchlist candidates ──
+        positions_path = os.path.join(_ROOT, "data", "positions.csv")
+        if os.path.exists(positions_path):
+            try:
+                df_positions = pd.read_csv(positions_path)
+                if not df_positions.empty and "Status" in df_positions.columns:
+                    # Ensure columns exist
+                    if "Absent_Cycles" not in df_positions.columns:
+                        df_positions["Absent_Cycles"] = 0
+                    df_positions["Absent_Cycles"] = df_positions["Absent_Cycles"].fillna(0).astype(int)
+                    
+                    rows_to_drop = []
+                    csv_updated = False
+                    
+                    for idx, row in df_positions.iterrows():
+                        if str(row["Status"]).upper() != "OPEN":
+                            continue
+                        
+                        sym = str(row["Symbol"]).strip().upper()
+                        
+                        # 1. Is it present in today's passed scan_results?
+                        scan_match = next((s for s in scan_results if s["symbol"].upper() == sym), None)
+                        if scan_match:
+                            # Passes scan -> Keep + refresh entry/SL/T1/T2 to today's calculated values
+                            df_positions.at[idx, "Entry_Price"] = scan_match.get("entry_min", df_positions.at[idx, "Entry_Price"])
+                            df_positions.at[idx, "Target_1"] = scan_match.get("target_1", df_positions.at[idx, "Target_1"])
+                            df_positions.at[idx, "Target_2"] = scan_match.get("target_2", df_positions.at[idx, "Target_2"])
+                            df_positions.at[idx, "Current_SL"] = scan_match.get("sl", df_positions.at[idx, "Current_SL"])
+                            df_positions.at[idx, "Setup_Grade"] = scan_match.get("setup_grade", df_positions.at[idx, "Setup_Grade"])
+                            df_positions.at[idx, "Setup_Score"] = scan_match.get("setup_score", df_positions.at[idx, "Setup_Score"])
+                            
+                            # Also update expiry multiplier/reason if present
+                            if scan_match.get("expiry_info"):
+                                df_positions.at[idx, "Expiry_Multiplier"] = scan_match["expiry_info"].get("multiplier", "")
+                                df_positions.at[idx, "Expiry_Reason"] = scan_match["expiry_info"].get("reason", "")
+                            elif scan_match.get("expiry_multiplier") is not None:
+                                df_positions.at[idx, "Expiry_Multiplier"] = scan_match.get("expiry_multiplier", "")
+                                df_positions.at[idx, "Expiry_Reason"] = scan_match.get("expiry_reason", "")
+                                
+                            df_positions.at[idx, "Absent_Cycles"] = 0
+                            csv_updated = True
+                            logger.info("[scan/cadence] Refreshed OPEN candidate %s with today's values", sym)
+                            continue
+                            
+                        # 2. Is it present in today's filtered_out list?
+                        filtered_match = next((s for s in filtered_out if s["symbol"].upper() == sym), None)
+                        if filtered_match:
+                            # Explicitly fails a gate (verdict == SKIP with a reason) -> Delete
+                            verdict_val = str(filtered_match.get("verdict", "SKIP")).upper()
+                            if verdict_val == "SKIP":
+                                reasons_str = "; ".join(filtered_match.get("reasons", []))
+                                rows_to_drop.append(idx)
+                                csv_updated = True
+                                logger.info("[scan/cadence] Deleted OPEN candidate %s: failed safety gate (%s)", sym, reasons_str)
+                                continue
+                            
+                        # 3. Absent from today's scan (no match in success or filtered_out)
+                        # Possible scan noise / transient -> Keep one cycle
+                        absent_cycles = int(df_positions.at[idx, "Absent_Cycles"]) + 1
+                        if absent_cycles > 1:
+                            rows_to_drop.append(idx)
+                            csv_updated = True
+                            logger.info("[scan/cadence] Deleted OPEN candidate %s: absent from scan for 2 consecutive cycles", sym)
+                        else:
+                            df_positions.at[idx, "Absent_Cycles"] = absent_cycles
+                            csv_updated = True
+                            logger.info("[scan/cadence] Kept absent OPEN candidate %s (cycle %d of absence)", sym, absent_cycles)
+                            
+                    if rows_to_drop:
+                        df_positions = df_positions.drop(rows_to_drop).reset_index(drop=True)
+                        
+                    if csv_updated:
+                        _save_positions_csv(df_positions, positions_path)
+                        logger.info("[scan/cadence] Successfully applied cadence rules to positions.csv")
+            except Exception as e:
+                logger.error("[scan/cadence] Error processing daily cadence rules: %s", e)
+
         result = {
             "status":        "success",
             "date":          _now_date(),
@@ -734,6 +814,13 @@ def api_plan(symbol: str):
         plan      = calculate_trade_plan(tech)
         entry_mid = (plan.get("entry_zone_min", 0) + plan.get("entry_zone_max", 0)) / 2
         rr_raw    = calculate_rr({"price": entry_mid, "target": plan.get("target_2", 0), "sl": plan.get("stop_loss", 0)})
+
+        # Evaluate risk filters for verdict and regime multiplier
+        try:
+            sector_pulse = fetch_sector_pulse()
+        except Exception:
+            sector_pulse = {}
+        passed, reasons, verdict, regime_mult = apply_risk_filters(symbol, tech, sector_pulse=sector_pulse)
 
         earn_days_until, earn_date_str, earn_source = fetch_earnings_date(symbol)
 
@@ -787,6 +874,9 @@ def api_plan(symbol: str):
             "earnings_date":       earn_date_str,
             "earnings_source":     earn_source,
             "index_membership":    get_index_membership(symbol),
+            "verdict":             verdict,
+            "reasons":             reasons,
+            "regime_multiplier":   regime_mult,
             "debate":              fetch_cached_debate_verdict(symbol),
             "shareholding":        fetch_screener_shareholding(symbol),
             # grading factor raw inputs

@@ -7794,29 +7794,53 @@ function recalcPosSize() {
 
   const deployed = qty * entry;
 
-  // Setup & Expiry Multiplier logic
-  let mult = 1.0;
-  let isExpiryReduced = false;
+  // Calculate Conviction, Regime, Expiry Sizing Factors
+  let convictionMult = 1.0;
+  let convictionLabel = "STRONG";
+  let regimeMult = 1.0;
+  let expiryMult = 1.0;
   let expiryReason = "";
+  let qualityScore = 100;
+  let setupGrade = "—";
+  let setupScoreStr = "";
+  
   if (_selectedTradeStock) {
     const s = _selectedTradeStock;
+    const vCheck = getStockValidation(s);
+    const scoreInfo = computeCompositeScore(s, vCheck);
+    qualityScore = scoreInfo.score;
+    setupGrade = s.setup_grade || "—";
+    setupScoreStr = ` (${s.setup_score || 0}/6.0)`;
+    
+    if (qualityScore >= 80) {
+      convictionMult = 1.0;
+      convictionLabel = "STRONG";
+    } else if (qualityScore >= 65) {
+      convictionMult = 0.75;
+      convictionLabel = "MODERATE";
+    } else if (qualityScore >= 50) {
+      convictionMult = 0.5;
+      convictionLabel = "WEAK";
+    } else {
+      convictionMult = 0.0;
+      convictionLabel = "INELIGIBLE";
+    }
+
+    regimeMult = s.regime_multiplier !== undefined ? parseFloat(s.regime_multiplier) : 1.0;
+
     if (s.expiry_info && s.expiry_info.in_window && s.expiry_info.multiplier !== undefined) {
-      mult = s.expiry_info.multiplier;
+      expiryMult = s.expiry_info.multiplier;
       expiryReason = s.expiry_info.reason || "";
-      if (mult < 1.0) {
-        isExpiryReduced = true;
-      }
     } else if (s.expiry_multiplier !== undefined) {
-      mult = parseFloat(s.expiry_multiplier);
+      expiryMult = parseFloat(s.expiry_multiplier);
       expiryReason = s.expiry_reason || "";
-      if (mult < 1.0) {
-        isExpiryReduced = true;
-      }
     }
   }
 
+  const finalMult = convictionMult * regimeMult * expiryMult;
+
   // Calculate Adjusted Suggested Quantity
-  let qtyAdj = Math.floor(qty * mult);
+  let qtyAdj = Math.floor(qty * finalMult);
   let isCappedAdj = false;
   if (entry > 0) {
     const maxQtyByAlloc = Math.floor(maxAlloc / entry);
@@ -7830,7 +7854,7 @@ function recalcPosSize() {
   const rr       = riskPerShr > 0 ? (tgt - entry) / riskPerShr : 0;
   const chasePct = sl > 0 ? ((entry - sl) / entry * 100) : 0;
 
-  // Blended Targets and returns (based on suggested adjusted quantity for realistic profit projection)
+  // Blended Targets and returns
   const t1 = entry > 0 && tgt > entry ? entry + (tgt - entry) / 2 : 0;
   const qtyT1 = Math.floor(qtyAdj / 2);
   const qtyT2 = qtyAdj - qtyT1;
@@ -7877,48 +7901,67 @@ function recalcPosSize() {
     let html = "";
     
     // 1. Setup Quality Grade Factor
-    let setupGradeVal = "—";
-    let setupGradeScore = "";
     let setupGradeStyle = "background:rgba(255,255,255,0.03); color:var(--muted); border:1px solid var(--border);";
-    
-    if (_selectedTradeStock) {
-      const g = _selectedTradeStock.setup_grade || "C";
-      const sc = _selectedTradeStock.setup_score !== undefined && _selectedTradeStock.setup_score !== null ? _selectedTradeStock.setup_score : "0.0";
-      setupGradeVal = g;
-      setupGradeScore = ` (${sc}/6.0)`;
-      if (g === "A") {
-        setupGradeStyle = "background:rgba(16,185,129,0.08); color:var(--green); border:1px solid rgba(16,185,129,0.25); font-weight:700;";
-      } else if (g === "B") {
-        setupGradeStyle = "background:rgba(245,158,11,0.08); color:var(--yellow); border:1px solid rgba(245,158,11,0.25); font-weight:700;";
-      } else {
-        setupGradeStyle = "background:rgba(156,163,175,0.08); color:var(--muted); border:1px solid rgba(156,163,175,0.25); font-weight:700;";
-      }
+    if (setupGrade === "A") {
+      setupGradeStyle = "background:rgba(16,185,129,0.08); color:var(--green); border:1px solid rgba(16,185,129,0.25); font-weight:700;";
+    } else if (setupGrade === "B") {
+      setupGradeStyle = "background:rgba(245,158,11,0.08); color:var(--yellow); border:1px solid rgba(245,158,11,0.25); font-weight:700;";
+    } else if (setupGrade !== "—") {
+      setupGradeStyle = "background:rgba(156,163,175,0.08); color:var(--muted); border:1px solid rgba(156,163,175,0.25); font-weight:700;";
     }
-    
-    // 2. F&O Expiry Sizing Factor
-    let expiryValText = "1.0x (Default)";
+
+    // 2. Conviction Sizing Factor
+    let convictionStyle = "background:rgba(255,255,255,0.03); color:var(--muted); border:1px solid var(--border);";
+    if (convictionLabel === "STRONG") {
+      convictionStyle = "background:rgba(16,185,129,0.08); color:var(--green); border:1px solid rgba(16,185,129,0.25); font-weight:700;";
+    } else if (convictionLabel === "MODERATE") {
+      convictionStyle = "background:rgba(245,158,11,0.08); color:var(--yellow); border:1px solid rgba(245,158,11,0.25); font-weight:700;";
+    } else if (convictionLabel === "WEAK") {
+      convictionStyle = "background:rgba(239,68,68,0.08); color:var(--red); border:1px solid rgba(239,68,68,0.25); font-weight:700;";
+    } else if (convictionLabel === "INELIGIBLE") {
+      convictionStyle = "background:rgba(239,68,68,0.15); color:var(--red); border:2px solid var(--red); font-weight:700;";
+    }
+
+    // 3. Market Regime Sizing Factor
+    let regimeStyle = "background:rgba(255,255,255,0.03); color:var(--muted); border:1px solid var(--border);";
+    if (regimeMult === 1.0) {
+      regimeStyle = "background:rgba(16,185,129,0.08); color:var(--green); border:1px solid rgba(16,185,129,0.25); font-weight:700;";
+    } else if (regimeMult === 0.75) {
+      regimeStyle = "background:rgba(245,158,11,0.08); color:var(--yellow); border:1px solid rgba(245,158,11,0.25); font-weight:700;";
+    } else if (regimeMult === 0.5) {
+      regimeStyle = "background:rgba(239,68,68,0.08); color:var(--red); border:1px solid rgba(239,68,68,0.25); font-weight:700;";
+    } else if (regimeMult === 0.0) {
+      regimeStyle = "background:rgba(239,68,68,0.15); color:var(--red); border:2px solid var(--red); font-weight:700;";
+    }
+
+    // 4. F&O Expiry Sizing Factor
+    let expiryValText = "1.0x (Normal)";
     let expiryValStyle = "background:rgba(255,255,255,0.03); color:var(--muted); border:1px solid var(--border);";
-    let expiryValTitle = "No expiry sizing constraint applied.";
-    
-    if (_selectedTradeStock) {
-      expiryValTitle = expiryReason || "Normal sizing applied.";
-      if (mult === 0.0) {
-        expiryValText = "0.0x (Hard Skip)";
-        expiryValStyle = "background:rgba(239,68,68,0.08); color:var(--red); border:1px solid rgba(239,68,68,0.25); font-weight:700;";
-      } else if (mult < 1.0) {
-        expiryValText = `⚠️ ${mult}x (Reduced)`;
-        expiryValStyle = "background:rgba(245,158,11,0.08); color:var(--yellow); border:1px solid rgba(245,158,11,0.25); font-weight:700;";
-      } else {
-        const isFO = expiryReason.toLowerCase().includes("expiry") || expiryReason.toLowerCase().includes("normal");
-        expiryValText = isFO ? "1.0x (Normal)" : "1.0x (Cash stock)";
-        expiryValStyle = "background:rgba(16,185,129,0.08); color:var(--green); border:1px solid rgba(16,185,129,0.25); font-weight:700;";
-      }
+    let expiryValTitle = expiryReason || "No expiry sizing constraint applied.";
+    if (expiryMult === 0.0) {
+      expiryValText = "0.0x (Hard Skip)";
+      expiryValStyle = "background:rgba(239,68,68,0.08); color:var(--red); border:1px solid rgba(239,68,68,0.25); font-weight:700;";
+    } else if (expiryMult < 1.0) {
+      expiryValText = `⚠️ ${expiryMult}x (Reduced)`;
+      expiryValStyle = "background:rgba(245,158,11,0.08); color:var(--yellow); border:1px solid rgba(245,158,11,0.25); font-weight:700;";
+    } else if (_selectedTradeStock) {
+      expiryValStyle = "background:rgba(16,185,129,0.08); color:var(--green); border:1px solid rgba(16,185,129,0.25); font-weight:700;";
     }
-    
-    // 3. Capital Allocation limit check
+
+    // 5. Final Blended Multiplier
+    let finalMultStyle = "background:rgba(255,255,255,0.03); color:var(--muted); border:1px solid var(--border);";
+    if (finalMult === 1.0) {
+      finalMultStyle = "background:rgba(16,185,129,0.08); color:var(--green); border:1px solid rgba(16,185,129,0.25); font-weight:700;";
+    } else if (finalMult > 0.0) {
+      finalMultStyle = "background:rgba(245,158,11,0.08); color:var(--yellow); border:1px solid rgba(245,158,11,0.25); font-weight:700;";
+    } else if (_selectedTradeStock) {
+      finalMultStyle = "background:rgba(239,68,68,0.15); color:var(--red); border:2px solid var(--red); font-weight:700;";
+    }
+
+    // Capital Allocation limit check
     let allocText = "Normal Risk Allocation";
     let allocStyle = "background:rgba(16,185,129,0.08); color:var(--green); border:1px solid rgba(16,185,129,0.25); font-weight:700;";
-    if (isCapped) {
+    if (isCappedAdj) {
       allocText = `⚠️ Capped allocation (20% cap)`;
       allocStyle = "background:rgba(245,158,11,0.08); color:var(--yellow); border:1px solid rgba(245,158,11,0.25); font-weight:700;";
     }
@@ -7926,23 +7969,34 @@ function recalcPosSize() {
     html += `
       <div style="display:flex; flex-direction:column; gap:8px; width:100%; margin-top:16px; padding:12px; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; width: 100%;">
         <div style="font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.8px;">Sizing &amp; Allocation Factor Diagnostics:</div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:stretch; width: 100%;">
-          <div style="flex:1; min-width:140px; padding:8px; border-radius:4px; text-align:center; font-size:11px; ${setupGradeStyle}">
-            <b>Setup Quality:</b> Grade ${setupGradeVal}${setupGradeScore}
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:8px; width: 100%;">
+          <div style="padding:8px; border-radius:4px; text-align:center; font-size:11px; ${setupGradeStyle}">
+            <b>Setup Quality:</b> Grade ${setupGrade}${setupScoreStr}
           </div>
-          <div style="flex:1; min-width:140px; padding:8px; border-radius:4px; text-align:center; font-size:11px; ${expiryValStyle}" title="${expiryValTitle}">
+          <div style="padding:8px; border-radius:4px; text-align:center; font-size:11px; ${convictionStyle}">
+            <b>Conviction Sizing:</b> ${convictionLabel} (${convictionMult.toFixed(2)}x)
+          </div>
+          <div style="padding:8px; border-radius:4px; text-align:center; font-size:11px; ${regimeStyle}">
+            <b>Regime Sizing:</b> ${regimeMult.toFixed(2)}x
+          </div>
+          <div style="padding:8px; border-radius:4px; text-align:center; font-size:11px; ${expiryValStyle}" title="${expiryValTitle}">
             <b>Expiry Sizing:</b> ${expiryValText}
           </div>
-          <div style="flex:1.2; min-width:165px; padding:8px; border-radius:4px; text-align:center; font-size:11px; ${allocStyle}">
+          <div style="padding:8px; border-radius:4px; text-align:center; font-size:11px; ${finalMultStyle}">
+            <b>Blended Sizer:</b> ${finalMult.toFixed(2)}x
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:stretch; width: 100%; margin-top:4px;">
+          <div style="flex:1; min-width:165px; padding:8px; border-radius:4px; text-align:center; font-size:11px; ${allocStyle}">
             ${allocText}
           </div>
         </div>
-        ${isExpiryReduced ? `
+        ${(expiryMult < 1.0 && expiryMult > 0) ? `
           <div style="font-size:11px; color:var(--yellow); background:rgba(245,158,11,0.04); border:1px solid rgba(245,158,11,0.15); padding:6px 10px; border-radius:4px; font-style:italic; text-align:center; margin-top:4px;">
-            ⚠️ Expiry size reduction of <b>${Math.round((1.0 - mult) * 100)}%</b> applied: ${expiryReason}
+            ⚠️ Expiry size reduction of <b>${Math.round((1.0 - expiryMult) * 100)}%</b> applied: ${expiryReason}
           </div>
         ` : ""}
-        ${(isCapped && maxAlloc > 0) ? `
+        ${(isCappedAdj && maxAlloc > 0) ? `
           <div style="font-size:11px; color:var(--yellow); background:rgba(245,158,11,0.04); border:1px solid rgba(245,158,11,0.15); padding:6px 10px; border-radius:4px; font-style:italic; text-align:center; margin-top:2px;">
             ⚠️ Capital deployment exceeded 20% limit. Base allocation capped at <b>₹${fmt(maxAlloc,0)}</b>.
           </div>
@@ -8297,110 +8351,151 @@ function _caCheck(pass, warn) {
 }
 
 function getStockValidation(s) {
-  const rsi = parseFloat(s.rsi) || 0;
-  const vol = parseFloat(s.vol_ratio) || 0;
-  const chg = parseFloat(s.change_pct) || 0;
-  const ema9x21 = s.ema9_cross_ema21 || "";
-  const setup = s.setup || "unknown";
-  const hasPattern = setup !== "unknown" && setup !== "";
+  // Category 1: Setup Type (25 pts)
+  const setup = (s.setup || "unknown").toUpperCase();
+  let setupScore = 0;
+  let setupVal = "Unknown / No Pattern";
+  let setupCls = "fail";
+  let setupIcon = "✗";
+  if (setup === "BREAKOUT") {
+    setupScore = 25;
+    setupVal = "Breakout Setup ✓";
+    setupCls = "pass";
+    setupIcon = "✓";
+  } else if (setup === "PULLBACK") {
+    setupScore = 18;
+    setupVal = "Pullback Setup !";
+    setupCls = "warn";
+    setupIcon = "!";
+  } else if (setup === "SUPPORT_BOUNCE" || setup === "SUPPORT") {
+    setupScore = 18;
+    setupVal = "Support Bounce !";
+    setupCls = "warn";
+    setupIcon = "!";
+  } else if (setup === "CONSOLIDATION") {
+    setupScore = 12;
+    setupVal = "Consolidation Setup !";
+    setupCls = "warn";
+    setupIcon = "!";
+  } else {
+    setupScore = 0;
+    setupVal = s.setup ? s.setup + " ✗" : "Unknown ✗";
+    setupCls = "fail";
+    setupIcon = "✗";
+  }
+  const caSetup = { label: "Setup Quality (Max 25)", cls: setupCls, icon: setupIcon, val: setupVal, score: setupScore };
 
-  // 1. Daily trend direction — EMA20 > EMA50 alignment
-  const emaAligned = s.ema_aligned !== false; // from scan filter
-  const ca1 = { label: "Daily trend (20 > 50 EMA)", ..._caCheck(emaAligned, false),
-    val: emaAligned ? "Aligned ✓" : "Misaligned ✗" };
+  // Category 2: Trend Structure (20 pts)
+  const emaAligned = s.ema_aligned !== false;
+  let trendScore = emaAligned ? 20 : 0;
+  let trendVal = emaAligned ? "Aligned (Price > EMA20 > EMA50) ✓" : "EMA Misaligned ✗";
+  let trendCls = emaAligned ? "pass" : "fail";
+  let trendIcon = emaAligned ? "✓" : "✗";
+  const caTrend = { label: "Trend Structure (Max 20)", cls: trendCls, icon: trendIcon, val: trendVal, score: trendScore };
 
-  // 2. Daily pattern base duration
+  // Category 3: Base Quality (15 pts)
   const baseDays = parseInt(s.base_days) || 0;
-  const ca2 = { label: "Consolidation base duration", ..._caCheck(baseDays >= 20, baseDays >= 5),
-    val: baseDays > 0 ? `${baseDays} days` : "No base" };
+  let baseScore = 0;
+  let baseVal = "Volatile / No Base ✗";
+  let baseCls = "fail";
+  let baseIcon = "✗";
+  if (baseDays >= 20 || s.base_status === "STABLE_BASE") {
+    baseScore = 15;
+    baseVal = "Stable Base (" + baseDays + "d) ✓";
+    baseCls = "pass";
+    baseIcon = "✓";
+  } else if (baseDays >= 5 || s.base_status === "CONSOLIDATING") {
+    baseScore = 9;
+    baseVal = "Consolidating (" + baseDays + "d) !";
+    baseCls = "warn";
+    baseIcon = "!";
+  } else {
+    baseScore = 0;
+    baseVal = "Volatile / Weak Base (" + baseDays + "d) ✗";
+    baseCls = "fail";
+    baseIcon = "✗";
+  }
+  const caBase = { label: "Base Quality (Max 15)", cls: baseCls, icon: baseIcon, val: baseVal, score: baseScore };
 
-  // 3. Volatility contraction (VCP) — proxy: ATR% < 3.5 = tight base
-  const atrRaw = s.atr_pct;
-  const hasAtr = atrRaw !== undefined && atrRaw !== null && parseFloat(atrRaw) > 0;
-  const atrPct = hasAtr ? parseFloat(atrRaw) : 0;
-  const ca3 = hasAtr
-    ? { label: "Volatility contracting (VCP)", ..._caCheck(atrPct < 3.5, atrPct < 5),
-        val: `ATR ${atrPct.toFixed(1)}%` }
-    : { label: "Volatility contracting (VCP)", cls: "na", icon: "?",
-        val: "N/A" };
+  // Category 4: Trend Strength (15 pts)
+  const adx = parseFloat(s.adx) || 0;
+  let adxScore = 0;
+  let adxVal = "Weak Trend ✗";
+  let adxCls = "fail";
+  let adxIcon = "✗";
+  if (adx > 25) {
+    adxScore = 15;
+    adxVal = "Strong ADX (" + adx.toFixed(1) + ") ✓";
+    adxCls = "pass";
+    adxIcon = "✓";
+  } else if (adx >= 20) {
+    adxScore = 9;
+    adxVal = "Moderate ADX (" + adx.toFixed(1) + ") !";
+    adxCls = "warn";
+    adxIcon = "!";
+  } else {
+    adxScore = 0;
+    adxVal = "Weak ADX (" + adx.toFixed(1) + ") ✗";
+    adxCls = "fail";
+    adxIcon = "✗";
+  }
+  const caADX = { label: "ADX Trend Strength (Max 15)", cls: adxCls, icon: adxIcon, val: adxVal, score: adxScore };
 
-  // 4. Institutional Accumulation (FII/DII Net Buying)
-  let instOk = false;
-  let instWarn = false;
-  let instVal = "No Data";
+  // Category 5: Institutional Accumulation (15 pts)
+  let instScore = 7.5;
+  let instVal = "Neutral/No Data";
+  let instCls = "warn";
+  let instIcon = "!";
   if (s.shareholding && s.shareholding.status === "success") {
     const sh = s.shareholding;
-    const cls = sh.classification || "NEUTRAL";
-    const score = sh.consensus_score !== undefined ? sh.consensus_score : 0.0;
-    if (cls === "ACCUMULATION" || score >= 3.0) {
-      instOk = true;
-      instVal = `Accumulation (+${score})`;
-    } else if (cls === "DISTRIBUTION" || score <= -3.0) {
-      instOk = false;
-      instVal = `Distribution (${score})`;
+    const cls = (sh.classification || "NEUTRAL").toUpperCase();
+    const scoreVal = sh.consensus_score !== undefined ? sh.consensus_score : 0.0;
+    if (cls === "ACCUMULATION" || scoreVal >= 3.0) {
+      instScore = 15;
+      instVal = "Accumulation (" + scoreVal.toFixed(1) + ") ✓";
+      instCls = "pass";
+      instIcon = "✓";
+    } else if (cls === "DISTRIBUTION" || scoreVal <= -3.0) {
+      instScore = 0;
+      instVal = "Distribution (" + scoreVal.toFixed(1) + ") ✗";
+      instCls = "fail";
+      instIcon = "✗";
     } else {
-      instWarn = true;
-      instVal = `Neutral (${score >= 0 ? "+" : ""}${score})`;
+      instScore = 7.5;
+      instVal = "Neutral (" + (scoreVal >= 0 ? "+" : "") + scoreVal.toFixed(1) + ") !";
+      instCls = "warn";
+      instIcon = "!";
     }
   }
-  const ca4 = { label: "Institutional Accumulation", ..._caCheck(instOk && !instWarn, instWarn), val: instVal };
+  const caInst = { label: "Institutional (Max 15)", cls: instCls, icon: instIcon, val: instVal, score: instScore };
 
-  // 5. Sector strength — pct from EMA20 check
-  const sector = s.sector || "OTHERS";
-  const secInfo = _sectorPulse[sector] || {};
-  const hasSectorInfo = sector !== "OTHERS" && secInfo.pct_from_ema20 !== undefined;
-  const pctFromEma = hasSectorInfo ? (parseFloat(secInfo.pct_from_ema20) || 0) : 0;
-  const sectorStatus = hasSectorInfo ? (pctFromEma >= 0 ? "GREEN" : pctFromEma >= -2.0 ? "AMBER" : "RED") : "GREEN";
-  const secOk = sectorStatus === "GREEN";
-  const secWarn = sectorStatus === "AMBER";
-  const ca5 = { label: `Sector (${sector}) vs EMA20`, ..._caCheck(secOk, secWarn),
-    val: hasSectorInfo ? `${sectorStatus} (${pctFromEma >= 0 ? "+" : ""}${pctFromEma.toFixed(2)}% vs EMA20)` : "—" };
-
-  // 6. RSI health — Sweet Spot (40-65)
-  const rsiOk = rsi >= 40 && rsi <= 65;
-  const rsiWarn = (rsi >= 30 && rsi < 40) || (rsi > 65 && rsi <= 75);
-  const ca6 = { label: "RSI Sweet Spot (40-65)", ..._caCheck(rsiOk, rsiWarn),
-    val: rsi ? `RSI ${rsi.toFixed(0)}` : "—" };
-
-  // 7. Fresh MACD golden crossover
-  const macdCross = parseInt(s.macd_crossover_days_ago);
-  const macdCrossOk = macdCross >= 0 && macdCross <= 3;
-  const ca7 = { label: "Fresh MACD crossover", ..._caCheck(macdCrossOk, false),
-    val: macdCrossOk ? `Crossed ${macdCross}d ago ✓` : macdCross >= 0 ? `Late Trend (${macdCross}d ago) ✗` : "No Cross in 4d ✗" };
-
-  // 8. Relative Strength vs Nifty
-  const relStr = parseFloat(s.relative_strength) || 0;
-  const relStrOk = relStr > 0;
-  const ca8 = { label: "Relative Strength vs Nifty", ..._caCheck(relStrOk, false),
-    val: `${relStr >= 0 ? "+" : ""}${relStr.toFixed(2)}% vs Nifty` };
-
-  // 9. Volume Spike (≥1.5x 20-day average)
-  const avgVol = parseFloat(s.avg_volume_20d) || 0;
-  let volThreshold = 1.5;
-  let volTier = "Midcap";
-  if (s.symbol) {
-    if (avgVol > 5000000) {
-      volThreshold = 1.25;
-      volTier = "Largecap";
-    } else if (avgVol < 1000000) {
-      volThreshold = 2.0;
-      volTier = "Smallcap";
-    }
+  // Category 6: Volatility Fit (10 pts)
+  const atrPct = parseFloat(s.atr_pct) || 0;
+  let atrScore = 0;
+  let atrVal = "Unfit Volatility ✗";
+  let atrCls = "fail";
+  let atrIcon = "✗";
+  if (atrPct >= 2.0 && atrPct <= 4.0) {
+    atrScore = 10;
+    atrVal = "Optimal (" + atrPct.toFixed(1) + "%) ✓";
+    atrCls = "pass";
+    atrIcon = "✓";
+  } else if ((atrPct >= 1.5 && atrPct < 2.0) || (atrPct > 4.0 && atrPct <= 6.0)) {
+    atrScore = 6;
+    atrVal = "Sub-optimal (" + atrPct.toFixed(1) + "%) !";
+    atrCls = "warn";
+    atrIcon = "!";
+  } else {
+    atrScore = 0;
+    atrVal = "Unfit (" + atrPct.toFixed(1) + "%) ✗";
+    atrCls = "fail";
+    atrIcon = "✗";
   }
-  const volOk = vol >= volThreshold;
-  const volWarn = vol >= 1.0 && vol < volThreshold;
-  const ca9 = { label: `Volume ≥ ${volThreshold}× 20d Avg (${volTier})`, ..._caCheck(volOk, volWarn),
-    val: vol > 0 ? `${vol.toFixed(2)}×` : "—" };
+  const caVol = { label: "Volatility ATR Fit (Max 10)", cls: atrCls, icon: atrIcon, val: atrVal, score: atrScore };
 
-  const checks = [ca1, ca2, ca3, ca4, ca5, ca6, ca7, ca8, ca9];
-  const coreChecks = checks;
-  const scored = checks.filter(c => c.cls !== "na");
-  const passCount = scored.filter(c => c.cls === "pass").length;
-  const total = scored.length;
-  const scoreClass = passCount >= total - 1 ? "strong" : passCount >= Math.ceil(total * 0.6) ? "moderate" : "weak";
-  const scoreLabel = passCount >= total - 1 ? "STRONG" : passCount >= Math.ceil(total * 0.6) ? "MODERATE" : "WEAK";
+  const checks = [caSetup, caTrend, caBase, caADX, caInst, caVol];
 
-  // Retain additional UI-support variables computed for general template layout
+  // Helper variables for general UI support
   const wTrend = s.weekly_trend || "BULLISH";
   const wTrendOk = wTrend === "BULLISH";
   const weeklyTrendVal = wTrendOk ? "BULLISH" : "BEARISH";
@@ -8433,11 +8528,11 @@ function getStockValidation(s) {
 
   return {
     checks,
-    coreChecks,
-    passCount,
-    total,
-    scoreClass,
-    scoreLabel,
+    coreChecks: checks,
+    passCount: checks.filter(c => c.cls === "pass").length,
+    total: checks.length,
+    scoreClass: "moderate",
+    scoreLabel: "MODERATE",
     weeklyTrendVal,
     weeklyTrendColor,
     weeklyTrendBg,
@@ -8460,241 +8555,54 @@ function getStockValidation(s) {
 
 function isDataStale(s) {
   if (s.is_default) return true;
-  if (window._scanDate) {
-    const scanTime = new Date(window._scanDate).getTime();
+  const dateStr = s.scan_date || s.date || window._scanDate;
+  if (dateStr) {
+    const scanTime = new Date(dateStr).getTime();
     const nowTime = new Date().getTime();
     const diffDays = (nowTime - scanTime) / (1000 * 60 * 60 * 24);
-    if (diffDays > 7) return true;
+    const scanDay = new Date(dateStr).getDay(); // 0: Sun, 5: Fri, 6: Sat
+    const maxDiff = (scanDay === 5) ? 3.2 : 1.2;
+    if (diffDays > maxDiff) return true;
   }
   return false;
 }
 
 function computeCompositeScore(s, v) {
-  // Hard gates - Fundamental / Live Status ON_HOLD
+  // If failed security gate on server (verdict === "SKIP"), it is blocked
+  if (s.verdict === "SKIP") {
+    return { score: 0, eligible: false, reasons: s.reasons || ["Failed Safety Gate"] };
+  }
+
+  // 1-Trading-Day Freshness Check
+  if (isDataStale(s)) {
+    return { score: 0, eligible: false, reasons: ["Stale data / older than 1 trading day"] };
+  }
+
+  // Hard gates - Fundamental / Live Status ON_HOLD (if any)
   if (s.fundamental_status === "ON_HOLD" || s.live_status === "ON_HOLD") {
     return { score: 0, eligible: false, reasons: ["Status ON_HOLD"] };
   }
-  
-  // Hard gates - Bearish Weekly Trend
-  if (v.weeklyTrendClass !== "pass") {
-    return { score: 0, eligible: false, reasons: ["Bearish weekly trend"] };
-  }
-  
-  // 1. Stale / Default data gate
-  const isStale = isDataStale(s);
-  
-  // 2. HIGH False Breakout Risk gate
-  const isFbHigh = v.fbRisk === "HIGH";
-  
-  // 3. Missing Sector Pulse gate
-  const sector = s.sector || "OTHERS";
-  const secInfo = _sectorPulse[sector] || {};
-  const isSectorPulseMissing = sector !== "OTHERS" && secInfo.change_pct === undefined;
-  
-  // 4. Unresolved Earnings gate
-  const earnDays = s.earnings_days_until;
-  const isUnresolvedEarnings = earnDays === undefined;
-  
-  if (isFbHigh || isStale || isSectorPulseMissing || isUnresolvedEarnings) {
-    const reasons = [];
-    if (isFbHigh) reasons.push("HIGH false breakout risk");
-    if (isStale) reasons.push("Stale data / default fallback");
-    if (isSectorPulseMissing) reasons.push("Missing sector pulse");
-    if (isUnresolvedEarnings) reasons.push("Unresolved earnings data");
-    return { score: 0, eligible: false, reasons: reasons };
-  }
-  
+
+  // Calculate sum of checklist scores
   let score = 0;
-  
-  // Category 1: Weekly Trend (15 pts) - Passed as we are past the gate
-  score += 15;
-  
-  // Category 2: Daily Trend EMA Alignment (10 pts)
-  const emaAligned = s.ema_aligned !== false;
-  if (emaAligned) score += 10;
-  
-  // Category 3: Setup Pattern (10 pts)
-  const setup = s.setup || "unknown";
-  const hasPattern = setup !== "unknown" && setup !== "";
-  if (hasPattern) score += 10;
-  
-  // Category 4: Base Consolidation Duration (15 pts) - Scaled to prevent defaults treated as real
-  const baseDays = parseInt(s.base_days) || 0;
-  if (baseDays >= 20) {
-    score += 15;
-  } else if (baseDays >= 5) {
-    score += 7.5;
-  }
-  
-  // Category 5: Volatility Contraction ATR% (10 pts) - Scaled
-  const atrPct = parseFloat(s.atr_pct) || 0;
-  if (atrPct > 0) {
-    score += Math.max(0, (5 - atrPct) / 5) * 10;
-  }
-  
-  // Category 6: False Breakout Risk (10 pts)
-  if (v.fbRisk === "LOW") {
-    score += 10;
-  } else if (v.fbRisk === "MEDIUM") {
-    score += 5;
-  }
-  
-  // Category 7: RSI Health (5 pts)
-  const rsi = parseFloat(s.rsi) || 0;
-  if (rsi >= 40 && rsi <= 65) {
-    score += 5;
-  } else if (rsi >= 30 && rsi < 40) {
-    score += 3;
-  }
-  
-  // Category 8: Sector Strength (5 pts) - aligned with pct_from_ema20 >= 0
-  const secStrong = (parseFloat(secInfo.pct_from_ema20) || 0) >= 0;
-  if (secStrong) {
-    score += 5;
-  }
-  
-  // Category 9: Trend Strength ADX (5 pts)
-  const adx = parseFloat(s.adx) || 0;
-  if (adx >= 30) {
-    score += 5;
-  } else if (adx >= 20) {
-    score += 2.5;
-  }
-  
-  // Category 10: Fresh MACD Crossover (5 pts)
-  const macdCross = parseInt(s.macd_crossover_days_ago);
-  if (macdCross >= 0 && macdCross <= 3) {
-    score += 5;
-  }
-  
-  // Category 11: Relative Strength vs Nifty (5 pts)
-  const relStr = parseFloat(s.relative_strength) || 0;
-  if (relStr > 0) {
-    score += 5;
-  }
-  
-  // Category 12: Market-Dip Acid Test (5 pts)
-  const acidFailed = s.acid_test_failed || false;
-  const acidPrice = parseFloat(s.acid_test_price) || 0;
-  if (acidPrice > 0 && !acidFailed) {
-    score += 5;
-  }
-  
-  // Smart deductions
-  // F&O Ban Penalty (-30 pts)
-  const foBanEl = document.getElementById("foBanChips");
-  const banSymbols = foBanEl ? Array.from(foBanEl.querySelectorAll(".ban-chip")).map(c => c.textContent.trim()) : [];
-  const isBanned = banSymbols.includes(s.symbol);
-  if (isBanned) {
-    score -= 30;
-  }
-  
-  // Waiting for breakout setup Penalty (-15 pts)
-  if (s.live_status === "WAITING_FOR_BREAKOUT") {
-    score -= 15;
-  }
-  
-  // Qualitative & Adversarial Debate overlay
-  let eligible = true;
-  const reasons = [];
+  v.checks.forEach(c => {
+    score += c.score;
+  });
 
-  // Institutional Dealings Shareholding checks
-  if (s.shareholding && s.shareholding.status === "success") {
-    const sh = s.shareholding;
-    const fiiChg = sh.fii_change || 0;
-    const diiChg = sh.dii_change || 0;
-    const quarter = sh.latest_quarter || "latest quarter";
-
-    const cls = sh.classification || "NEUTRAL";
-    const consensusScore = sh.consensus_score !== undefined ? sh.consensus_score : 0.0;
-    const c2 = (sh.components && sh.components.agreement !== undefined) ? sh.components.agreement : 0;
-    const breakdown = sh.breakdown || "";
-
-    // 1. Consensus Sell (both FII and DII stakes reduced in the latest quarter by >0.20%)
-    if (c2 === -1 || (fiiChg <= -0.20 && diiChg <= -0.20)) {
-      eligible = false;
-      score -= 25;
-      reasons.push(`Institutional Consensus Sell in ${quarter} (FII down ${fiiChg.toFixed(2)}%, DII down ${diiChg.toFixed(2)}%)`);
-    }
-    // 2. DISTRIBUTION classification (score <= -3.0)
-    else if (cls === "DISTRIBUTION" || consensusScore <= -3.0) {
-      eligible = false;
-      score -= 25;
-      reasons.push(`Institutional DISTRIBUTION in ${quarter} (Score: ${consensusScore.toFixed(1)}; ${breakdown})`);
-    }
-    // 3. Severe Dump (>1.5% absolute)
-    else if (fiiChg <= -1.5 || diiChg <= -1.5) {
-      eligible = false;
-      score -= 25;
-      const dumpParty = fiiChg <= -1.5 ? `FII (down ${fiiChg.toFixed(2)}%)` : `DII (down ${diiChg.toFixed(2)}%)`;
-      reasons.push(`Severe Institutional Dump in ${quarter} by ${dumpParty}`);
-    }
-    
-    // 4. Consensus Accumulation Bonus (+10 pts)
-    if (cls === "ACCUMULATION" || consensusScore >= 3.0) {
-      score += 10;
-    }
-  }
-  
-  let debateVerdict = "";
-  let judgeRationale = "";
-  
-  if (s.debate && s.debate.verdict) {
-    debateVerdict = s.debate.verdict.toUpperCase();
-    judgeRationale = s.debate.judge_rationale || "";
-  } else if (s.debate_verdict) {
-    debateVerdict = s.debate_verdict.toUpperCase();
-    judgeRationale = s.debate_rationale || "";
-  }
-  
-  const notesText = (s.fundamental_notes || "").toLowerCase();
-  const combinedText = notesText + " | " + judgeRationale.toLowerCase();
-  
-  // LLM Judge Verdict Gates & Penalties
-  if (debateVerdict === "SKIP") {
-    eligible = false;
-    score -= 50;
-    reasons.push("Adversarial Debate Verdict: SKIP (Hard Penalty -50)");
-  } else if (debateVerdict === "WATCH") {
-    score -= 20;
-    reasons.push("Adversarial Debate Verdict: WATCH (Caution Penalty -20)");
-  }
-  
-  // Smart keyword searches inside notes and judge rationales
-  if (combinedText.includes("profitability trap") || combinedText.includes("profit fell") || combinedText.includes("net profit fell") || combinedText.includes("profitability fell")) {
-    score -= 15;
-    reasons.push("Qualitative: Profitability trap / falling profits (-15)");
-  }
-  
-  if (combinedText.includes("mutual fund holdings collapsing") || 
-      combinedText.includes("collapsing mutual fund") || 
-      combinedText.includes("fii exit") || 
-      combinedText.includes("fiis reducing stake") || 
-      combinedText.includes("institutions are running") ||
-      combinedText.includes("mutual fund collapsing")) {
-    eligible = false; // Hard-gate institutional collapse
-    score -= 25;
-    reasons.push("Qualitative: Institutional collapse / MF & FII exodus (-25)");
-  }
-  
-  if (combinedText.includes("drhp has been extended") || combinedText.includes("distant catalyst") || combinedText.includes("ipo has been extended")) {
-    score -= 10;
-    reasons.push("Qualitative: Distant or delayed catalyst (-10)");
-  }
-  
-  if (combinedText.includes("no clear technical reversal") || combinedText.includes("needs a better setup") || combinedText.includes("no reversal in sight")) {
-    score -= 15;
-    reasons.push("Qualitative: Lack of technical reversal (-15)");
-  }
-  
-  // Setup Grade C Cap (Max 50 pts to avoid low quality setups reaching Top Picks)
+  // Setup Grade C Cap (Max 50 pts)
   const sGrade = s.setup_grade || "C";
+  const reasons = [];
   if (sGrade === "C") {
     score = Math.min(score, 50);
     reasons.push("Low Quality Setup (Grade C Cap)");
   }
 
-  return { score: Math.max(0, Math.round(score)), eligible: eligible, reasons: reasons };
+  const eligible = score >= 50;
+  if (!eligible) {
+    reasons.push("Quality Score < 50 (" + score + ")");
+  }
+
+  return { score: Math.round(score), eligible: eligible, reasons: reasons };
 }
 
 function _rankTierStyle(rank) {
@@ -8724,7 +8632,21 @@ function renderStockValidation() {
     .map((s, originalIdx) => {
       const v = getStockValidation(s);
       const c = computeCompositeScore(s, v);
-      return { s, v, originalIdx, score: c.score, eligible: c.eligible, reasons: c.reasons };
+      let scoreLabel = "SKIP";
+      let scoreClass = "weak";
+      if (c.eligible) {
+        if (c.score >= 80) {
+          scoreLabel = "STRONG";
+          scoreClass = "strong";
+        } else if (c.score >= 65) {
+          scoreLabel = "MODERATE";
+          scoreClass = "moderate";
+        } else {
+          scoreLabel = "WEAK";
+          scoreClass = "weak";
+        }
+      }
+      return { s, v, originalIdx, score: c.score, eligible: c.eligible, reasons: c.reasons, scoreLabel, scoreClass };
     })
     .sort((a, b) => b.score - a.score);
   let rankCounter = 0;
@@ -8976,7 +8898,7 @@ function renderStockValidation() {
 
       <div class="ca-vcard-foot">
         ${item.eligible
-          ? `<span class="ca-score ${v.scoreClass}">${v.scoreLabel} — ${v.passCount}/${v.total} · Score ${item.score}/100</span>`
+          ? `<span class="ca-score ${item.scoreClass}">${item.scoreLabel} — ${v.passCount}/${v.total} · Score ${item.score}/100</span>`
           : `<span class="ca-score weak" style="border:1px solid var(--red); background:rgba(239,68,68,0.12); color:#ef4444; font-weight:bold" title="Gatekeeper Blocks: ${item.reasons.join('; ')}">⚠️ BLOCKED: ${item.reasons[0]}</span>`
         }
         <div style="display:flex;gap:6px">
