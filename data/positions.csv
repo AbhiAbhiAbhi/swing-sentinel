@@ -1,129 +1,123 @@
-Symbol,Name,Entry_Price,Quantity,Target_1,Target_2,Current_SL,Setup,Entry_Date,Status,Entry_Notified,T1_Notified,T2_Notified,SL_Notified,Entry_Hit_Date,T1_Hit_Date,T2_Hit_Date,SL_Hit_Date,Outcome,Closing_Price,Buy_Weekly_Trend,Buy_Base_Days,Buy_Base_Status,Buy_False_Breakout_Risk,Buy_False_Breakout_Desc,Buy_RSI,Buy_ATR_Pct,Buy_Vol_Ratio,Setup_Grade,Setup_Score,Expiry_Multiplier,Expiry_Reason,gtt_id
-JAIBALAJI,Jai Balaji Industries Limited,78.23,1.0,88.5,91.16,74.91,PULLBACK,2026-05-14,CLOSED,True,False,False,True,2026-05-15,,,2026-05-18,SL_LOSS,73.7,,,,,,,,,,,,,
-HSCL,Himadri Speciality Chemical Limited,578.02,1.0,654.45,680.47,551.17,PULLBACK,2026-05-14,CLOSED,True,False,False,True,2026-05-18,,,2026-05-18,SL_LOSS,551.1500244140625,,,,,,,,,,,,,
-LICHSGFIN,Lic Housing Finance Limited,556.22,1.0,598.2,610.16,545.66,PULLBACK,2026-05-14,CLOSED,True,False,False,True,2026-05-15,,,2026-05-18,SL_LOSS,539.2000122070312,,,,,,,,,,,,,
-WOCKPHARMA,Wockhardt Limited,1599.8,1.0,1778.0,1813.56,1417.35,PULLBACK,2026-05-21,BOUGHT,False,False,False,False,,,,,,0.0,BULLISH,13.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,66.33,5.4,0.26,,,,,
-NITCO,Nitco Limited,97.18,1.0,110.05,112.25,89.59,PULLBACK,2026-05-21,BOUGHT,True,False,False,False,2026-05-18,,,,,0.0,BULLISH,12.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,59.9,6.56,0.34,,,,,
-DIACABS,Diamond Power Infrastructure Ltd,193.8,1.0,184.75,190.95,155.12,PULLBACK,2026-05-21,CLOSED,False,True,True,False,,2026-05-23,2026-05-23,,T2_WIN,193.5,BULLISH,6.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,73.85,5.96,0.73,,,,,
-MOSCHIP,Moschip Technologies Ltd,201.55,1.0,236.7,241.43,195.25,PULLBACK,2026-05-21,BOUGHT,True,False,False,False,2026-05-15,,,,,0.0,BULLISH,9.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,50.06,6.11,0.79,,,,,
-CIPLA,Cipla Limited,1401.9,1.0,1432.1,1460.74,1280.25,PULLBACK,2026-05-21,BOUGHT,False,False,False,False,,,,,,0.0,BULLISH,21.0,STABLE_BASE,LOW,Low risk. Price action is stable.,64.72,2.63,0.55,,,,,
-PARACABLES,Paramount Communications Limited,57.17,1.0,60.9,62.12,42.69,PULLBACK,2026-05-21,CLOSED,False,True,True,False,,2026-05-25,2026-05-25,,T2_WIN,65.3499984741211,BULLISH,10.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,72.17,7.89,0.55,,,,,
-NIVABUPA,Niva Bupa Health Insurance Company Ltd,83.62,1.0,89.77,91.57,76.75,PULLBACK,2026-05-21,BOUGHT,False,False,False,False,,,,,,0.0,BULLISH,26.0,STABLE_BASE,LOW,Low risk. Price action is stable.,66.26,3.65,0.89,,,,,
-JSFB,Jana Small Finance Bank Ltd,453.25,1.0,501.0,520.75,423.31,PULLBACK,2026-05-22,BOUGHT,,,,,,,,,,0.0,BULLISH,21.0,STABLE_BASE,LOW,Low risk. Price action is stable.,48.29,4.92,0.28,,,,,
-MIDHANI,Mishra Dhatu Nigam Ltd,402.35,1.0,438.7,447.47,370.05,PULLBACK,2026-05-21,BOUGHT,True,,,,2026-05-20,,,,,0.0,BULLISH,24.0,STABLE_BASE,LOW,Low risk. Price action is stable.,54.36,5.0,0.71,,,,,
-METROPOLIS,Metropolis Healthcare Ltd,528.8,1.0,574.9,586.4,483.16,PULLBACK,2026-05-21,BOUGHT,,,,,,,,,,0.0,BULLISH,13.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,66.68,5.3,0.5,,,,,
-SCI,Shipping Corporation Of India Limited,327.25,1.0,368.75,376.12,289.83,PULLBACK,2026-05-21,BOUGHT,,,,,,,,,,0.0,BULLISH,14.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,60.02,5.99,0.26,,,,,
-SAIL,Steel Authority Of India Limited,196.53,1.0,202.35,206.4,174.84,PULLBACK,2026-05-21,BOUGHT,,True,,,,2026-05-26,,,T1_HIT,0.0,BULLISH,7.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,59.98,3.84,0.69,,,,,
-SPARC,Sun Pharma Advanced Research Company Limited,183.68,1.0,182.59,186.24,142.64,PULLBACK,2026-05-22,CLOSED,,True,True,,,2026-05-23,2026-05-23,,T2_WIN,209.7700042724609,BULLISH,2.0,VOLATILE,LOW,Low risk. Price action is stable.,76.62,5.74,1.43,,,,,
-GNFC,Gujarat Narmada Valley Fertilizers And Chemicals Limited,520.45,1.0,506.7,516.83,461.29,PULLBACK,2026-05-22,CLOSED,,True,True,False,,2026-05-25,2026-05-25,,T2_WIN,517.2999877929688,BULLISH,6.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,64.59,3.52,1.26,,,,,
-AEROFLEX,Aeroflex Industries Ltd,391.05,1.0,458.7,467.87,305.52,PULLBACK,2026-05-22,BOUGHT,,,,,,,,,,0.0,BULLISH,8.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,67.16,7.71,0.5,,,,,
-ALKYLAMINE,Alkyl Amines Chemicals Limited,1776.6,1.0,1785.0,1820.7,1489.89,PULLBACK,2026-05-22,BOUGHT,,,,,,,,,,0.0,BULLISH,11.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,67.49,5.5,0.46,,,,,
-VIYASH,Viyash Scientific Ltd,247.54,1.0,235.4,241.32,204.57,PULLBACK,2026-05-22,CLOSED,,True,True,,,2026-05-23,2026-05-23,,T2_WIN,246.0599975585937,BULLISH,7.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,72.41,5.31,1.15,,,,,
-RATNAVEER,Ratnaveer Precision Engineering Ltd,164.24,1.0,193.39,202.36,153.61,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0,,,,,,,,,,,,,
-TEXRAIL,Texmaco Rail & Engineering Limited,107.03,1.0,124.73,127.22,102.97,PULLBACK,2026-05-15,OPEN,True,False,False,False,2026-05-20,,,,,0.0,,,,,,,,,,,,,
-HAL,Hindustan Aeronautics Ltd,4418.11,1.0,4836.3,4933.03,4347.4,PULLBACK,2026-05-15,CLOSED,True,,,True,2026-05-15,,,2026-05-18,SL_LOSS,4248.89990234375,,,,,,,,,,,,,
-INDOAMIN,Indo Amines Ltd,113.56,1.0,125.8,128.32,110.3,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0,,,,,,,,,,,,,
-TATACONSUM,TATA Consumer Products Ltd,1168.83,1.0,1282.7,1308.35,1148.46,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-SANDUMA,Sandur Manganese & Iron Ores Ltd,226.5,1.0,253.9,258.98,208.01,PULLBACK,2026-05-23,BOUGHT,True,,,,2026-05-18,,,,,,BULLISH,11.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,59.13,5.12,0.5,,,,,
-SAILIFE,Sai Life Sciences Ltd,1056.34,1.0,1139.4,1195.77,1023.2,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-SUNPHARMA,Sun Pharmaceuticals Industries Limited,1844.6,1.0,1887.9,1925.66,1760.04,PULLBACK,2026-05-24,BOUGHT,,,,,,,,,,,BULLISH,20.0,STABLE_BASE,LOW,Low risk. Price action is stable.,53.54,2.15,0.73,,,,,
-ADANIPORTS,Adani Ports And Special Economic Zone Limited,1664.14,1.0,1823.9,1860.38,1628.99,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-ONGC,Oil & Natural Gas Corporation Limited,287.4,1.0,307.5,314.12,282.12,PULLBACK,2026-05-16,OPEN,True,,,,2026-05-25,,,,,,,,,,,,,,,,,,
-OIL,Oil India Limited,478.24,1.0,531.0,541.62,465.96,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-NLCINDIA,Nlc India Limited,316.94,1.0,387.8,395.56,302.95,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-MANAPPURAM,Manappuram Finance Limited,294.86,1.0,317.7,327.04,287.86,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-KANSAINER,Kansai Nerolac Paints Limited,204.98,1.0,224.45,230.06,199.21,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-IOLCP,Iol Chemicals And Pharmaceuticals Limited,96.52,1.0,116.46,118.79,92.28,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-HINDZINC,Hindustan Zinc Limited,632.25,1.0,678.25,691.82,598.8,PULLBACK,2026-05-24,BOUGHT,,,,,,,,,,,BULLISH,20.0,STABLE_BASE,LOW,Low risk. Price action is stable.,60.77,3.02,0.55,,,,,
-GRASIM,Grasim Industries Limited,2834.97,1.0,3007.3,3067.45,2792.45,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-GRAPHITE,Graphite India Limited,716.38,1.0,802.4,818.45,694.07,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-BHEL,Bharat Heavy Electricals Limited,365.15,1.0,417.9,426.26,352.1,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-PPLPHARMA,Piramal Pharma Ltd,165.92,1.0,196.44,200.37,159.09,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-GESHIP,The Great Eastern Shipping Company Limited,1509.42,1.0,1720.0,1754.4,1448.3,PULLBACK,2026-05-18,OPEN,True,,,,2026-05-28,,,,,,,,,,,,,,,,,,
-MUKANDLTD,Mukand Limited,135.77,1.0,150.62,153.63,132.05,PULLBACK,2026-05-19,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-POLICYBZR,PB Fintech Ltd,1622.83,1.0,1735.0,1798.51,1584.76,PULLBACK,2026-05-19,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-V2RETAIL,V2 Retail Limited,211.02,1.0,241.5,246.33,202.51,PULLBACK,2026-05-20,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-MARICO,Marico Limited,801.02,1.0,848.8,865.78,789.0,PULLBACK,2026-05-20,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-MUFIN,Mufin Green Finance Ltd,115.09,1.0,123.0,126.76,109.64,CONSOLIDATION,2026-05-22,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-MCX,Multi Commodity Exchange Of India Limited,3124.11,1.0,3480.0,3549.6,2785.03,CONSOLIDATION,2026-05-22,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-BLISSGVS,Bliss Gvs Pharma Limited,275.46,1.0,301.45,316.15,243.43,CONSOLIDATION,2026-05-22,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-ASIANPAINT,Asian Paints Limited,2671.9,1.0,2665.7,2739.87,2412.19,CONSOLIDATION,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,31.0,STABLE_BASE,HIGH,Failed Breakout: Price hit high of ₹2689.6 but closed below resistance ₹2684.1.,67.0,2.3,0.83,C,2.5,0.5,Clean zone — normal size,
-MARKSANS,Marksans Pharma Limited,199.85,1.0,225.49,232.06,179.76,CONSOLIDATION,2026-05-22,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-ZYDUSLIFE,Zydus Lifesciences Ltd,964.06,1.0,1093.65,1115.52,909.45,CONSOLIDATION,2026-05-22,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-HINDALCO,Hindalco Industries Limited,1149.7,1.0,1110.9,1144.88,984.54,CONSOLIDATION,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,26.0,STABLE_BASE,LOW,Low risk. Price action is stable.,66.34,2.77,1.52,B,4.5,1.0,Clean zone — normal size,
-SUNPHARMA,Sun Pharmaceuticals Industries Limited,1815.56,1.0,1916.6,1954.93,1788.33,PULLBACK,2026-05-24,OPEN,True,,,,2026-05-26,,,,,,,,,,,,,,,,,,
-AVANTEL,Avantel Ltd,154.96,1.0,173.44,181.69,143.19,CONSOLIDATION,2026-05-25,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-FEDFINA,Fedbank Financial Services Ltd,150.15,1.0,161.09,170.31,140.05,BREAKOUT,2026-05-25,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-ATGL,Adani Total Gas Ltd,652.8,1.0,684.9,698.95,599.71,PULLBACK,2026-05-26,CLOSED,,True,True,,,2026-05-26,2026-05-26,,T2_WIN,712.0,BULLISH,28.0,STABLE_BASE,LOW,Low risk. Price action is stable.,52.89,3.89,1.56,,,,,
-NIVABUPA,Niva Bupa Health Insurance Company Ltd,80.23,1.0,89.77,91.57,75.36,CONSOLIDATION,2026-05-25,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-MANALIPETC,Manali Petrochemicals Limited,55.87,1.0,66.62,67.95,53.67,PULLBACK,2026-05-25,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-TEMBO,Tembo Global Industries Ltd,587.2,1.0,644.9,663.92,553.53,CONSOLIDATION,2026-05-25,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-GVT&D,GE Vernova T&D India Ltd,4436.69,1.0,4962.4,5126.73,3982.2,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-TORNTPHARM,Torrent Pharmaceuticals Limited,4315.71,1.0,4555.1,4695.36,4152.59,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-PIDILITIND,Pidilite Industries Limited,1480.7,1.0,1515.0,1548.81,1377.28,CONSOLIDATION,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,35.0,STABLE_BASE,LOW,Low risk. Price action is stable.,57.86,2.32,0.3,B,4.0,1.0,Clean zone — normal size,
-CIPLA,Cipla Limited,1345.41,1.0,1444.5,1473.39,1292.54,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-DREDGECORP,Dredging Corporation Of India Limited,957.46,1.0,1172.0,1195.44,891.72,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-SHYAMMETL,Shyam Metalics & Energy Ltd,879.82,1.0,938.0,983.36,796.06,BREAKOUT,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-KSHINTL,KSH International Ltd,628.43,1.0,701.95,772.36,547.8,BREAKOUT,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-ATGL,Adani Total Gas Ltd,615.14,1.0,684.9,698.6,595.95,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-JINDRILL,Jindal Drilling And Industries Limited,588.36,1.0,693.5,732.13,509.31,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-WEWORK,Wework India Management Ltd,516.06,1.0,584.15,607.3,492.16,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-BAJAJCON,Bajaj Consumer Care Ltd,507.21,1.0,567.95,609.54,425.98,BREAKOUT,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-RISHABH,Rishabh Instruments Ltd,488.53,1.0,548.8,586.64,461.99,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-VBL,Varun Beverages Limited,498.82,1.0,534.19,544.87,472.74,BREAKOUT,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-PRECWIRE,Precision Wires India Limited,387.9,1.0,445.5,460.05,368.75,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-SAREGAMA,Saregama India Limited,368.88,1.0,443.0,451.86,332.46,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-TMPV,Tata Motors Passenger Vehicles Ltd,350.21,1.0,366.95,394.05,328.51,BREAKOUT,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-ASIANENE,Asian Energy Services Ltd,316.74,1.0,375.75,384.99,282.64,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-TALBROAUTO,Talbros Automotive Components Limited,316.95,1.0,360.0,390.66,273.44,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-VEDL,Vedanta Limited,392.47,1.0,780.0,795.6,325.0,CONSOLIDATION,2026-05-26,OPEN,True,,,,2026-05-26,,,,,,,,,,,,,,,,,,
-GREENLAM,Greenlam Industries Limited,225.87,1.0,242.78,263.7,216.11,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-AEQUS,Aequs Ltd,192.61,1.0,223.47,238.65,179.7,PULLBACK,2026-05-26,OPEN,True,,,,2026-05-28,,,,,,,,,,,,,,,,,,
-SAIL,Steel Authority Of India Limited,206.06,1.0,209.7,213.89,169.28,CONSOLIDATION,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,11.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,63.45,3.92,1.08,B,4.0,1.0,Clean zone — normal size,
-SKMEGGPROD,Skm Egg Products Export (india) Limited,177.99,1.0,202.74,217.86,166.95,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-IPL,India Pesticides Ltd,160.31,1.0,194.0,197.88,152.38,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-STALLION,Stallion India Fluorochemicals Ltd,152.88,1.0,176.0,185.95,143.78,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-GOLDETF,Mirae Asset Gold ETF,148.51,1.0,155.8,166.2,146.28,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-TVSSCS,TVS Supply Chain Solutions Ltd,114.33,1.0,127.5,130.56,110.36,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-OCCLLTD,OCCL Ltd,98.81,1.0,116.14,119.99,89.86,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-SANSTAR,Sanstar Ltd,100.4,1.0,120.0,122.4,88.65,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-SILGO,Silgo Retail Ltd,75.68,1.0,83.51,90.05,71.84,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-BODALCHEM,Bodal Chemicals Limited,68.79,1.0,81.9,83.54,59.73,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-GEOJITFSL,Geojit Financial Services Ltd,69.8,1.0,76.39,79.35,64.44,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-MOTHERSON,Samvardhana Motherson International Ltd,128.54,1.0,139.01,142.83,120.82,CONSOLIDATION,2026-05-28,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-DELTACORP,Delta Corp Limited,70.78,1.0,81.35,83.48,64.72,CONSOLIDATION,2026-05-28,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-ANGELONE,Angel One Ltd,316.84,1.0,348.7,356.5,284.66,CONSOLIDATION,2026-05-28,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-BSE,BSE (Bombay stock exchange) Ltd,3944.34,1.0,4303.0,4389.06,3479.57,BREAKOUT,2026-05-28,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-RBLBANK,Rbl Bank Limited,348.25,1.0,349.9,363.56,321.07,PULLBACK,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,37.0,STABLE_BASE,HIGH,Failed Breakout: Price hit high of ₹353.0 but closed below resistance ₹349.9.,51.73,2.93,1.01,B,4.0,1.0,Clean zone — normal size,
-RAMRAT,Ram Ratna Wires Ltd,426.02,1.0,475.2,494.5,372.33,CONSOLIDATION,2026-05-28,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-GHCLTEXTIL,GHCL Textiles Ltd,88.84,1.0,95.95,100.97,85.92,PULLBACK,2026-05-28,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-GREAVESCOT,Greaves Cotton Limited,166.02,1.0,178.85,189.93,153.79,BREAKOUT,2026-05-28,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-SONACOMS,Sona BLW Precision Forgings Ltd,578.65,1.0,614.0,637.63,545.36,CONSOLIDATION,2026-05-28,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-IFCI,Ifci Limited,68.38,1.0,66.25,69.95,56.3,BREAKOUT,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,3.0,VOLATILE,LOW,Low risk. Price action is stable.,61.26,3.83,3.36,B,3.5,1.0,Cash stock — expiry N/A,
-KTKBANK,The Karnataka Bank Limited,256.07,1.0,278.0,287.56,248.81,PULLBACK,2026-05-28,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-INDUSTOWER,Indus Towers Ltd (Bharti Infratel),421.78,1.0,443.05,463.6,412.46,CONSOLIDATION,2026-05-29,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-NUVOCO,Nuvoco Vistas Corporation Ltd,318.21,1.0,340.0,358.39,277.1,BREAKOUT,2026-05-29,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-PREMIERENE,Premier Energies Ltd,994.7,1.0,1056.0,1106.69,925.69,BREAKOUT,2026-05-29,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-ACMESOLAR,ACME Solar Holdings Ltd,289.66,1.0,309.65,325.61,262.02,BREAKOUT,2026-05-29,OPEN,,,,,,,,,,,,,,,,,,,,,,,
-IFCI,IFCI,68.38,1.0,71.79899999999999,75.218,64.961,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,3.0,VOLATILE,LOW,Low risk. Price action is stable.,61.26,3.83,3.36,B,3.5,1.0,Cash stock — expiry N/A,
-SAIL,SAIL,206.06,1.0,216.363,226.66600000000005,195.757,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,11.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,63.45,3.92,1.08,B,4.0,1.0,Clean zone — normal size,
-IFCI,IFCI,68.38,1.0,71.79899999999999,75.218,64.961,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,3.0,VOLATILE,LOW,Low risk. Price action is stable.,61.26,3.83,3.36,B,3.5,1.0,Cash stock — expiry N/A,
-IFCI,IFCI,68.38,1.0,71.79899999999999,75.218,64.961,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,3.0,VOLATILE,LOW,Low risk. Price action is stable.,61.26,3.83,3.36,B,3.5,1.0,Cash stock — expiry N/A,
-HINDALCO,HINDALCO,1149.7,1.0,1207.1850000000002,1264.67,1092.215,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,26.0,STABLE_BASE,LOW,Low risk. Price action is stable.,66.34,2.77,1.52,B,4.5,1.0,Clean zone — normal size,
-BAJEL,BAJEL,184.34,1.0,193.557,202.77400000000003,175.123,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,33.0,STABLE_BASE,LOW,Low risk. Price action is stable.,50.47,4.37,0.29,A,5.0,1.0,Cash stock — expiry N/A,
-BIOCON,BIOCON,432.2,1.0,453.81,475.42,410.59,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,13.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,83.5,2.94,0.48,C,3.0,0.5,Clean zone — normal size,
-IFCI,Ifci Limited,68.38,1.0,66.25,69.95,56.3,BREAKOUT,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,3.0,VOLATILE,LOW,Low risk. Price action is stable.,61.26,3.83,3.36,B,3.5,1.0,Cash stock — expiry N/A,
-SAIL,Steel Authority Of India Limited,206.06,1.0,209.7,216.62,171.88,CONSOLIDATION,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,11.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,63.45,3.92,1.08,B,4.0,1.0,Clean zone — normal size,
-HINDALCO,Hindalco Industries Limited,1149.7,1.0,1119.8,1166.88,1006.18,BREAKOUT,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,26.0,STABLE_BASE,LOW,Low risk. Price action is stable.,66.34,2.77,1.52,B,4.5,1.0,Clean zone — normal size,
-BAJEL,Bajel Projects Ltd,177.05,1.0,201.73,205.76,170.78,PULLBACK,2026-05-30,OPEN,,,,,,,,,,,,,,,,,,,A,5.0,1.0,Cash stock — expiry N/A,
-CGPOWER,CG Power and Industrial Solutions Ltd,839.01,1.0,890.0,929.58,780.07,BREAKOUT,2026-05-30,OPEN,,,,,,,,,,,,,,,,,,,B,4.0,1.0,Clean zone — normal size,
-RBLBANK,Rbl Bank Limited,348.25,1.0,349.9,363.26,323.25,PULLBACK,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,37.0,STABLE_BASE,HIGH,Failed Breakout: Price hit high of ₹353.0 but closed below resistance ₹349.9.,51.73,2.93,1.01,B,4.0,1.0,Clean zone — normal size,
-BIOCON,Biocon Limited,406.26,1.0,440.4,449.21,378.26,CONSOLIDATION,2026-05-30,OPEN,,,,,,,,,,,,,,,,,,,C,3.0,0.5,Clean zone — normal size,
-EXIDEIND,Exide Industries Limited,348.36,1.0,379.9,387.5,328.03,BREAKOUT,2026-05-30,OPEN,,,,,,,,,,,,,,,,,,,B,4.0,1.0,Clean zone — normal size,
-ASIANPAINT,Asian Paints Limited,2551.32,1.0,2684.1,2755.12,2437.16,CONSOLIDATION,2026-05-30,OPEN,,,,,,,,,,,,,,,,,,,C,2.5,0.5,Clean zone — normal size,
-CGCL,Capri Global Capital Limited,185.89,1.0,204.9,209.0,181.69,PULLBACK,2026-05-30,OPEN,,,,,,,,,,,,,,,,,,,A,5.0,1.0,Cash stock — expiry N/A,
-HINDALCO,HINDALCO,1149.7,1.0,1207.1850000000002,1264.67,1092.215,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,26.0,STABLE_BASE,LOW,Low risk. Price action is stable.,66.34,2.77,1.52,B,4.5,1.0,Clean zone — normal size,
-IFCI,IFCI,68.38,1.0,71.79899999999999,75.218,64.961,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,3.0,VOLATILE,LOW,Low risk. Price action is stable.,61.26,3.83,3.36,B,3.5,1.0,Cash stock — expiry N/A,
-SAIL,SAIL,206.06,1.0,216.363,226.66600000000005,195.757,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,11.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,63.45,3.92,1.08,B,4.0,1.0,Clean zone — normal size,
-HINDALCO,HINDALCO,1149.7,1.0,1207.1850000000002,1264.67,1092.215,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,26.0,STABLE_BASE,LOW,Low risk. Price action is stable.,66.34,2.77,1.52,B,4.5,1.0,Clean zone — normal size,
-IFCI,IFCI,68.38,1.0,71.79899999999999,75.218,64.961,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,3.0,VOLATILE,LOW,Low risk. Price action is stable.,61.26,3.83,3.36,B,3.5,1.0,Cash stock — expiry N/A,
+Symbol,Name,Entry_Price,Quantity,Target_1,Target_2,Current_SL,Setup,Entry_Date,Status,Entry_Notified,T1_Notified,T2_Notified,SL_Notified,Entry_Hit_Date,T1_Hit_Date,T2_Hit_Date,SL_Hit_Date,Outcome,Closing_Price,Buy_Weekly_Trend,Buy_Base_Days,Buy_Base_Status,Buy_False_Breakout_Risk,Buy_False_Breakout_Desc,Buy_RSI,Buy_ATR_Pct,Buy_Vol_Ratio,Setup_Grade,Setup_Score,Expiry_Multiplier,Expiry_Reason,gtt_id,Absent_Cycles
+JAIBALAJI,Jai Balaji Industries Limited,78.23,1.0,88.5,91.16,74.91,PULLBACK,2026-05-14,CLOSED,True,False,False,True,2026-05-15,,,2026-05-18,SL_LOSS,73.7,,,,,,,,,,,,,,0.0
+HSCL,Himadri Speciality Chemical Limited,578.02,1.0,654.45,680.47,551.17,PULLBACK,2026-05-14,CLOSED,True,False,False,True,2026-05-18,,,2026-05-18,SL_LOSS,551.1500244140625,,,,,,,,,,,,,,0.0
+LICHSGFIN,Lic Housing Finance Limited,556.22,1.0,598.2,610.16,545.66,PULLBACK,2026-05-14,CLOSED,True,False,False,True,2026-05-15,,,2026-05-18,SL_LOSS,539.2000122070312,,,,,,,,,,,,,,0.0
+WOCKPHARMA,Wockhardt Limited,1599.8,1.0,1778.0,1813.56,1417.35,PULLBACK,2026-05-21,CLOSED,False,True,True,False,,2026-06-02,2026-06-02,,T2_WIN,1971.9000244140625,BULLISH,13.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,66.33,5.4,0.26,,,,,,0.0
+NITCO,Nitco Limited,97.18,1.0,110.05,112.25,89.59,PULLBACK,2026-05-21,BOUGHT,True,False,False,False,2026-05-18,,,,,0.0,BULLISH,12.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,59.9,6.56,0.34,,,,,,0.0
+DIACABS,Diamond Power Infrastructure Ltd,193.8,1.0,184.75,190.95,155.12,PULLBACK,2026-05-21,CLOSED,False,True,True,False,,2026-05-23,2026-05-23,,T2_WIN,193.5,BULLISH,6.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,73.85,5.96,0.73,,,,,,0.0
+MOSCHIP,Moschip Technologies Ltd,201.55,1.0,236.7,241.43,195.25,PULLBACK,2026-05-21,BOUGHT,True,False,False,False,2026-05-15,,,,,0.0,BULLISH,9.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,50.06,6.11,0.79,,,,,,0.0
+CIPLA,Cipla Limited,1401.9,1.0,1432.1,1460.74,1280.25,PULLBACK,2026-05-21,BOUGHT,False,False,False,False,,,,,,0.0,BULLISH,21.0,STABLE_BASE,LOW,Low risk. Price action is stable.,64.72,2.63,0.55,,,,,,0.0
+PARACABLES,Paramount Communications Limited,57.17,1.0,60.9,62.12,42.69,PULLBACK,2026-05-21,CLOSED,False,True,True,False,,2026-05-25,2026-05-25,,T2_WIN,65.3499984741211,BULLISH,10.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,72.17,7.89,0.55,,,,,,0.0
+NIVABUPA,Niva Bupa Health Insurance Company Ltd,83.62,1.0,89.77,91.57,76.75,PULLBACK,2026-05-21,BOUGHT,False,False,False,False,,,,,,0.0,BULLISH,26.0,STABLE_BASE,LOW,Low risk. Price action is stable.,66.26,3.65,0.89,,,,,,0.0
+JSFB,Jana Small Finance Bank Ltd,453.25,1.0,501.0,520.75,423.31,PULLBACK,2026-05-22,BOUGHT,,,,,,,,,,0.0,BULLISH,21.0,STABLE_BASE,LOW,Low risk. Price action is stable.,48.29,4.92,0.28,,,,,,0.0
+MIDHANI,Mishra Dhatu Nigam Ltd,402.35,1.0,438.7,447.47,370.05,PULLBACK,2026-05-21,BOUGHT,True,,,,2026-05-20,,,,,0.0,BULLISH,24.0,STABLE_BASE,LOW,Low risk. Price action is stable.,54.36,5.0,0.71,,,,,,0.0
+METROPOLIS,Metropolis Healthcare Ltd,528.8,1.0,574.9,586.4,483.16,PULLBACK,2026-05-21,BOUGHT,,,,,,,,,,0.0,BULLISH,13.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,66.68,5.3,0.5,,,,,,0.0
+SCI,Shipping Corporation Of India Limited,327.25,1.0,368.75,376.12,289.83,PULLBACK,2026-05-21,BOUGHT,,,,,,,,,,0.0,BULLISH,14.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,60.02,5.99,0.26,,,,,,0.0
+SAIL,Steel Authority Of India Limited,196.53,1.0,202.35,206.4,174.84,PULLBACK,2026-05-21,BOUGHT,,True,,,,2026-05-26,,,T1_HIT,0.0,BULLISH,7.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,59.98,3.84,0.69,,,,,,0.0
+SPARC,Sun Pharma Advanced Research Company Limited,183.68,1.0,182.59,186.24,142.64,PULLBACK,2026-05-22,CLOSED,,True,True,,,2026-05-23,2026-05-23,,T2_WIN,209.7700042724609,BULLISH,2.0,VOLATILE,LOW,Low risk. Price action is stable.,76.62,5.74,1.43,,,,,,0.0
+GNFC,Gujarat Narmada Valley Fertilizers And Chemicals Limited,520.45,1.0,506.7,516.83,461.29,PULLBACK,2026-05-22,CLOSED,,True,True,False,,2026-05-25,2026-05-25,,T2_WIN,517.2999877929688,BULLISH,6.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,64.59,3.52,1.26,,,,,,0.0
+AEROFLEX,Aeroflex Industries Ltd,391.05,1.0,458.7,467.87,305.52,PULLBACK,2026-05-22,BOUGHT,,,,,,,,,,0.0,BULLISH,8.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,67.16,7.71,0.5,,,,,,0.0
+ALKYLAMINE,Alkyl Amines Chemicals Limited,1776.6,1.0,1785.0,1820.7,1489.89,PULLBACK,2026-05-22,CLOSED,,True,True,,,2026-06-02,2026-06-02,,T2_WIN,1822.0,BULLISH,11.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,67.49,5.5,0.46,,,,,,0.0
+VIYASH,Viyash Scientific Ltd,247.54,1.0,235.4,241.32,204.57,PULLBACK,2026-05-22,CLOSED,,True,True,,,2026-05-23,2026-05-23,,T2_WIN,246.0599975585937,BULLISH,7.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,72.41,5.31,1.15,,,,,,0.0
+RATNAVEER,Ratnaveer Precision Engineering Ltd,164.24,1.0,193.39,202.36,153.61,PULLBACK,2026-05-15,OPEN,,,,,,,,,,0.0,,,,,,,,,,,,,,1.0
+TEXRAIL,Texmaco Rail & Engineering Limited,107.03,1.0,124.73,127.22,102.97,PULLBACK,2026-05-15,OPEN,True,False,False,False,2026-05-20,,,,,0.0,,,,,,,,,,,,,,1.0
+HAL,Hindustan Aeronautics Ltd,4418.11,1.0,4836.3,4933.03,4347.4,PULLBACK,2026-05-15,CLOSED,True,,,True,2026-05-15,,,2026-05-18,SL_LOSS,4248.89990234375,,,,,,,,,,,,,,0.0
+INDOAMIN,Indo Amines Ltd,113.56,1.0,125.8,128.32,110.3,PULLBACK,2026-05-15,OPEN,,False,False,False,,,,,,0.0,,,,,,,,,,,,,,1.0
+TATACONSUM,TATA Consumer Products Ltd,1168.83,1.0,1282.7,1308.35,1148.46,PULLBACK,2026-05-16,OPEN,True,,,,2026-06-02,,,,,,,,,,,,,,,,,,,1.0
+SANDUMA,Sandur Manganese & Iron Ores Ltd,226.5,1.0,253.9,258.98,208.01,PULLBACK,2026-05-23,BOUGHT,True,,,,2026-05-18,,,,,,BULLISH,11.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,59.13,5.12,0.5,,,,,,0.0
+SAILIFE,Sai Life Sciences Ltd,1056.34,1.0,1139.4,1195.77,1023.2,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+SUNPHARMA,Sun Pharmaceuticals Industries Limited,1844.6,1.0,1887.9,1925.66,1760.04,PULLBACK,2026-05-24,BOUGHT,,,,,,,,,,,BULLISH,20.0,STABLE_BASE,LOW,Low risk. Price action is stable.,53.54,2.15,0.73,,,,,,0.0
+ADANIPORTS,Adani Ports And Special Economic Zone Limited,1664.14,1.0,1823.9,1860.38,1628.99,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+ONGC,Oil & Natural Gas Corporation Limited,287.4,1.0,307.5,314.12,282.12,PULLBACK,2026-05-16,OPEN,True,,,,2026-05-25,,,,,,,,,,,,,,,,,,,1.0
+OIL,Oil India Limited,478.24,1.0,531.0,541.62,465.96,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+NLCINDIA,Nlc India Limited,316.94,1.0,387.8,395.56,302.95,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+MANAPPURAM,Manappuram Finance Limited,294.86,1.0,317.7,327.04,287.86,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+KANSAINER,Kansai Nerolac Paints Limited,204.98,1.0,224.45,230.06,199.21,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+IOLCP,Iol Chemicals And Pharmaceuticals Limited,96.52,1.0,116.46,118.79,92.28,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+HINDZINC,Hindustan Zinc Limited,632.25,1.0,678.25,691.82,598.8,PULLBACK,2026-05-24,BOUGHT,,,,,,,,,,,BULLISH,20.0,STABLE_BASE,LOW,Low risk. Price action is stable.,60.77,3.02,0.55,,,,,,0.0
+GRASIM,Grasim Industries Limited,2834.97,1.0,3007.3,3067.45,2792.45,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+GRAPHITE,Graphite India Limited,716.38,1.0,802.4,818.45,694.07,PULLBACK,2026-05-16,OPEN,True,,,,2026-06-02,,,,,,,,,,,,,,,,,,,1.0
+BHEL,Bharat Heavy Electricals Limited,365.15,1.0,417.9,426.26,352.1,PULLBACK,2026-05-16,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+PPLPHARMA,Piramal Pharma Ltd,165.92,1.0,196.44,200.37,159.09,PULLBACK,2026-05-16,OPEN,True,,,,2026-06-02,,,,,,,,,,,,,,,,,,,1.0
+GESHIP,The Great Eastern Shipping Company Limited,1509.42,1.0,1720.0,1754.4,1448.3,PULLBACK,2026-05-18,OPEN,True,,,,2026-05-28,,,,,,,,,,,,,,,,,,,1.0
+MUKANDLTD,Mukand Limited,135.77,1.0,150.62,153.63,132.05,PULLBACK,2026-05-19,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+POLICYBZR,PB Fintech Ltd,1622.83,1.0,1735.0,1798.51,1584.76,PULLBACK,2026-05-19,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+V2RETAIL,V2 Retail Limited,211.02,1.0,241.5,246.33,202.51,PULLBACK,2026-05-20,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+MARICO,Marico Limited,801.02,1.0,848.8,865.78,789.0,PULLBACK,2026-05-20,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+MUFIN,Mufin Green Finance Ltd,115.09,1.0,123.0,126.76,109.64,CONSOLIDATION,2026-05-22,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+MCX,Multi Commodity Exchange Of India Limited,3124.11,1.0,3480.0,3549.6,2785.03,CONSOLIDATION,2026-05-22,OPEN,True,,,,2026-06-02,,,,,,,,,,,,,,,,,,,1.0
+BLISSGVS,Bliss Gvs Pharma Limited,275.46,1.0,301.45,316.15,243.43,CONSOLIDATION,2026-05-22,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+ASIANPAINT,Asian Paints Limited,2671.9,1.0,2665.7,2739.87,2412.19,CONSOLIDATION,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,31.0,STABLE_BASE,HIGH,Failed Breakout: Price hit high of ₹2689.6 but closed below resistance ₹2684.1.,67.0,2.3,0.83,C,2.5,0.5,Clean zone — normal size,,0.0
+HINDALCO,Hindalco Industries Limited,1149.7,1.0,1110.9,1144.88,984.54,CONSOLIDATION,2026-05-30,CLOSED,,True,True,,,2026-06-02,2026-06-02,,T2_WIN,1147.4000244140625,BULLISH,26.0,STABLE_BASE,LOW,Low risk. Price action is stable.,66.34,2.77,1.52,B,4.5,1.0,Clean zone — normal size,,0.0
+SUNPHARMA,Sun Pharmaceuticals Industries Limited,1815.56,1.0,1916.6,1954.93,1788.33,PULLBACK,2026-05-24,OPEN,True,,,,2026-05-26,,,,,,,,,,,,,,,,,,,1.0
+FEDFINA,Fedbank Financial Services Ltd,150.15,1.0,161.09,170.31,140.05,BREAKOUT,2026-05-25,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+ATGL,Adani Total Gas Ltd,652.8,1.0,684.9,698.95,599.71,PULLBACK,2026-05-26,CLOSED,,True,True,,,2026-05-26,2026-05-26,,T2_WIN,712.0,BULLISH,28.0,STABLE_BASE,LOW,Low risk. Price action is stable.,52.89,3.89,1.56,,,,,,0.0
+NIVABUPA,Niva Bupa Health Insurance Company Ltd,80.23,1.0,89.77,91.57,75.36,CONSOLIDATION,2026-05-25,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+MANALIPETC,Manali Petrochemicals Limited,55.87,1.0,66.62,67.95,53.67,PULLBACK,2026-05-25,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+TEMBO,Tembo Global Industries Ltd,587.2,1.0,644.9,663.92,553.53,CONSOLIDATION,2026-05-25,OPEN,True,,,,2026-06-02,,,,,,,,,,,,,,,,,,,1.0
+GVT&D,GE Vernova T&D India Ltd,4436.69,1.0,4962.4,5126.73,3982.2,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+TORNTPHARM,Torrent Pharmaceuticals Limited,4315.71,1.0,4555.1,4695.36,4152.59,CONSOLIDATION,2026-05-26,OPEN,True,,,,2026-06-02,,,,,,,,,,,,,,,,,,,1.0
+PIDILITIND,Pidilite Industries Limited,1480.7,1.0,1515.0,1548.81,1377.28,CONSOLIDATION,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,35.0,STABLE_BASE,LOW,Low risk. Price action is stable.,57.86,2.32,0.3,B,4.0,1.0,Clean zone — normal size,,0.0
+CIPLA,Cipla Limited,1345.41,1.0,1444.5,1473.39,1292.54,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+DREDGECORP,Dredging Corporation Of India Limited,957.46,1.0,1172.0,1195.44,891.72,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+SHYAMMETL,Shyam Metalics & Energy Ltd,879.82,1.0,938.0,983.36,796.06,BREAKOUT,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+KSHINTL,KSH International Ltd,628.43,1.0,701.95,772.36,547.8,BREAKOUT,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+JINDRILL,Jindal Drilling And Industries Limited,588.36,1.0,693.5,732.13,509.31,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+WEWORK,Wework India Management Ltd,516.06,1.0,584.15,607.3,492.16,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+BAJAJCON,Bajaj Consumer Care Ltd,507.21,1.0,567.95,609.54,425.98,BREAKOUT,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+RISHABH,Rishabh Instruments Ltd,488.53,1.0,548.8,586.64,461.99,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+VBL,Varun Beverages Limited,498.82,1.0,534.19,544.87,472.74,BREAKOUT,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+PRECWIRE,Precision Wires India Limited,387.9,1.0,445.5,460.05,368.75,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+SAREGAMA,Saregama India Limited,368.88,1.0,443.0,451.86,332.46,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+ASIANENE,Asian Energy Services Ltd,316.74,1.0,375.75,384.99,282.64,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+TALBROAUTO,Talbros Automotive Components Limited,316.95,1.0,360.0,390.66,273.44,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+VEDL,Vedanta Limited,392.47,1.0,780.0,795.6,325.0,CONSOLIDATION,2026-05-26,OPEN,True,,,,2026-05-26,,,,,,,,,,,,,,,,,,,1.0
+GREENLAM,Greenlam Industries Limited,225.87,1.0,242.78,263.7,216.11,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+AEQUS,Aequs Ltd,192.61,1.0,223.47,238.65,179.7,PULLBACK,2026-05-26,OPEN,True,,,,2026-05-28,,,,,,,,,,,,,,,,,,,1.0
+SAIL,Steel Authority Of India Limited,206.06,1.0,209.7,213.89,169.28,CONSOLIDATION,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,11.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,63.45,3.92,1.08,B,4.0,1.0,Clean zone — normal size,,0.0
+SKMEGGPROD,Skm Egg Products Export (india) Limited,177.99,1.0,202.74,217.86,166.95,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+IPL,India Pesticides Ltd,160.31,1.0,194.0,197.88,152.38,PULLBACK,2026-05-26,OPEN,True,,,,2026-06-02,,,,,,,,,,,,,,,,,,,1.0
+STALLION,Stallion India Fluorochemicals Ltd,152.88,1.0,176.0,185.95,143.78,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+GOLDETF,Mirae Asset Gold ETF,148.51,1.0,155.8,166.2,146.28,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+TVSSCS,TVS Supply Chain Solutions Ltd,114.33,1.0,127.5,130.56,110.36,PULLBACK,2026-05-26,OPEN,True,,,,2026-06-02,,,,,,,,,,,,,,,,,,,1.0
+OCCLLTD,OCCL Ltd,98.81,1.0,116.14,119.99,89.86,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+SANSTAR,Sanstar Ltd,100.4,1.0,120.0,122.4,88.65,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+SILGO,Silgo Retail Ltd,75.68,1.0,83.51,90.05,71.84,PULLBACK,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+BODALCHEM,Bodal Chemicals Limited,68.79,1.0,81.9,83.54,59.73,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+GEOJITFSL,Geojit Financial Services Ltd,69.8,1.0,76.39,79.35,64.44,CONSOLIDATION,2026-05-26,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+DELTACORP,Delta Corp Limited,70.78,1.0,81.35,83.48,64.72,CONSOLIDATION,2026-05-28,OPEN,True,,,,2026-06-02,,,,,,,,,,,,,,,,,,,1.0
+ANGELONE,Angel One Ltd,323.95,1.0,351.0,360.6,293.13,CONSOLIDATION,2026-05-28,OPEN,,,,,,,,,,,,,,,,,,,B,3.5,1.0,Clean zone — normal size,,0.0
+BSE,BSE (Bombay stock exchange) Ltd,3944.34,1.0,4303.0,4389.06,3479.57,BREAKOUT,2026-05-28,OPEN,True,,,,2026-06-02,,,,,,,,,,,,,,,,,,,1.0
+RBLBANK,Rbl Bank Limited,348.25,1.0,349.9,363.56,321.07,PULLBACK,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,37.0,STABLE_BASE,HIGH,Failed Breakout: Price hit high of ₹353.0 but closed below resistance ₹349.9.,51.73,2.93,1.01,B,4.0,1.0,Clean zone — normal size,,0.0
+RAMRAT,Ram Ratna Wires Ltd,426.02,1.0,475.2,494.5,372.33,CONSOLIDATION,2026-05-28,OPEN,True,,,,2026-06-02,,,,,,,,,,,,,,,,,,,1.0
+GHCLTEXTIL,GHCL Textiles Ltd,88.84,1.0,95.95,100.97,85.92,PULLBACK,2026-05-28,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+GREAVESCOT,Greaves Cotton Limited,166.02,1.0,178.85,189.93,153.79,BREAKOUT,2026-05-28,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+IFCI,Ifci Limited,68.38,1.0,66.25,69.95,56.3,BREAKOUT,2026-05-30,CLOSED,,True,True,,,2026-06-02,2026-06-02,,T2_WIN,71.33000183105469,BULLISH,3.0,VOLATILE,LOW,Low risk. Price action is stable.,61.26,3.83,3.36,B,3.5,1.0,Cash stock — expiry N/A,,0.0
+KTKBANK,The Karnataka Bank Limited,258.94,1.0,278.4,291.32,251.42,PULLBACK,2026-05-28,OPEN,,,,,,,,,,,,,,,,,,,A,5.0,1.0,Cash stock — expiry N/A,,0.0
+INDUSTOWER,Indus Towers Ltd (Bharti Infratel),422.66,1.0,449.4,460.75,415.3,CONSOLIDATION,2026-05-29,OPEN,,,,,,,,,,,,,,,,,,,A,5.0,1.0,Clean zone — normal size,,0.0
+NUVOCO,Nuvoco Vistas Corporation Ltd,318.21,1.0,340.0,358.39,277.1,BREAKOUT,2026-05-29,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+PREMIERENE,Premier Energies Ltd,994.7,1.0,1056.0,1106.69,925.69,BREAKOUT,2026-05-29,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+ACMESOLAR,ACME Solar Holdings Ltd,289.66,1.0,309.65,325.61,262.02,BREAKOUT,2026-05-29,OPEN,,,,,,,,,,,,,,,,,,,,,,,,1.0
+IFCI,IFCI,68.38,1.0,71.79899999999999,75.218,64.961,SWING,2026-05-30,BOUGHT,,True,,,,2026-06-02,,,T1_HIT,,BULLISH,3.0,VOLATILE,LOW,Low risk. Price action is stable.,61.26,3.83,3.36,B,3.5,1.0,Cash stock — expiry N/A,,0.0
+SAIL,SAIL,206.06,1.0,216.363,226.66600000000005,195.757,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,11.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,63.45,3.92,1.08,B,4.0,1.0,Clean zone — normal size,,0.0
+IFCI,IFCI,68.38,1.0,71.79899999999999,75.218,64.961,SWING,2026-05-30,BOUGHT,,True,,,,2026-06-02,,,T1_HIT,,BULLISH,3.0,VOLATILE,LOW,Low risk. Price action is stable.,61.26,3.83,3.36,B,3.5,1.0,Cash stock — expiry N/A,,0.0
+IFCI,IFCI,68.38,1.0,71.79899999999999,75.218,64.961,SWING,2026-05-30,BOUGHT,,True,,,,2026-06-02,,,T1_HIT,,BULLISH,3.0,VOLATILE,LOW,Low risk. Price action is stable.,61.26,3.83,3.36,B,3.5,1.0,Cash stock — expiry N/A,,0.0
+HINDALCO,HINDALCO,1149.7,1.0,1207.1850000000002,1264.67,1092.215,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,26.0,STABLE_BASE,LOW,Low risk. Price action is stable.,66.34,2.77,1.52,B,4.5,1.0,Clean zone — normal size,,0.0
+BAJEL,BAJEL,184.34,1.0,193.557,202.77400000000003,175.123,SWING,2026-05-30,BOUGHT,,True,,,,2026-06-02,,,T1_HIT,,BULLISH,33.0,STABLE_BASE,LOW,Low risk. Price action is stable.,50.47,4.37,0.29,A,5.0,1.0,Cash stock — expiry N/A,,0.0
+BIOCON,BIOCON,432.2,1.0,453.81,475.42,410.59,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,13.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,83.5,2.94,0.48,C,3.0,0.5,Clean zone — normal size,,0.0
+IFCI,Ifci Limited,68.38,1.0,66.25,69.95,56.3,BREAKOUT,2026-05-30,CLOSED,,True,True,,,2026-06-02,2026-06-02,,T2_WIN,71.33000183105469,BULLISH,3.0,VOLATILE,LOW,Low risk. Price action is stable.,61.26,3.83,3.36,B,3.5,1.0,Cash stock — expiry N/A,,0.0
+SAIL,Steel Authority Of India Limited,206.06,1.0,209.7,216.62,171.88,CONSOLIDATION,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,11.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,63.45,3.92,1.08,B,4.0,1.0,Clean zone — normal size,,0.0
+HINDALCO,Hindalco Industries Limited,1149.7,1.0,1119.8,1166.88,1006.18,BREAKOUT,2026-05-30,BOUGHT,,True,,,,2026-06-02,,,T1_HIT,,BULLISH,26.0,STABLE_BASE,LOW,Low risk. Price action is stable.,66.34,2.77,1.52,B,4.5,1.0,Clean zone — normal size,,0.0
+BAJEL,Bajel Projects Ltd,177.05,1.0,201.73,205.76,170.78,PULLBACK,2026-05-30,OPEN,,,,,,,,,,,,,,,,,,,A,5.0,1.0,Cash stock — expiry N/A,,1.0
+RBLBANK,Rbl Bank Limited,348.25,1.0,349.9,363.26,323.25,PULLBACK,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,37.0,STABLE_BASE,HIGH,Failed Breakout: Price hit high of ₹353.0 but closed below resistance ₹349.9.,51.73,2.93,1.01,B,4.0,1.0,Clean zone — normal size,,0.0
+BIOCON,Biocon Limited,406.26,1.0,440.4,449.21,378.26,CONSOLIDATION,2026-05-30,OPEN,,,,,,,,,,,,,,,,,,,C,3.0,0.5,Clean zone — normal size,,1.0
+EXIDEIND,Exide Industries Limited,348.36,1.0,379.9,387.5,328.03,BREAKOUT,2026-05-30,OPEN,,,,,,,,,,,,,,,,,,,B,4.0,1.0,Clean zone — normal size,,1.0
+ASIANPAINT,Asian Paints Limited,2551.32,1.0,2684.1,2755.12,2437.16,CONSOLIDATION,2026-05-30,OPEN,,,,,,,,,,,,,,,,,,,C,2.5,0.5,Clean zone — normal size,,1.0
+HINDALCO,HINDALCO,1149.7,1.0,1207.1850000000002,1264.67,1092.215,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,26.0,STABLE_BASE,LOW,Low risk. Price action is stable.,66.34,2.77,1.52,B,4.5,1.0,Clean zone — normal size,,0.0
+IFCI,IFCI,68.38,1.0,71.79899999999999,75.218,64.961,SWING,2026-05-30,BOUGHT,,True,,,,2026-06-02,,,T1_HIT,,BULLISH,3.0,VOLATILE,LOW,Low risk. Price action is stable.,61.26,3.83,3.36,B,3.5,1.0,Cash stock — expiry N/A,,0.0
+SAIL,SAIL,206.06,1.0,216.363,226.66600000000005,195.757,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,11.0,CONSOLIDATING,LOW,Low risk. Price action is stable.,63.45,3.92,1.08,B,4.0,1.0,Clean zone — normal size,,0.0
+HINDALCO,HINDALCO,1149.7,1.0,1207.1850000000002,1264.67,1092.215,SWING,2026-05-30,BOUGHT,,,,,,,,,,,BULLISH,26.0,STABLE_BASE,LOW,Low risk. Price action is stable.,66.34,2.77,1.52,B,4.5,1.0,Clean zone — normal size,,0.0
+IFCI,IFCI,68.38,1.0,71.79899999999999,75.218,64.961,SWING,2026-05-30,BOUGHT,,True,,,,2026-06-02,,,T1_HIT,,BULLISH,3.0,VOLATILE,LOW,Low risk. Price action is stable.,61.26,3.83,3.36,B,3.5,1.0,Cash stock — expiry N/A,,0.0
+SAIL,Steel Authority Of India Limited,194.8,1.0,209.7,214.49,190.7,PULLBACK,2026-06-02,OPEN,,,,,,,,,,,,,,,,,,,B,4.5,1.0,Clean zone — normal size,,
+HINDALCO,Hindalco Industries Limited,1085.3,1.0,1176.0,1199.52,1012.43,CONSOLIDATION,2026-06-02,OPEN,,,,,,,,,,,,,,,,,,,C,3.0,0.5,Clean zone — normal size,,
+SERVOTECH,Servotech Power Systems Ltd,93.18,1.0,102.2,107.84,84.0,CONSOLIDATION,2026-06-02,OPEN,,,,,,,,,,,,,,,,,,,B,4.0,1.0,Cash stock — expiry N/A,,

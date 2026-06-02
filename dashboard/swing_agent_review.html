@@ -8795,10 +8795,10 @@ function renderStockValidation() {
 
       </div>
 
-      <!-- Setup Grade Factor Breakdown (4 analysis-time factors) -->
-      <div style="padding:10px 16px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.015)" title="Setup Grade Factor Breakdown:\n- TREND: Capped at 1.0 (EMA Alignment & Weekly Trend)\n- STRUCTURE: Capped at 1.0 (Pattern, Stable Base, Low Breakout Risk)\n- VOLUME: Capped at 1.0 (Vol Ratio threshold)\n- LANDMINES: Capped at 1.0 (Return and ADX restrictions)\nTotal score = sum of these four factors (Grade A: >= 5.0, Grade B: >= 3.5, Grade C: < 3.5)">
+      <!-- Setup Quality Factor Breakdown (4 analysis-time factors) -->
+      <div style="padding:10px 16px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.015)" title="Setup Quality Factor Breakdown:\n- TREND: Capped at 1.0 (EMA Alignment & Weekly Trend)\n- STRUCTURE: Capped at 1.0 (Pattern, Stable Base, Low Breakout Risk)\n- VOLUME: Capped at 1.0 (Vol Ratio threshold)\n- LANDMINES: Capped at 1.0 (Return and ADX restrictions)\nTotal score = sum of these four factors (Grade A: >= 5.0, Grade B: >= 3.5, Grade C: < 3.5)">
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:700;display:flex;justify-content:space-between;align-items:center">
-          <span>Setup Grade Breakdown</span>
+          <span>Setup Quality Breakdown</span>
           <span class="grade-badge ${(s.setup_grade||'C') === 'A' ? 'a' : (s.setup_grade||'C') === 'B' ? 'b' : 'c'}" style="font-size:9px;padding:2px 7px">Grade ${s.setup_grade || 'C'} <span style="font-weight:400;opacity:.7">${s.setup_score || '0'}/6</span></span>
         </div>
         ${(function(){
@@ -8852,7 +8852,7 @@ function renderStockValidation() {
 
       <!-- Core Checklist in a Clean 2-Column Grid -->
       <div class="ca-vcard-body" style="padding:12px 16px;background:rgba(0,0,0,0.1)">
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:700">General Setup Verification:</div>
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:700">Quality Score Breakdown:</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           ${v.coreChecks.map(c => `
             <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;align-items:center;gap:6px;min-height:36px;font-size:11px" title="${c.formula || ''}">
