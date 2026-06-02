@@ -865,6 +865,68 @@ body.light-theme .tab-btn.tab-analytics.active   {color:#7047A3 !important; back
 .ca-score.moderate{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
 .ca-score.weak{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
 
+/* ── Validation Matrix: Gate strip → Quality score (rebuild) ───── */
+.ca-vcard.blocked{opacity:.62;border-left:3px solid var(--red)}
+.ca-vcard.blocked:hover{opacity:.82}
+
+/* Gate strip (collapsed: N/9 + dots; expands to labelled list) */
+.ca-gate-strip{border-bottom:1px solid var(--border)}
+.ca-gate-bar{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 16px;background:transparent;border:none;cursor:pointer;color:var(--text);font:inherit}
+.ca-gate-bar:hover{background:rgba(255,255,255,0.02)}
+.ca-gate-bar .ca-gate-title{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:7px}
+.ca-gate-bar .ca-gate-count{font-size:11px;font-weight:800;padding:2px 8px;border-radius:var(--radius-full)}
+.ca-gate-bar .ca-gate-count.pass{background:var(--green-bg);color:var(--green);border:1px solid rgba(16,185,129,.3)}
+.ca-gate-bar .ca-gate-count.fail{background:var(--red-bg);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+.ca-gate-dots{display:flex;gap:5px;align-items:center}
+.ca-gate-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.ca-gate-dot.pass{background:var(--green);box-shadow:0 0 0 1px rgba(16,185,129,.4)}
+.ca-gate-dot.fail{background:var(--red);box-shadow:0 0 0 1px rgba(239,68,68,.5)}
+.ca-gate-chevron{font-size:9px;color:var(--muted);transition:transform .2s ease}
+.ca-gate-chevron.open{transform:rotate(180deg)}
+.ca-gate-list{display:none;flex-direction:column;gap:5px;padding:4px 16px 12px}
+.ca-gate-list.open{display:flex}
+.ca-gate-item{display:flex;align-items:flex-start;gap:8px;font-size:11px;line-height:1.4}
+.ca-gate-item .gi-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.ca-gate-item .gi-dot.pass{background:var(--green)}
+.ca-gate-item .gi-dot.fail{background:var(--red)}
+.ca-gate-item .gi-name{color:var(--muted);min-width:120px}
+.ca-gate-item.fail .gi-name{color:var(--red);font-weight:700}
+.ca-gate-item .gi-reason{color:var(--red);flex:1}
+
+/* Score ring + conviction tier */
+.ca-score-block{display:flex;align-items:center;gap:16px;padding:14px 16px;border-bottom:1px solid var(--border)}
+.ca-score-ring{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;position:relative;flex-shrink:0;
+  background:conic-gradient(var(--ring-col) calc(var(--ring-pct,0)*1%), rgba(255,255,255,0.07) 0)}
+.ca-score-ring::before{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--card)}
+.ca-score-ring .rv{position:relative;z-index:1;font-size:24px;font-weight:800;line-height:1;color:var(--ring-col)}
+.ca-score-ring .rmax{position:relative;z-index:1;font-size:9px;font-weight:600;color:var(--muted);margin-top:2px}
+.ca-score-meta{display:flex;flex-direction:column;gap:5px;min-width:0}
+.ca-score-meta .sm-label{font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+.ca-tier-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;padding:4px 10px;border-radius:var(--radius-sm);width:fit-content}
+.ca-tier-badge.strong{background:var(--green-bg);color:var(--green);border:1px solid rgba(16,185,129,.35)}
+.ca-tier-badge.moderate{background:var(--yellow-bg);color:var(--yellow);border:1px solid rgba(245,158,11,.35)}
+.ca-tier-badge.weak{background:rgba(249,115,22,.12);color:#f97316;border:1px solid rgba(249,115,22,.35)}
+.ca-tier-badge.inelig{background:var(--red-bg);color:var(--red);border:1px solid rgba(239,68,68,.35)}
+.ca-tier-mult{font-size:11px;color:var(--muted);font-weight:600}
+
+/* Quality rows (6 structural categories) */
+.ca-qrows{display:flex;flex-direction:column}
+.ca-qrow{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:10px;padding:8px 16px;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.04)}
+.ca-qrow:last-child{border-bottom:none}
+.ca-qrow .qr-label{color:var(--muted);font-size:11px}
+.ca-qrow .qr-val{color:var(--text);font-weight:600;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ca-qrow .qr-score{font-variant-numeric:tabular-nums;font-weight:700;font-size:11px;color:var(--text)}
+.ca-qrow .qr-icon{width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:9px;font-weight:800}
+.ca-qrow .qr-icon.pass{background:var(--green-bg);color:var(--green)}
+.ca-qrow .qr-icon.warn{background:var(--yellow-bg);color:var(--yellow)}
+.ca-qrow .qr-icon.fail{background:var(--red-bg);color:var(--red)}
+
+/* BLOCKED ineligible panel */
+.ca-blocked-panel{padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.ca-blocked-head{font-size:12px;font-weight:800;color:var(--red);display:flex;align-items:center;gap:7px}
+.ca-blocked-reasons{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.ca-blocked-reasons li{font-size:11px;color:var(--text);line-height:1.4}
+
 /* ── Qualitative Research & Debate Accordion Toggles ───── */
 .ca-accordion-toggle {
   width: 100%;
@@ -1882,6 +1944,12 @@ body.light-theme .analytics-subtab-btn.active {
         Portfolio
       </h2>
       <div class="tab-sub">Active positions, performance tracking, trade journal, and edge metrics.</div>
+    </div>
+    <div class="watchlist-schedule-panel" style="display:inline-flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-size:12px; height:fit-content; margin-top:5px;">
+      <span style="color:var(--muted); font-weight:600;">⏰ Daily Watchlist Maintenance:</span>
+      <input type="time" id="maintenanceTime" value="08:30" style="background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:3px 6px; color:var(--text); font-size:12px; width:80px; outline:none; font-family:monospace; border-color:var(--border);" />
+      <button class="ca-btn pine" onclick="setMaintenanceSchedule()" style="font-size:11px; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:700;">Set Time</button>
+      <button class="ca-btn pine" onclick="triggerMaintenanceNow()" style="font-size:11px; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:700; background:rgba(59,130,246,0.12); color:var(--blue); border-color:rgba(59,130,246,0.3);" title="Run morning maintenance script immediately for OPEN watchlist candidates">⚡ Run Now</button>
     </div>
   </div>
 
@@ -6241,6 +6309,76 @@ async function loadPositions() {
   }
 }
 
+async function loadMaintenanceSchedule() {
+  if (!BASE) return;
+  try {
+    const r = await apiFetch("/api/schedule/maintenance");
+    if (r && r.status === "ok" && r.time) {
+      window._maintenanceTime = r.time;
+      const el = document.getElementById("maintenanceTime");
+      if (el) el.value = r.time;
+    }
+  } catch (err) {
+    console.error("Failed to load maintenance schedule:", err);
+  }
+}
+
+async function setMaintenanceSchedule() {
+  if (!BASE) return;
+  const el = document.getElementById("maintenanceTime");
+  if (!el) return;
+  const time = el.value;
+  if (!time) {
+    toast("Please enter a valid time", "error");
+    return;
+  }
+  try {
+    const r = await apiFetch("/api/schedule/maintenance", {
+      method: "POST",
+      body: JSON.stringify({ time })
+    });
+    if (r && r.status === "ok") {
+      window._maintenanceTime = r.time;
+      toast(`Watchlist maintenance scheduled for ${r.time} IST`, "success");
+    } else {
+      toast(r.message || "Failed to update schedule", "error");
+    }
+  } catch (err) {
+    console.error("Failed to update maintenance schedule:", err);
+    toast("Server connection failed", "error");
+  }
+}
+
+async function triggerMaintenanceNow() {
+  if (!BASE) return;
+  toast("⚡ Running morning watchlist maintenance... Please wait.", "info", 60000);
+  try {
+    const r = await apiFetch("/api/schedule/maintenance/run", {
+      method: "POST"
+    });
+    // Remove the long running notification and show results
+    toast("Watchlist maintenance complete!", "success", 3000);
+    if (r && r.status === "success") {
+      const keptCount = r.kept ? r.kept.length : 0;
+      const delCount = r.deleted ? r.deleted.length : 0;
+      const absCount = r.absent_pending ? r.absent_pending.length : 0;
+      
+      let summaryMsg = `Refreshed: ${keptCount} | Deleted: ${delCount}`;
+      if (absCount > 0) summaryMsg += ` | Absent Pending: ${absCount}`;
+      
+      toast(summaryMsg, "success", 5000);
+      
+      // Reload positions to update table view in real-time
+      loadPositions();
+    } else {
+      toast(r.message || "Maintenance completed with warnings", "warn");
+    }
+  } catch (err) {
+    console.error("Manual maintenance run failed:", err);
+    toast("Watchlist maintenance failed or timed out", "error");
+  }
+}
+
 async function removeStockFromWatchlist(symbol) {
   try {
     const resp = await apiFetch("/api/positions/remove", {
@@ -7078,6 +7216,7 @@ async function init() {
     loadFOBan();
     loadSectors();
     loadPositions();
+    loadMaintenanceSchedule();
     checkKiteStatus();
     loadNewsConfig();
     loadDebateConfig();
@@ -7624,7 +7763,7 @@ function switchTab(tabId) {
   // Trigger tab-specific refresh
   if (tabId === "analysis")   { renderBiasBuilder(); renderChartAnalysis(); renderCAChecklist(); renderStockValidation(); }
   if (tabId === "trading")    { renderEntryGates(); renderEntryChecklist(); renderStockSelector(); recalcPosSize(); recalcTrail(); }
-  if (tabId === "portfolio")  { loadPositions(); renderReviewMetrics(); renderJournalList(); }
+  if (tabId === "portfolio")  { loadPositions(); renderReviewMetrics(); renderJournalList(); loadMaintenanceSchedule(); }
   if (tabId === "analytics")  { loadPositions(); }
   // Scroll to top of tab
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -8409,7 +8548,101 @@ function _caCheck(pass, warn) {
   return { cls: "fail", icon: "✗" };
 }
 
-function getStockValidation(s) {
+/* ══════════════════════════════════════════════════════════
+   STOCK VALIDATION MATRIX  —  Safety Gates → Quality Score
+   Two sequential mechanisms (never additive against each other):
+     1. evaluateGates(s)  → binary pass/fail. ANY fail ⇒ INELIGIBLE.
+     2. scoreQuality(s)   → 0-100, computed ONLY when all gates pass.
+   Gates are sourced from the server verdict/reasons where available,
+   with a client-side fallback derived from the scan fields.
+   ══════════════════════════════════════════════════════════ */
+
+// The 9 Safety Gates (binary). Returns { passed, gates[], passCount, failCount, total, failedGates[] }.
+function evaluateGates(s) {
+  const reasons = Array.isArray(s.reasons) ? s.reasons : [];
+  // Find server reason(s) matching any of the given lowercase substrings.
+  const hit = (patterns) => {
+    const m = reasons.filter(r => patterns.some(p => String(r).toLowerCase().includes(p)));
+    return m.length ? m[0] : null;
+  };
+  const gates = [];
+  const add = (num, name, fail, reason) => gates.push({ num, name, pass: !fail, reason: fail ? reason : null });
+
+  // 1 · Status — ON_HOLD on fundamental or live status
+  const onHoldFund = (s.fundamental_status || "").toUpperCase() === "ON_HOLD";
+  const onHoldLive = (s.live_status || "").toUpperCase() === "ON_HOLD";
+  add(1, "Status", onHoldFund || onHoldLive,
+    onHoldFund ? "Fundamental status ON_HOLD" : "Live status ON_HOLD");
+
+  // 2 · Weekly trend — bearish
+  const wt = (s.weekly_trend || "BULLISH").toUpperCase();
+  const wtReason = hit(["weekly trend", "bearish weekly"]);
+  add(2, "Weekly trend", wt === "BEARISH" || !!wtReason,
+    wtReason || "Bearish weekly trend");
+
+  // 3 · Fundamentals — weakness flagged
+  const fundReason = hit(["fundamental", "negative eps", "negative pe", "weak roe", "ebitda", "earnings weak"]);
+  const fundStatusBad = ["REJECTED", "WEAK", "FAIL"].includes((s.fundamental_status || "").toUpperCase());
+  add(3, "Fundamentals", !!fundReason || fundStatusBad,
+    fundReason || "Fundamental weakness flagged");
+
+  // 4 · Institutional — distribution detected
+  let instFail = false, instReason = null;
+  if (s.shareholding && s.shareholding.status === "success") {
+    const sh = s.shareholding;
+    const cls = (sh.classification || "NEUTRAL").toUpperCase();
+    const sc = sh.consensus_score !== undefined ? sh.consensus_score : 0;
+    if (cls === "DISTRIBUTION" || sc <= -3.0) { instFail = true; instReason = "Institutional distribution (" + sc + ")"; }
+  }
+  if (!instFail) { const r = hit(["distribution"]); if (r) { instFail = true; instReason = r; } }
+  add(4, "Institutional", instFail, instReason);
+
+  // 5 · Liquidity — below min turnover/volume
+  const liqReason = hit(["liquidity", "turnover", "illiquid", "below min", "volume too low"]);
+  add(5, "Liquidity", !!liqReason, liqReason || "Below minimum liquidity");
+
+  // 6 · Overextension — 20d return > 25%
+  const r20 = parseFloat(s.return_20d);
+  const overext = !isNaN(r20) && r20 > 25;
+  add(6, "Overextension", overext, "Overextended (+" + (isNaN(r20) ? "?" : r20.toFixed(1)) + "% in 20d)");
+
+  // 7 · Debate verdict — adversarial debate = SKIP
+  const verdict = (s.verdict || "").toUpperCase();
+  const dverdict = (s.debate_verdict || (s.debate && s.debate.verdict) || "").toUpperCase();
+  add(7, "Debate verdict", verdict === "SKIP" || dverdict === "SKIP" || dverdict === "AVOID",
+    "Adversarial debate verdict: SKIP");
+
+  // 8 · Data freshness — older than 1 trading day
+  add(8, "Data freshness", isDataStale(s), "Stale data (older than 1 trading day)");
+
+  // 9 · Sector × Nifty regime — RED sector / rotation-trap / hard-skip cell
+  const rm = s.regime_multiplier;
+  const hardSkip = rm !== undefined && parseFloat(rm) === 0;
+  const regReason = hit(["rotation trap", "sector rotation", "sector red", "hard skip", "regime block"]);
+  add(9, "Sector × Nifty regime", hardSkip || !!regReason,
+    regReason || "Sector rotation trap (Nifty / sector regime block)");
+
+  const failedGates = gates.filter(g => !g.pass);
+  return {
+    passed: failedGates.length === 0,
+    gates,
+    failedGates,
+    passCount: gates.length - failedGates.length,
+    failCount: failedGates.length,
+    total: gates.length
+  };
+}
+
+// Quality score → conviction tier + sizing multiplier (section 6 of the spec).
+function _convictionTier(score) {
+  if (score >= 80) return { label: "STRONG",     mult: "1.0×",  cls: "strong",   col: "var(--green)" };
+  if (score >= 65) return { label: "MODERATE",   mult: "0.75×", cls: "moderate", col: "var(--yellow)" };
+  if (score >= 50) return { label: "WEAK",       mult: "0.5×",  cls: "weak",     col: "#f97316" };
+  return            { label: "INELIGIBLE", mult: "0.0×",  cls: "inelig",   col: "var(--red)" };
+}
+
+// The 6 structural Quality Score categories (only meaningful once all gates pass). Sum = 100.
+function scoreQuality(s) {
   // Category 1: Setup Type (25 pts)
   const setup = (s.setup || "unknown").toUpperCase();
   let setupScore = 0;
@@ -8454,18 +8687,13 @@ function getStockValidation(s) {
     trendVal = "Aligned (Price > EMA20 > EMA50) ✓";
     trendCls = "pass";
     trendIcon = "✓";
-  } else if (sPrice > sEma20) {
-    trendScore = 10;
-    trendVal = "Partial (Price > EMA20, EMA20 ≤ EMA50) !";
-    trendCls = "warn";
-    trendIcon = "!";
   } else {
     trendScore = 0;
-    trendVal = "Misaligned (Price ≤ EMA20) ✗";
+    trendVal = "Not aligned ✗";
     trendCls = "fail";
     trendIcon = "✗";
   }
-  const caTrend = { label: "Trend Structure (Max 20)", cls: trendCls, icon: trendIcon, val: trendVal, score: trendScore, formula: "Trend Structure Rules (Weight: 20 pts):\n- Full Alignment (Price > EMA20 > EMA50) = 20 pts\n- Partial (Price > EMA20 but EMA20 <= EMA50) = 10 pts\n- Misaligned (Price <= EMA20) = 0 pts" };
+  const caTrend = { label: "Trend Structure (Max 20)", cls: trendCls, icon: trendIcon, val: trendVal, score: trendScore, formula: "Trend Structure Rules (Weight: 20 pts):\n- Aligned (Price > EMA20 > EMA50) = 20 pts\n- Not aligned = 0 pts" };
 
   // Category 3: Base Quality (15 pts)
   const baseDays = parseInt(s.base_days) || 0;
@@ -8567,62 +8795,27 @@ function getStockValidation(s) {
   }
   const caVol = { label: "Volatility ATR Fit (Max 10)", cls: atrCls, icon: atrIcon, val: atrVal, score: atrScore, formula: "Volatility ATR Fit Rules (Weight: 10 pts):\n- Ideal (ATR% between 2.0% and 4.0%) = 10 pts\n- Sub-optimal (ATR% 1.5-2.0% or 4.0-6.0%) = 6 pts\n- Unfit (ATR% < 1.5% or > 6.0%) = 0 pts" };
 
-  const checks = [caSetup, caTrend, caBase, caADX, caInst, caVol];
+  const cats = [caSetup, caTrend, caBase, caADX, caInst, caVol];
+  const maxes = [25, 20, 15, 15, 15, 10];
+  const cleanLabels = ["Setup type", "Trend structure", "Base quality", "Trend strength", "Institutional", "Volatility fit"];
 
-  // Helper variables for general UI support
-  const wTrend = s.weekly_trend || "BULLISH";
-  const wTrendOk = wTrend === "BULLISH";
-  const weeklyTrendVal = wTrendOk ? "BULLISH" : "BEARISH";
-  const weeklyTrendColor = wTrendOk ? "var(--green)" : "var(--red)";
-  const weeklyTrendBg = wTrendOk ? "var(--green-bg)" : "var(--red-bg)";
-  const weeklyTrendIcon = wTrendOk ? "↗" : "↘";
-  const weeklyTrendClass = wTrendOk ? "pass" : "fail";
+  const rows = cats.map((c, i) => ({
+    label: cleanLabels[i],
+    value: String(c.val).replace(/\s*[✓!✗]\s*$/, "").trim(),
+    score: c.score,
+    max: maxes[i],
+    cls: c.cls,
+    icon: c.cls === "pass" ? "✓" : c.cls === "warn" ? "!" : "✗",
+    formula: c.formula
+  }));
+  const total = rows.reduce((a, r) => a + r.score, 0);
 
-  const fbRisk = s.false_breakout_risk || "LOW";
-  const fbDesc = s.false_breakout_desc || "";
-  const fbVal = fbRisk === "HIGH" ? "HIGH RISK" : "LOW RISK";
-  const fbColor = fbRisk === "HIGH" ? "var(--red)" : "var(--green)";
-  const fbBg = fbRisk === "HIGH" ? "var(--red-bg)" : "var(--green-bg)";
-  const fbIcon = fbRisk === "HIGH" ? "⚠" : "✓";
-  const fbClass = fbRisk === "HIGH" ? "fail" : "pass";
+  return { rows, total: Math.round(total) };
+}
 
-  const baseStatus = s.base_status || "VOLATILE";
-  let baseColor = "var(--red)";
-  let baseLabel = "Volatile / No Base";
-  let baseBarPct = 10;
-  if (baseDays >= 20) {
-    baseColor = "var(--green)";
-    baseLabel = "STABLE BASE";
-    baseBarPct = Math.min(100, Math.round((baseDays / 45) * 100));
-  } else if (baseDays >= 5) {
-    baseColor = "var(--yellow)";
-    baseLabel = "CONSOLIDATING";
-    baseBarPct = Math.min(100, Math.round((baseDays / 20) * 100));
-  }
-
-  return {
-    checks,
-    coreChecks: checks,
-    passCount: checks.filter(c => c.cls === "pass").length,
-    total: checks.length,
-    weeklyTrendVal,
-    weeklyTrendColor,
-    weeklyTrendBg,
-    weeklyTrendIcon,
-    weeklyTrendClass,
-    fbRisk,
-    fbVal,
-    fbColor,
-    fbBg,
-    fbIcon,
-    fbClass,
-    fbDesc,
-    baseDays,
-    baseStatus,
-    baseLabel,
-    baseColor,
-    baseBarPct
-  };
+// Combined entry point used by the renderer and the position sizer.
+function getStockValidation(s) {
+  return { gateResult: evaluateGates(s), quality: scoreQuality(s) };
 }
 
 function isDataStale(s) {
@@ -8640,30 +8833,20 @@ function isDataStale(s) {
 }
 
 function computeCompositeScore(s, v) {
-  // Rely on server's safety gate execution: any SKIP verdict from apply_risk_filters blocks the setup
-  if (s.verdict === "SKIP") {
-    return { score: 0, eligible: false, reasons: s.reasons || ["Failed Safety Gate"] };
+  // Stage 1 — Safety Gates. ANY failed gate ⇒ INELIGIBLE, no score is computed.
+  const gateResult = (v && v.gateResult) ? v.gateResult : evaluateGates(s);
+  if (!gateResult.passed) {
+    return {
+      score: 0,
+      eligible: false,
+      blocked: true,
+      reasons: gateResult.failedGates.map(g => g.reason || g.name)
+    };
   }
 
-  // 1-Trading-Day Freshness Check
-  if (isDataStale(s)) {
-    return { score: 0, eligible: false, reasons: ["Stale data / older than 1 trading day"] };
-  }
-
-  // Calculate sum of category scores
-  let score = 0;
-  v.checks.forEach(c => {
-    score += c.score;
-  });
-
-  const reasons = [];
-
-  const eligible = score >= 50;
-  if (!eligible) {
-    reasons.push("Quality Score < 50 (" + score + ")");
-  }
-
-  return { score: Math.round(score), eligible: eligible, reasons: reasons };
+  // Stage 2 — Quality Score. Sum the 6 structural categories (0-100).
+  const quality = (v && v.quality) ? v.quality : scoreQuality(s);
+  return { score: Math.round(quality.total), eligible: true, blocked: false, reasons: [] };
 }
 
 function _rankTierStyle(rank) {
@@ -8673,12 +8856,21 @@ function _rankTierStyle(rank) {
   return null;
 }
 
+// Expand / collapse a card's safety-gate labelled list.
+function toggleGateStrip(id, btn) {
+  const list = document.getElementById(id);
+  if (!list) return;
+  const open = list.classList.toggle("open");
+  const chevron = btn.querySelector(".ca-gate-chevron");
+  if (chevron) chevron.classList.toggle("open", open);
+}
+
 function renderStockValidation() {
   const grid = document.getElementById("caValidateGrid");
   const pill = document.getElementById("caValidatePill");
   if (!grid) return;
   const stocks = _scannedStocks || [];
-  if (pill) pill.textContent = `${stocks.length} stock${stocks.length !== 1 ? "s" : ""}`;
+  if (pill) pill.textContent = `0 eligible / ${stocks.length} scanned`;
 
   if (!stocks.length) {
     grid.innerHTML = `<div class="empty" style="padding:30px 20px">
@@ -8693,73 +8885,111 @@ function renderStockValidation() {
     .map((s, originalIdx) => {
       const v = getStockValidation(s);
       const c = computeCompositeScore(s, v);
-      let scoreLabel = "SKIP";
-      let scoreClass = "weak";
-      if (c.eligible) {
-        if (c.score >= 80) {
-          scoreLabel = "STRONG";
-          scoreClass = "strong";
-        } else if (c.score >= 65) {
-          scoreLabel = "MODERATE";
-          scoreClass = "moderate";
-        } else {
-          scoreLabel = "WEAK";
-          scoreClass = "weak";
-        }
-      }
-      return { s, v, originalIdx, score: c.score, eligible: c.eligible, reasons: c.reasons, scoreLabel, scoreClass };
+      return {
+        s, v,
+        gateResult: v.gateResult,
+        quality: v.quality,
+        originalIdx,
+        score: c.score,
+        eligible: c.eligible,
+        blocked: c.blocked,
+        reasons: c.reasons,
+        tier: _convictionTier(c.score)
+      };
     })
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => {
+      if (a.eligible !== b.eligible) return a.eligible ? -1 : 1; // BLOCKED cards sink to bottom
+      return b.score - a.score;                                  // ELIGIBLE ranked by quality score desc
+    });
+
   let rankCounter = 0;
   ranked.forEach(item => { if (item.eligible && rankCounter < 4) { rankCounter++; item.rank = rankCounter; } });
 
-  const emptyTopBanner = rankCounter === 0
-    ? `<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#fbbf24;line-height:1.4">⚠ No top picks today — all scanned stocks have a bearish weekly trend. Showing all by score.</div>`
+  const eligibleCount = ranked.filter(r => r.eligible).length;
+  if (pill) pill.textContent = `${eligibleCount} eligible / ${stocks.length} scanned`;
+
+  const emptyTopBanner = eligibleCount === 0
+    ? `<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#fbbf24;line-height:1.4">⚠ No eligible stocks today — every scanned stock failed at least one safety gate.</div>`
     : "";
 
   grid.innerHTML = `${emptyTopBanner}<div class="ca-validate-grid">${ranked.map((item, i) => {
     const s = item.s;
     const v = item.v;
-    const tier = item.rank ? _rankTierStyle(item.rank) : null;
+    const gr = item.gateResult;
+    const rankStyle = (!item.blocked && item.rank) ? _rankTierStyle(item.rank) : null;
     const chgCls = (s.change_pct || 0) >= 0 ? "up" : "down";
-    const cardStyle = tier ? `border-left:3px solid ${tier.color}` : "";
-    const ribbon = tier
-      ? `<div style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:5px;font-size:10px;font-weight:800;letter-spacing:0.3px;background:${tier.bg};color:${tier.color};border:1px solid ${tier.color};margin-bottom:5px">${tier.icon} ${tier.label} · ${item.score}</div>`
+    const cardCls = item.blocked ? "ca-vcard blocked" : "ca-vcard";
+    const cardStyle = rankStyle ? `border-left:3px solid ${rankStyle.color}` : "";
+    const ribbon = rankStyle
+      ? `<div style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:5px;font-size:10px;font-weight:800;letter-spacing:0.3px;background:${rankStyle.bg};color:${rankStyle.color};border:1px solid ${rankStyle.color};margin-bottom:5px">${rankStyle.icon} ${rankStyle.label} · ${item.score}</div>`
       : "";
-    // Setup Grade Badge
-    let gradeBadge = "";
-    if (s.setup_grade) {
-      const gradeStyle = s.setup_grade === "A"
-        ? "background:rgba(16,185,129,0.12); color:var(--green); border:1px solid rgba(16,185,129,0.3);"
-        : s.setup_grade === "B"
-        ? "background:rgba(245,158,11,0.12); color:var(--yellow); border:1px solid rgba(245,158,11,0.3);"
-        : "background:rgba(156,163,175,0.12); color:var(--muted); border:1px solid rgba(156,163,175,0.3);";
-      
-      gradeBadge = `<span class="tag" style="${gradeStyle} font-weight:800; font-size:10px; margin-left:6px;" title="Setup Quality Grade: ${s.setup_grade} (Score: ${s.setup_score || 0}/6.0)">Grade ${s.setup_grade} (${s.setup_score || 0})</span>`;
+
+    // ── Safety gate strip (collapsed: N/9 + dots; click to expand labelled reasons) ──
+    const gateId = `gates_${s.symbol}_${i}`;
+    const countCls = gr.passed ? "pass" : "fail";
+    const countTxt = gr.passed ? `${gr.passCount}/${gr.total} PASS` : `${gr.failCount}/${gr.total} FAIL`;
+    const gateDots = gr.gates.map(g =>
+      `<span class="ca-gate-dot ${g.pass ? "pass" : "fail"}" title="${g.num}. ${g.name}${g.pass ? "" : " — " + (g.reason || "fail")}"></span>`
+    ).join("");
+    const gateItems = gr.gates.map(g =>
+      `<div class="ca-gate-item ${g.pass ? "pass" : "fail"}">
+        <span class="gi-dot ${g.pass ? "pass" : "fail"}"></span>
+        <span class="gi-name">${g.num}. ${g.name}</span>
+        ${g.pass ? "" : `<span class="gi-reason">${g.reason || "Failed"}</span>`}
+      </div>`
+    ).join("");
+    const gateStripHtml = `
+      <div class="ca-gate-strip">
+        <button class="ca-gate-bar" onclick="toggleGateStrip('${gateId}', this)">
+          <span class="ca-gate-title">🛡 Safety gates <span class="ca-gate-chevron">▼</span></span>
+          <span style="display:flex;align-items:center;gap:10px">
+            <span class="ca-gate-dots">${gateDots}</span>
+            <span class="ca-gate-count ${countCls}">${countTxt}</span>
+          </span>
+        </button>
+        <div id="${gateId}" class="ca-gate-list">${gateItems}</div>
+      </div>`;
+
+    // ── Body: BLOCKED → ineligible panel only · ELIGIBLE → score ring + 6 quality rows ──
+    let bodyHtml;
+    if (item.blocked) {
+      const failList = gr.failedGates.map(g => `<li>${g.reason || g.name}</li>`).join("");
+      bodyHtml = `
+      <div class="ca-blocked-panel">
+        <div class="ca-blocked-head">⚠ INELIGIBLE — failed safety gate</div>
+        <ul class="ca-blocked-reasons">${failList}</ul>
+      </div>`;
+    } else {
+      const t = item.tier;
+      const qrows = item.quality.rows.map(r => `
+        <div class="ca-qrow" title="${(r.formula || "").replace(/"/g, "&quot;")}">
+          <span class="qr-label">${r.label}</span>
+          <span class="qr-val">${r.value}</span>
+          <span class="qr-score">${r.score}/${r.max}</span>
+          <span class="qr-icon ${r.cls}">${r.icon}</span>
+        </div>`).join("");
+      bodyHtml = `
+      <div class="ca-score-block">
+        <div class="ca-score-ring" style="--ring-pct:${item.score};--ring-col:${t.col}">
+          <span class="rv">${item.score}</span>
+          <span class="rmax">/100</span>
+        </div>
+        <div class="ca-score-meta">
+          <span class="sm-label">Quality Score</span>
+          <span class="ca-tier-badge ${t.cls}">${t.label}</span>
+          <span class="ca-tier-mult">${t.mult} conviction</span>
+        </div>
+      </div>
+      <div class="ca-qrows">${qrows}</div>`;
     }
 
-    // Expiry Sizing Badge
-    let expiryBadge = "";
-    if (s.expiry_info) {
-      const exp = s.expiry_info;
-      if (exp.in_window && exp.multiplier < 1.0) {
-        const expStyle = exp.multiplier === 0.0
-          ? "background:rgba(239,68,68,0.12); color:var(--red); border:1px solid rgba(239,68,68,0.3);"
-          : "background:rgba(245,158,11,0.12); color:var(--yellow); border:1px solid rgba(245,158,11,0.3);";
-        
-        expiryBadge = `<span class="tag" style="${expStyle} font-weight:800; font-size:10px; margin-left:6px;" title="F&O Expiry Window Sizing Reduction: ${exp.reason}">⚠️ Expiry: ${exp.multiplier}x size</span>`;
-      }
-    }
-
-    return `<div class="ca-vcard" style="${cardStyle}">
+    return `<div class="${cardCls}" style="${cardStyle}">
       <div class="ca-vcard-head">
         <div>
           ${ribbon}
           <div style="display:flex;align-items:center;gap:6px">
             <div class="sym">${s.symbol}</div>
             <button onclick="removeStockFromWatchlist('${s.symbol}')" title="Remove from watchlist" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:2px;border-radius:4px;line-height:1">🗑️</button>
-            ${gradeBadge}
-            ${expiryBadge}
           </div>
           <div style="font-size:11px;color:var(--muted)">${s.name || s.symbol}</div>
           ${s.index_membership && s.index_membership.length ? `
@@ -8774,138 +9004,8 @@ function renderStockValidation() {
         </div>
       </div>
 
-      <!-- Premium Automated Technical Health Dashboard (Graphical Gauges) -->
-      <div class="ca-vcard-dashboard" style="padding:12px 16px;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:10px">
-
-        <!-- Row 1: Weekly Trend Pill -->
-        <div style="display:flex;gap:8px;align-items:center;justify-content:space-between">
-          <!-- Weekly Trend -->
-          <div class="ca-gauge-pill ${v.weeklyTrendClass}" style="flex:1;text-align:center;padding:6px;border-radius:6px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid ${v.weeklyTrendColor};background:${v.weeklyTrendBg};color:${v.weeklyTrendColor}" title="Weekly Trend Safety Gate:\n- BULLISH: Passes\n- BEARISH: Blocked (Gate Fail)\nSource: weekly_trend">
-            ${v.weeklyTrendIcon} Weekly Trend: ${v.weeklyTrendVal}
-          </div>
-        </div>
-
-        <!-- Row 2: Consolidation Pattern Base Meter -->
-        <div style="display:flex;flex-direction:column;gap:4px" title="Consolidation Base Meter:\n- STABLE BASE: base_days >= 20 (Ideal)\n- CONSOLIDATING: base_days >= 5\n- VOLATILE: base_days < 5\nSource: base_days & base_status">
-          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
-            <span style="color:var(--muted)">Consolidation Base:</span>
-            <span style="font-weight:700;color:${v.baseColor}">${v.baseDays} Days (${v.baseLabel})</span>
-          </div>
-          <div class="ca-meter-bar-container" style="height:6px;width:100%;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden">
-            <div class="ca-meter-bar-fill" style="height:100%;width:${v.baseBarPct}%;background:${v.baseColor};border-radius:3px;transition:width 0.4s ease"></div>
-          </div>
-        </div>
-
-        <!-- Row 3: Institutional Shareholding Trend (FII/DII) -->
-        ${s.shareholding && s.shareholding.status === "success" ? `
-          <div style="display:flex; flex-direction:column; gap:6px; border-top:1px dashed var(--border); padding-top:10px; margin-top:8px" title="Institutional Shareholding Trend (FII/DII):\n- ACCUMULATION: consensus_score >= 3.0 (Favorable)\n- DISTRIBUTION: consensus_score <= -3.0 (Gate Fail/Blocked)\n- NEUTRAL / NO DATA: Normal\nBreakdown: ${s.shareholding.breakdown || ''}">
-            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px">
-              <span style="color:var(--muted)">Screener Trend (${s.shareholding.latest_quarter}):</span>
-              <span style="font-weight:800; font-size:10px; padding:1px 5px; border-radius:4px; ${
-                s.shareholding.classification === "DISTRIBUTION" || s.shareholding.consensus_score <= -3.0
-                  ? "background:rgba(239,68,68,0.12); color:var(--red); border:1px solid rgba(239,68,68,0.3)"
-                  : s.shareholding.classification === "ACCUMULATION" || s.shareholding.consensus_score >= 3.0
-                  ? "background:rgba(16,185,129,0.12); color:var(--green); border:1px solid rgba(16,185,129,0.3)"
-                  : "background:rgba(245,158,11,0.12); color:var(--yellow); border:1px solid rgba(245,158,11,0.3)"
-              }" title="${s.shareholding.breakdown || ''}">
-                ${
-                  s.shareholding.classification === "DISTRIBUTION" || s.shareholding.consensus_score <= -3.0
-                    ? "⚠️ DISTRIBUTION (" + s.shareholding.consensus_score + ")"
-                    : s.shareholding.classification === "ACCUMULATION" || s.shareholding.consensus_score >= 3.0
-                    ? "💎 ACCUMULATION (+" + s.shareholding.consensus_score + ")"
-                    : "ℹ NEUTRAL (" + (s.shareholding.consensus_score >= 0 ? "+" : "") + s.shareholding.consensus_score + ")"
-                }
-              </span>
-            </div>
-            <div style="display:flex; justify-content:space-between; gap:10px; font-size:10.5px">
-              <div style="flex:1; background:rgba(255,255,255,0.02); padding:5px 8px; border-radius:6px; display:flex; justify-content:space-between; border:1px solid var(--border)">
-                <span style="color:var(--muted)">FII Stake:</span>
-                <span style="font-weight:700; color:${s.shareholding.fii_change < 0 ? 'var(--red)' : 'var(--green)'}">
-                  ${s.shareholding.fii_latest.toFixed(2)}% (${s.shareholding.fii_change >= 0 ? '+' : ''}${s.shareholding.fii_change.toFixed(2)}%)
-                </span>
-              </div>
-              <div style="flex:1; background:rgba(255,255,255,0.02); padding:5px 8px; border-radius:6px; display:flex; justify-content:space-between; border:1px solid var(--border)">
-                <span style="color:var(--muted)">DII (MF):</span>
-                <span style="font-weight:700; color:${s.shareholding.dii_change < 0 ? 'var(--red)' : 'var(--green)'}">
-                  ${s.shareholding.dii_latest.toFixed(2)}% (${s.shareholding.dii_change >= 0 ? '+' : ''}${s.shareholding.dii_change.toFixed(2)}%)
-                </span>
-              </div>
-            </div>
-          </div>
-        ` : ""}
-
-      </div>
-
-      <!-- Setup Quality Factor Breakdown (4 analysis-time factors) -->
-      <div style="padding:10px 16px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.015)" title="Setup Quality Factor Breakdown:\n- TREND: Capped at 1.0 (EMA Alignment & Weekly Trend)\n- STRUCTURE: Capped at 1.0 (Pattern, Stable Base, Low Breakout Risk)\n- VOLUME: Capped at 1.0 (Vol Ratio threshold)\n- LANDMINES: Capped at 1.0 (Return and ADX restrictions)\nTotal score = sum of these four factors (Grade A: >= 5.0, Grade B: >= 3.5, Grade C: < 3.5)">
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:700;display:flex;justify-content:space-between;align-items:center">
-          <span>Setup Quality Breakdown</span>
-          <span class="grade-badge ${(s.setup_grade||'C') === 'A' ? 'a' : (s.setup_grade||'C') === 'B' ? 'b' : 'c'}" style="font-size:9px;padding:2px 7px">Grade ${s.setup_grade || 'C'} <span style="font-weight:400;opacity:.7">${s.setup_score || '0'}/6</span></span>
-        </div>
-        ${(function(){
-          const _p = parseFloat(s.price||0), _e20 = parseFloat(s.ema20||0), _e50 = parseFloat(s.ema50||0);
-          const _vr = parseFloat(s.vol_ratio||1), _r20 = parseFloat(s.return_20d||0), _adx = parseFloat(s.adx||0);
-          const _bd = s.grading_breakdown && Object.keys(s.grading_breakdown).length ? s.grading_breakdown : null;
-          // Compute scores if no breakdown from API
-          let t_bits = 0;
-          if (_p && _e20 && _p > _e20) t_bits++;
-          if (_e20 && _e50 && _e20 > _e50) t_bits++;
-          if ((s.weekly_trend||'').toUpperCase() === 'BULLISH') t_bits++;
-          const t_sc = _bd ? _bd.trend : (t_bits===3?1.0:t_bits===2?0.5:0.0);
-
-          const _setup = (s.setup||'').toUpperCase();
-          const _struct = ['BREAKOUT','PULLBACK','SUPPORT_BOUNCE'].includes(_setup);
-          const _baseOk = ['STABLE_BASE','CONSOLIDATING'].includes(s.base_status);
-          const _boLow = (s.false_breakout_risk||'LOW')==='LOW';
-          const _clean = _baseOk && _boLow;
-          const st_sc = _bd ? _bd.structure : ((_struct&&_clean)?1.0:(_struct||_clean)?0.5:0.0);
-
-          const v_sc = _bd ? _bd.volume : (_vr>=1.5?1.0:_vr>=1.0?0.5:0.0);
-
-          let lm = 1.0;
-          if (_r20 > 25.0) lm -= 0.5;
-          if (_adx < 20.0) lm -= 0.5;
-          const l_sc = _bd ? _bd.landmines : Math.max(0, lm);
-
-          function _cls(v){return v>=1.0?'full':v>=0.5?'half':'zero'}
-          function _lbl(v){return v>=1.0?'1.0':v>=0.5?'0.5':'0.0'}
-
-          return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'
-            + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:7px 10px" title="TREND Formula:\n- Price > EMA20 (+0.5)\n- EMA20 > EMA50 (+0.5)\n- Weekly Trend is BULLISH (+0.5)\nTotal: 3/3 = 1.0, 2/3 = 0.5, else = 0.0">'
-            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;font-weight:700;color:var(--muted)">① TREND</span><span class="gf-score '+_cls(t_sc)+'">'+_lbl(t_sc)+'</span></div>'
-            + '<div style="font-size:9.5px;color:var(--muted);line-height:1.4">P <b style="color:var(--text)">'+(_p>_e20?'>':'<')+' EMA20</b> · EMA20 '+(_e20>_e50?'>':'<')+' EMA50 · Wk: <b style="color:var(--text)">'+(s.weekly_trend||'—')+'</b></div>'
-            + '</div>'
-            + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:7px 10px" title="STRUCTURE Formula:\n- Setup is BREAKOUT/PULLBACK/SUPPORT_BOUNCE\n- Base is STABLE_BASE/CONSOLIDATING\n- Breakout Risk is LOW\nTotal: All pass = 1.0, Partial = 0.5, else = 0.0">'
-            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;font-weight:700;color:var(--muted)">② STRUCTURE</span><span class="gf-score '+_cls(st_sc)+'">'+_lbl(st_sc)+'</span></div>'
-            + '<div style="font-size:9.5px;color:var(--muted);line-height:1.4">Setup: <b style="color:var(--text)">'+(s.setup||'—')+'</b> · Base: <b style="color:var(--text)">'+(s.base_status||'—')+'</b></div>'
-            + '</div>'
-            + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:7px 10px" title="VOLUME Formula:\n- Vol Ratio >= 1.5 = 1.0\n- Vol Ratio >= 1.0 and < 1.5 = 0.5\n- Vol Ratio < 1.0 = 0.0">'
-            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;font-weight:700;color:var(--muted)">③ VOLUME</span><span class="gf-score '+_cls(v_sc)+'">'+_lbl(v_sc)+'</span></div>'
-            + '<div style="font-size:9.5px;color:var(--muted);line-height:1.4">Vol Ratio: <b style="color:var(--text)">'+_vr.toFixed(2)+'x</b> '+(_vr>=1.5?'(strong)':_vr>=1.0?'(ok)':'(weak)')+'</div>'
-            + '</div>'
-            + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:7px 10px" title="LANDMINES Formula:\n- Start at 1.0\n- Deduct 0.5 if 20d Return > 25% (Overextended)\n- Deduct 0.5 if ADX < 20 (Weak trend)\nCapped at minimum 0.0">'
-            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;font-weight:700;color:var(--muted)">④ LANDMINES</span><span class="gf-score '+_cls(l_sc)+'">'+_lbl(l_sc)+'</span></div>'
-            + '<div style="font-size:9.5px;color:var(--muted);line-height:1.4">20d Ret: <b style="color:var(--text)">'+_r20.toFixed(1)+'%</b>'+(_r20>25?' ⚠️':'')+ ' · ADX: <b style="color:var(--text)">'+_adx.toFixed(1)+'</b>'+(_adx<20?' ⚠️':'')+'</div>'
-            + '</div>'
-            + '</div>';
-        })()}
-      </div>
-
-      <!-- Core Checklist in a Clean 2-Column Grid -->
-      <div class="ca-vcard-body" style="padding:12px 16px;background:rgba(0,0,0,0.1)">
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:700">Quality Score Breakdown:</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          ${v.coreChecks.map(c => `
-            <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;align-items:center;gap:6px;min-height:36px;font-size:11px" title="${c.formula || ''}">
-              <span class="ca-check-icon ${c.cls}" style="width:16px;height:16px;font-size:9px">${c.icon}</span>
-              <div style="display:flex;flex-direction:column;min-width:0;flex:1">
-                <span style="color:var(--muted);font-size:9px;line-height:1.3">${c.label}</span>
-                <span style="font-weight:600;line-height:1.3;color:${c.cls==='pass'?'var(--green)':c.cls==='warn'?'var(--yellow)':c.cls==='na'?'var(--muted)':'var(--red)'}">${c.val}</span>
-              </div>
-            </div>
-          `).join("")}
-        </div>
-      </div>
+      ${gateStripHtml}
+      ${bodyHtml}
 
       <!-- Premium Collapsible Qualitative Research & Corporate Actions Accordion -->
       <div class="ca-vcard-qualitative" style="border-top:1px solid var(--border)">
@@ -8947,9 +9047,9 @@ function renderStockValidation() {
       </div>
 
       <div class="ca-vcard-foot">
-        ${item.eligible
-          ? `<span class="ca-score ${item.scoreClass}" title="Quality Score is eligible (>= 50/100). Passes all safety gates.">${item.scoreLabel} — ${v.passCount}/${v.total} · Quality Score ${item.score}/100</span>`
-          : `<span class="ca-score weak" style="border:1px solid var(--red); background:rgba(239,68,68,0.12); color:#ef4444; font-weight:bold" title="Safety gates: ${item.reasons.join('; ')}\n\nSafety Gate Rules:\n1. Status: ON_HOLD = Blocked\n2. Weekly Trend: BEARISH = Blocked\n3. Fundamentals: Negative EPS/PE/ROE/EBITDA = Blocked\n4. Institutional: DISTRIBUTION = Blocked\n5. Liquidity: Volume < 100k shares = Blocked\n6. Overextended: 20d return > 25% = Blocked\n7. Debate: SKIP = Blocked\n8. Data freshness: Stale (>1 trading day) = Blocked\n9. Sector x Nifty alignment: Misaligned = Blocked">⚠️ BLOCKED: ${item.reasons[0]}</span>`
+        ${item.blocked
+          ? `<span class="ca-score weak" title="Failed gate(s): ${item.reasons.join('; ')}">⚠️ Blocked by safety gate</span>`
+          : `<span class="ca-score ${item.tier.cls === "inelig" ? "weak" : item.tier.cls}" title="Quality Score ${item.score}/100 · ${item.tier.label} (${item.tier.mult} conviction)">Eligible · ${item.tier.label}</span>`
         }
         <div style="display:flex;gap:6px">
           <button class="ca-btn" onclick="selectStockForTrading(${item.originalIdx})" style="font-size:10px;padding:4px 8px;background:var(--blue-bg);color:var(--blue);border-color:var(--blue)">→ Trading</button>

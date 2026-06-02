@@ -1050,3 +1050,34 @@ def apply_risk_filters(symbol: str, tech: dict,
     return passed_all, reasons, verdict, regime_mult
 
 
+class GateResult:
+    def __init__(self, passed: bool, fail_reason: str = ""):
+        self.passed = passed
+        self.fail_reason = fail_reason
+
+
+def apply_structural_safety_gates(tech: dict) -> GateResult:
+    """
+    Run ONLY the slow-moving structural gates (Weekly trend, daily EMA alignment)
+    to check if an absent candidate is still structurally healthy.
+    """
+    if not tech:
+        return GateResult(False, "Failed to fetch technical data")
+        
+    price = tech.get("price", 0)
+    ema21 = tech.get("ema21", 0)
+    ema50 = tech.get("ema50", 0)
+    w_trend = str(tech.get("weekly_trend", "UNKNOWN")).strip().upper()
+    
+    # 1. Weekly Trend Check (Weekly Trend Check - Gate #2)
+    if w_trend == "BEARISH":
+        return GateResult(False, "bearish weekly trend")
+        
+    # 2. Daily EMA Alignment Check (Price > EMA21 > EMA50)
+    if price <= 0 or ema21 <= 0 or ema50 <= 0 or not (price > ema21 > ema50):
+        return GateResult(False, f"trend alignment failed (Price ₹{price:.2f} must be > EMA21 ₹{ema21:.2f} > EMA50 ₹{ema50:.2f})")
+        
+    return GateResult(True)
+
+
+

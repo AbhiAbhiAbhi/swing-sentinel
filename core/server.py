@@ -46,20 +46,48 @@ def _tg_send(msg: str):
 
 # ── Risk filters + sectors ───────────────────────────────────────────────────
 try:
-    from core.risk_filters import apply_risk_filters, fetch_screener_shareholding
+    from core.risk_filters import apply_risk_filters, fetch_screener_shareholding, apply_structural_safety_gates
     from core.sectors       import get_sector, fetch_sector_pulse
 except ImportError:
     try:
-        from core_risk_filters import apply_risk_filters, fetch_screener_shareholding
+        from core_risk_filters import apply_risk_filters, fetch_screener_shareholding, apply_structural_safety_gates
         from core_sectors      import get_sector, fetch_sector_pulse
     except ImportError:
         def apply_risk_filters(sym, tech, sector_pulse=None): return True, [], "PASS", 1.0
         def get_sector(sym): return "OTHERS"
         def fetch_sector_pulse(): return {}
+        class GateResult:
+            def __init__(self, passed, fail_reason=""):
+                self.passed = passed
+                self.fail_reason = fail_reason
+        def apply_structural_safety_gates(tech): return GateResult(True)
 
 
 _universes_cache_data = None
 _universes_cache_mtime = 0
+
+_scheduler = None
+_maintenance_time = "08:30"
+
+try:
+    from core.morning_watchlist_maintenance import run_morning_maintenance
+except ImportError:
+    try:
+        from morning_watchlist_maintenance import run_morning_maintenance
+    except ImportError:
+        def run_morning_maintenance(manual_trigger=False):
+            return {"status": "error", "message": "Import failed"}
+
+def _load_maintenance_time():
+    global _maintenance_time
+    config_path = os.path.join(_ROOT, "data", "schedule_config.json")
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                data = json.load(f)
+                _maintenance_time = data.get("maintenance_time", "08:30")
+        except Exception as e:
+            logger.warning("[server] Failed to load schedule_config.json: %s", e)
 
 def get_index_membership(symbol: str) -> list:
     global _universes_cache_data, _universes_cache_mtime
@@ -587,6 +615,34 @@ def process_single_stock(stock, df_sym, sector_pulse, filters):
         return {"status": "error", "symbol": symbol, "reason": str(exc)}
 
 
+def refresh_trade_levels(df_positions, idx, tech):
+    plan = calculate_trade_plan(tech)
+    df_positions.at[idx, "Entry_Price"] = plan.get("entry_zone_min", df_positions.at[idx, "Entry_Price"])
+    df_positions.at[idx, "Target_1"] = plan.get("target_1", df_positions.at[idx, "Target_1"])
+    df_positions.at[idx, "Target_2"] = plan.get("target_2", df_positions.at[idx, "Target_2"])
+    df_positions.at[idx, "Current_SL"] = plan.get("stop_loss", df_positions.at[idx, "Current_SL"])
+    
+    setup_grade = "C"
+    setup_score = 0.0
+    if grade_setup and expiry_context:
+        try:
+            g_res = grade_setup(tech, plan)
+            setup_grade = g_res.get("grade", "C")
+            setup_score = g_res.get("score", 0.0)
+            
+            is_fno = "F&O" in get_index_membership(str(df_positions.at[idx, "Symbol"]))
+            exp_info = expiry_context(is_fno=is_fno, grade=setup_grade)
+            if exp_info:
+                df_positions.at[idx, "Expiry_Multiplier"] = exp_info.get("multiplier", "")
+                df_positions.at[idx, "Expiry_Reason"] = exp_info.get("reason", "")
+        except Exception as grading_err:
+            logger.warning("[scan/cadence] Grading failed for absent %s: %s", df_positions.at[idx, "Symbol"], grading_err)
+            
+    df_positions.at[idx, "Setup_Grade"] = setup_grade
+    df_positions.at[idx, "Setup_Score"] = setup_score
+    df_positions.at[idx, "Absent_Cycles"] = 0
+
+
 @app.route("/api/scan", methods=["POST"])
 def api_scan():
     """
@@ -766,19 +822,53 @@ def api_scan():
                                 rows_to_drop.append(idx)
                                 csv_updated = True
                                 logger.info("[scan/cadence] Deleted OPEN candidate %s: failed safety gate (%s)", sym, reasons_str)
-                                continue
+                            else:
+                                # Verdict is WATCH or WARNING -> Keep it and reset Absent_Cycles since it was scanned today!
+                                df_positions.at[idx, "Absent_Cycles"] = 0
+                                csv_updated = True
+                                logger.info("[scan/cadence] Kept filtered OPEN candidate %s with verdict %s", sym, verdict_val)
+                            continue
                             
                         # 3. Absent from today's scan (no match in success or filtered_out)
-                        # Possible scan noise / transient -> Keep one cycle
-                        absent_cycles = int(df_positions.at[idx, "Absent_Cycles"]) + 1
-                        if absent_cycles > 1:
-                            rows_to_drop.append(idx)
-                            csv_updated = True
-                            logger.info("[scan/cadence] Deleted OPEN candidate %s: absent from scan for 2 consecutive cycles", sym)
-                        else:
-                            df_positions.at[idx, "Absent_Cycles"] = absent_cycles
-                            csv_updated = True
-                            logger.info("[scan/cadence] Kept absent OPEN candidate %s (cycle %d of absence)", sym, absent_cycles)
+                        # The stock dropped off the scanner (exactly what you warned about)
+                        # Fetch its basic price data directly via yfinance to check structural health
+                        try:
+                            tech = fetch_stock_technicals(sym)
+                            if tech:
+                                # Run ONLY the slow-moving structural gates (Weekly trend, EMA alignment)
+                                # DO NOT run the strict Chartink momentum filters
+                                gate_result = apply_structural_safety_gates(tech)
+                                if gate_result.passed:
+                                    # It's still in alignment! Keep it and update the EMA20 tracking.
+                                    refresh_trade_levels(df_positions, idx, tech)
+                                    csv_updated = True
+                                    logger.info("[scan/cadence] Kept absent OPEN candidate %s: passed structural safety gates. Refreshed levels.", sym)
+                                else:
+                                    # It actually broke a major rule (e.g., cracked below a critical support/EMA)
+                                    rows_to_drop.append(idx)
+                                    csv_updated = True
+                                    logger.info("[scan/cadence] Deleted OPEN candidate %s: failed structural safety gates (%s)", sym, gate_result.fail_reason)
+                            else:
+                                # Failed to fetch data, fallback to incrementing Absent_Cycles
+                                absent_cycles = int(df_positions.at[idx, "Absent_Cycles"]) + 1
+                                if absent_cycles > 1:
+                                    rows_to_drop.append(idx)
+                                    csv_updated = True
+                                    logger.info("[scan/cadence] Deleted OPEN candidate %s: absent and failed to fetch yfinance data", sym)
+                                else:
+                                    df_positions.at[idx, "Absent_Cycles"] = absent_cycles
+                                    csv_updated = True
+                                    logger.info("[scan/cadence] Kept absent OPEN candidate %s (failed fetch fallback, cycle %d)", sym, absent_cycles)
+                        except Exception as exc:
+                            logger.error("[scan/cadence] Error checking health for absent %s: %s", sym, exc)
+                            # Fallback: increment absent cycles
+                            absent_cycles = int(df_positions.at[idx, "Absent_Cycles"]) + 1
+                            if absent_cycles > 1:
+                                rows_to_drop.append(idx)
+                                csv_updated = True
+                            else:
+                                df_positions.at[idx, "Absent_Cycles"] = absent_cycles
+                                csv_updated = True
                             
                     if rows_to_drop:
                         df_positions = df_positions.drop(rows_to_drop).reset_index(drop=True)
@@ -1145,6 +1235,77 @@ def api_positions_add_all():
 
     except Exception as exc:
         logger.error("[positions/add-all] %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route("/api/schedule/maintenance", methods=["GET", "POST"])
+def api_schedule_maintenance():
+    global _maintenance_time, _scheduler
+    config_path = os.path.join(_ROOT, "data", "schedule_config.json")
+    
+    if request.method == "POST":
+        try:
+            body = request.get_json(force=True, silent=True) or {}
+            time_str = body.get("time", "").strip()
+            
+            # Validate time_str (format HH:MM)
+            import re
+            if not re.match(r"^\d{2}:\d{2}$", time_str):
+                return jsonify({"status": "error", "message": "Invalid time format. Expected HH:MM"}), 400
+                
+            h, m = time_str.split(":")
+            if not (0 <= int(h) <= 23 and 0 <= int(m) <= 59):
+                return jsonify({"status": "error", "message": "Invalid time bounds. Hour 0-23, Minute 0-59"}), 400
+                
+            _maintenance_time = time_str
+            
+            # Save configuration
+            os.makedirs(os.path.dirname(config_path), exist_ok=True)
+            with open(config_path, "w") as f:
+                json.dump({"maintenance_time": _maintenance_time}, f)
+                
+            # Reschedule in scheduler if running
+            if _scheduler:
+                try:
+                    from apscheduler.triggers.cron import CronTrigger
+                    import pytz
+                    ist = pytz.timezone("Asia/Kolkata")
+                    job = _scheduler.get_job("watchlist_maintenance")
+                    trigger = CronTrigger(day_of_week="mon-fri", hour=h, minute=m, timezone=ist)
+                    if job:
+                        job.reschedule(trigger=trigger)
+                        logger.info("[server] Rescheduled watchlist_maintenance job to %s IST", _maintenance_time)
+                    else:
+                        # Job does not exist yet, create it
+                        _scheduler.add_job(
+                            run_morning_maintenance,
+                            trigger,
+                            id="watchlist_maintenance",
+                            max_instances=1,
+                            coalesce=True,
+                        )
+                        logger.info("[server] Created watchlist_maintenance job at %s IST", _maintenance_time)
+                except Exception as e:
+                    logger.warning("[server] Failed to reschedule job: %s", e)
+                    
+            return jsonify({"status": "ok", "time": _maintenance_time})
+        except Exception as exc:
+            logger.error("[server] Failed to update maintenance schedule: %s", exc)
+            return jsonify({"status": "error", "message": str(exc)}), 500
+            
+    # GET
+    _load_maintenance_time()
+    return jsonify({"status": "ok", "time": _maintenance_time})
+
+
+@app.route("/api/schedule/maintenance/run", methods=["POST"])
+def api_schedule_maintenance_run():
+    try:
+        # Trigger morning maintenance script directly
+        result = run_morning_maintenance(manual_trigger=True)
+        return jsonify(result)
+    except Exception as exc:
+        logger.error("[server] Manual trigger failed: %s", exc)
         return jsonify({"status": "error", "message": str(exc)}), 500
 
 
@@ -2433,6 +2594,7 @@ def _poll_job():
 
 def _start_scheduler():
     """Start a background scheduler that polls positions every minute 9:15–15:30 IST Mon-Fri."""
+    global _scheduler
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
         from apscheduler.triggers.cron import CronTrigger
@@ -2442,16 +2604,31 @@ def _start_scheduler():
         return
 
     ist = pytz.timezone("Asia/Kolkata")
-    sched = BackgroundScheduler(timezone=ist)
+    _scheduler = BackgroundScheduler(timezone=ist)
     # NSE market hours: 9:15 AM – 3:30 PM IST, Mon–Fri
-    sched.add_job(
+    _scheduler.add_job(
         _poll_job,
         CronTrigger(day_of_week="mon-fri", hour="9-15", minute="*", timezone=ist),
         id="position_poller",
         max_instances=1,
         coalesce=True,
     )
-    sched.start()
+    # Daily Watchlist Maintenance before market hours (Mon-Fri)
+    _load_maintenance_time()
+    try:
+        h, m = _maintenance_time.split(":")
+        _scheduler.add_job(
+            run_morning_maintenance,
+            CronTrigger(day_of_week="mon-fri", hour=h, minute=m, timezone=ist),
+            id="watchlist_maintenance",
+            max_instances=1,
+            coalesce=True,
+        )
+        logger.info("[poll] scheduled daily watchlist maintenance at %s IST", _maintenance_time)
+    except Exception as e:
+        logger.error("[poll] failed to schedule watchlist maintenance: %s", e)
+
+    _scheduler.start()
     logger.info("[poll] background scheduler started — polling every minute, Mon-Fri 9:15-15:30 IST")
 
 
