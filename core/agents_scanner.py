@@ -14,10 +14,14 @@ try:
     from core.chartink_fetcher import fetch_chartink_stocks
     from core.data_fetcher import fetch_fii_dii_flow, fetch_nifty_levels, fetch_stock_technicals
     from core.trade_plan import calculate_rr, calculate_trade_plan
+    from core.risk_filters import apply_risk_filters
+    from core.sectors import fetch_sector_pulse
 except ImportError:
     from core_chartink_fetcher import fetch_chartink_stocks
     from core_data_fetcher import fetch_fii_dii_flow, fetch_nifty_levels, fetch_stock_technicals
     from core_trade_plan import calculate_rr, calculate_trade_plan
+    from core_risk_filters import apply_risk_filters
+    from core_sectors import fetch_sector_pulse
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
@@ -63,6 +67,14 @@ def run_morning_scanner():
     print("\n[3/6] Fetching trade plan data (yfinance)...")
     scan_results = []
 
+    # Single source of truth for safety gates (spec checklist #1): fetch sector pulse once
+    # so apply_risk_filters can evaluate Gate #9 (Sector x Nifty regime) per stock.
+    try:
+        sector_pulse = fetch_sector_pulse()
+    except Exception as exc:
+        logger.warning("[scanner] sector pulse fetch failed: %s", exc)
+        sector_pulse = {}
+
     for stock in chartink_stocks:
         symbol = stock["symbol"]
         try:
@@ -80,6 +92,14 @@ def run_morning_scanner():
                 "target": plan.get("target_2", 0),
                 "sl": plan.get("stop_loss", 0),
             })
+
+            # Canonical safety gates (single source of truth) — replaces the per-check
+            # fundamental/liquidity/overextension duplication in generate_priority_actions.
+            passed, reasons, verdict, regime_mult = apply_risk_filters(
+                symbol, tech_data, sector_pulse=sector_pulse)
+            if verdict == "SKIP":
+                print(f"skip ({'; '.join(reasons)[:50]})")
+                continue
 
             scan_results.append({
                 "symbol": symbol,
@@ -99,8 +119,10 @@ def run_morning_scanner():
                 "sl": plan.get("stop_loss", 0),
                 "rr": rr_data if isinstance(rr_data, str) else plan.get("rr_ratio", "N/A"),
                 "setup": plan.get("setup_type", "—"),
-                # All Chartink-matched stocks are entry-ready
-                "verdict": "entry",
+                # Canonical verdict from apply_risk_filters (PASS / WATCH / WARNING)
+                "verdict": verdict,
+                "reasons": reasons,
+                "regime_multiplier": regime_mult,
                 # Advanced Indicators
                 "weekly_trend": tech_data.get("weekly_trend", "BULLISH"),
                 "base_days": tech_data.get("base_days", 0),
@@ -238,44 +260,10 @@ def generate_priority_actions(results: List[Dict]) -> List[Dict]:
                 logger.info("[scanner/priority] Excluded %s from Top 3 priority list: In No Man's Land (Price ₹%.2f is between Pullback Support ₹%.2f and Breakout Resistance ₹%.2f)", sym, price, entry_max, res_1)
                 continue
                 
-        # Fundamental Strength Guard:
-        # Exclude highly unprofitable companies (negative earnings) or poor capital
-        # efficiency (negative ROE / EBITDA margins) from entering the Top 3 Priority list.
-        try:
-            import yfinance as yf
-            ticker = yf.Ticker(f"{sym}.NS")
-            info = ticker.info or {}
-            
-            eps = info.get("trailingEps")
-            pe = info.get("trailingPE")
-            roe = info.get("returnOnEquity")
-            ebitda = info.get("ebitdaMargins")
-            
-            is_unprofitable = (eps is not None and eps < 0) or (pe is not None and pe < 0)
-            poor_efficiency = (roe is not None and roe < 0) or (ebitda is not None and ebitda < 0)
-            
-            if is_unprofitable or poor_efficiency:
-                reasons = []
-                if is_unprofitable: reasons.append(f"Negative Earnings (EPS {eps}, PE {pe})")
-                if poor_efficiency: reasons.append(f"Poor Capital Efficiency (ROE {roe}, EBITDA margin {ebitda})")
-                logger.info("[scanner/priority] Excluded %s from Top 3 priority list: Fundamentally weak (%s)", sym, ", ".join(reasons))
-                continue
-        except Exception as fund_err:
-            logger.warning("[scanner/priority] Fundamental check failed for %s: %s", sym, fund_err)
-
-        # Liquidity Guard:
-        # Exclude thin volume / low liquidity stocks (20d average volume < 100k shares)
-        avg_vol = r.get("avg_volume_20d", 0)
-        if avg_vol and avg_vol < 100000:
-            logger.info("[scanner/priority] Excluded %s from Top 3 priority list: Low liquidity (20d avg daily volume %d < 100,000 shares)", sym, avg_vol)
-            continue
-
-        # Overextended / Chasing Guard:
-        # Exclude stocks that have already run up more than 25% in the past month (20 trading days)
-        runup = r.get("return_20d", 0.0)
-        if runup and runup > 25.0:
-            logger.info("[scanner/priority] Excluded %s from Top 3 priority list: Overextended (+%.1f%% in the past month)", sym, runup)
-            continue
+        # Safety gates (fundamental strength, liquidity, overextension, weekly trend,
+        # institutional flow, regime alignment, etc.) are now applied upstream in
+        # run_morning_scanner() via apply_risk_filters — the single source of truth
+        # (spec checklist #1). Only priority-list-specific exclusions remain above.
                 
         eligible_results.append(r)
 

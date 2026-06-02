@@ -309,6 +309,36 @@ def filter_earnings_soon(symbol: str, window_days: int = EARNINGS_WINDOW_DAYS) -
 
 
 
+def fetch_cached_debate_verdict(symbol: str) -> dict:
+    """Find the latest cached debate file for symbol, return parsed dict or empty dict."""
+    try:
+        _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        CACHE_DIR = os.path.join(_ROOT, "data", "due_diligence")
+        if not os.path.exists(CACHE_DIR):
+            return {}
+            
+        symbol = symbol.strip().upper()
+        files = os.listdir(CACHE_DIR)
+        matches = [f for f in files if f.startswith(f"{symbol}_") and f.endswith(".json")]
+        if not matches:
+            return {}
+            
+        # Sort to get the latest by date string in filename
+        matches.sort()
+        latest_file = matches[-1]
+        
+        path = os.path.join(CACHE_DIR, latest_file)
+        with open(path, "r", encoding="utf-8") as file:
+            data = json.load(file)
+            return {
+                "verdict": data.get("verdict"),
+                "conviction_score": data.get("conviction_score"),
+                "judge_rationale": data.get("judge_rationale")
+            }
+    except Exception:
+        return {}
+
+
 def filter_weak_sector(symbol: str, sector_pulse: Optional[dict] = None) -> Tuple[bool, str]:
     """Reject if the stock's sector index is more than 2% below its EMA20 (RED sector - rotation trap)."""
     try:
@@ -320,10 +350,20 @@ def filter_weak_sector(symbol: str, sector_pulse: Optional[dict] = None) -> Tupl
             info = sector_pulse[sector]
             pct = info.get("pct_from_ema20")
             if pct is not None and pct < -2.0:
-                return False, f"weak sector RED ({sector} is {pct:.2f}% below EMA20)"
+                try:
+                    from core_data_fetcher import fetch_nifty_levels
+                except ImportError:
+                    from core.data_fetcher import fetch_nifty_levels
+                nifty_data = fetch_nifty_levels()
+                nifty_regime = nifty_data.get("regime", "GREEN").upper()
+                if nifty_regime == "RED":
+                    return False, f"weak sector RED under RED broad market regime (HARD SKIP: Nifty RED, Sector RED - {sector} {pct:.2f}% below EMA20)"
+                else:
+                    return False, f"sector rotation trap (SKIP: Nifty {nifty_regime}, Sector RED - {sector} {pct:.2f}% below EMA20)"
     except Exception as exc:
         logger.debug("[filter_weak_sector] %s: %s", symbol, exc)
     return True, ""
+
 
 
 def fetch_past_earnings_date(symbol: str) -> Optional[Tuple[int, str]]:
@@ -837,34 +877,65 @@ def apply_risk_filters(symbol: str, tech: dict,
     watch_state = "PASS"
     regime_mult = 1.0
 
-    # 1. Liquidity check
-    if block_low_liquidity:
-        passed, reason = filter_low_liquidity(tech)
-        if not passed:
-            hard_skips.append(reason)
+    # 1. Holding status check (Gate #1)
+    _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    positions_path = os.path.join(_ROOT, "data", "positions.csv")
+    if os.path.exists(positions_path):
+        try:
+            import pandas as pd
+            df_p = pd.read_csv(positions_path)
+            if not df_p.empty and "Symbol" in df_p.columns and "Status" in df_p.columns:
+                df_p["Symbol"] = df_p["Symbol"].astype(str).str.strip().str.upper()
+                df_p["Status"] = df_p["Status"].fillna("").astype(str).str.strip().str.upper()
+                mask = (df_p["Symbol"] == symbol.upper()) & (df_p["Status"].isin(["OPEN", "BOUGHT"]))
+                if mask.any():
+                    row = df_p[mask].iloc[-1]
+                    f_status = str(row.get("Fundamental_Status", "APPROVED")).strip().upper()
+                    l_status = str(row.get("Live_Status", "WAITING")).strip().upper()
+                    if f_status == "ON_HOLD" or l_status == "ON_HOLD":
+                        hard_skips.append(f"holding status is ON_HOLD (Fundamental: {f_status}, Live: {l_status})")
+        except Exception as e:
+            logger.warning("[risk_filters] Failed to check holding status from positions.csv: %s", e)
 
-    # 2. Volatility check
-    passed, reason = filter_volatility(tech, max_atr)
-    if not passed:
-        hard_skips.append(reason)
+    # 2. Weekly trend check (Gate #2)
+    w_trend = str(tech.get("weekly_trend", "UNKNOWN")).strip().upper()
+    if w_trend == "BEARISH":
+        hard_skips.append("bearish weekly trend")
 
-    # 3. Fundamental sanity
+    # 3. Fundamental strength (Gate #3)
     if block_unprofitable:
         passed, reason = filter_fundamental_strength(symbol)
         if not passed:
             hard_skips.append(reason)
 
-    # 3.5. Institutional dealings sanity (FII / DII exit)
+    # 4. Institutional dealings sanity (FII / DII exit - Gate #4)
     passed, reason = filter_institutional_dealings(symbol)
     if not passed:
         hard_skips.append(reason)
 
-    # 4. Recent IPO check
+    # 5. Liquidity check (Gate #5)
+    if block_low_liquidity:
+        passed, reason = filter_low_liquidity(tech)
+        if not passed:
+            hard_skips.append(reason)
+
+    # 6. Overextended (Gate #6)
+    if block_overextended:
+        passed, reason = filter_overextended_1m(tech)
+        if not passed:
+            hard_skips.append(reason)
+
+    # 7. Adversarial check (Gate #7)
+    debate_v = fetch_cached_debate_verdict(symbol)
+    if debate_v and str(debate_v.get("verdict", "")).strip().upper() == "SKIP":
+        hard_skips.append("adversarial debate verdict is SKIP")
+
+    # 8. IPO check
     passed, reason = filter_ipo_age(tech, min_ipo)
     if not passed:
         hard_skips.append(reason)
 
-    # 5. Earnings proximity
+    # 9. Earnings proximity
     passed, reason = filter_earnings_soon(symbol, earn_win)
     if not passed:
         hard_skips.append(reason)
@@ -873,8 +944,7 @@ def apply_risk_filters(symbol: str, tech: dict,
     if not passed:
         hard_skips.append(reason)
 
-    # 6. Sector × Nifty regime alignment (Gate #9)
-    # RED sector is a hard skip under all regimes. Sector Amber / Green passes but applies regime sizing.
+    # 10. Sector × Nifty regime alignment (Gate #9)
     if block_sec:
         # Fetch sector and calculate its pct_from_ema20
         from core_sectors import get_sector
@@ -905,9 +975,9 @@ def apply_risk_filters(symbol: str, tech: dict,
         if sector_status == "RED":
             regime_mult = 0.0
             if nifty_regime == "RED":
-                hard_skips.append(f"weak sector RED under RED broad market regime (HARD SKIP: Nifty RED, Sector RED - {sector} {pct:.2f}% below EMA20)")
+                hard_skips.append(f"regime misalignment (HARD SKIP: Nifty RED, Sector RED - {sector} {pct:.2f}% below EMA20)")
             else:
-                hard_skips.append(f"sector rotation trap (SKIP: Nifty {nifty_regime}, Sector RED - {sector} {pct:.2f}% below EMA20)")
+                hard_skips.append(f"regime misalignment (SKIP: Nifty {nifty_regime}, Sector RED - {sector} {pct:.2f}% below EMA20)")
         else:
             # Surviving cells -> determine multiplier
             if nifty_regime == "GREEN":
@@ -921,24 +991,24 @@ def apply_risk_filters(symbol: str, tech: dict,
                 else: # AMBER
                     regime_mult = 0.5
             elif nifty_regime == "RED":
-                # Nifty RED + Sector Green -> sector outperformance, valid at 0.5x size
+                # Nifty RED + Sector Green -> sector outperformance, valid at 0.75x size
                 if sector_status == "GREEN":
-                    regime_mult = 0.5
+                    regime_mult = 0.75
                 else: # AMBER
                     regime_mult = 0.5
 
-    # 7. Trend & Distance Alignment
+    # 11. Trend & Distance Alignment
     if block_trend_alignment:
         passed, reason = filter_trend_distance_alignment(tech)
         if not passed:
             warnings.append(reason)
 
-    # 8. CRASH FILTER
+    # 12. CRASH FILTER
     passed, reason = filter_recent_crash(tech, worst_60)
     if not passed:
         hard_skips.append(reason)
 
-    # 9. NML FILTER
+    # 13. NML FILTER
     if block_no_mans_land:
         nml_status, nml_reason = evaluate_nml_logic(symbol, tech)
         if nml_status == "SKIP":
@@ -952,15 +1022,12 @@ def apply_risk_filters(symbol: str, tech: dict,
             watch_state = "WATCH"
             warnings.append(nml_reason)
 
-    # 10. Overextension check
-    if block_overextended:
-        passed, reason = filter_overextended_1m(tech)
-        if not passed:
-            hard_skips.append(reason)
+    # 14. Volatility check
+    passed, reason = filter_volatility(tech, max_atr)
+    if not passed:
+        hard_skips.append(reason)
 
     # ── Multi-Flag Stacking ──────────────────────────────────────────────────
-    # Stacking multiple flags compounds confidence. A stock with 3+ total flags
-    # (hard skips + warnings combined) should always be SKIP regardless of severity.
     total_flags = hard_skips + warnings
     if len(total_flags) >= 3:
         hard_skips.append(f"Multi-flag rejection ({len(total_flags)} flags: {'; '.join(total_flags)})")
@@ -981,4 +1048,5 @@ def apply_risk_filters(symbol: str, tech: dict,
         reasons = []
 
     return passed_all, reasons, verdict, regime_mult
+
 

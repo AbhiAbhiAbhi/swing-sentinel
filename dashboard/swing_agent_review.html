@@ -5785,7 +5785,7 @@ function renderSnapshotBadge(p) {
   const atr = p.buy_atr_pct ? Number(p.buy_atr_pct).toFixed(2) + "%" : "—";
   const volRatio = p.buy_vol_ratio ? Number(p.buy_vol_ratio).toFixed(1) + "×" : "—";
 
-  const riskColor = breakoutRisk === "HIGH" ? "var(--red)" : (breakoutRisk === "MEDIUM" ? "var(--yellow)" : "var(--green)");
+  const riskColor = breakoutRisk === "HIGH" ? "var(--red)" : "var(--green)";
 
   return `
     <div class="setup-snapshot-wrap">
@@ -5804,6 +5804,57 @@ function renderSnapshotBadge(p) {
           <tr style="padding:3px 0"><td style="padding:3px 0; color:var(--muted); text-align:left">Volume Ratio:</td><td style="text-align:right; font-weight:700">${volRatio}</td></tr>
         </table>
       </div>
+    </div>`;
+}
+
+/* ── Fill-Time Confirmation Panel ──────────────────────────────
+   Mirrors the Telegram ENTRY-READY alert (server.py check_positions_and_notify):
+   surfaces the fill-time snapshot signals at the moment price reaches the entry
+   zone — the spec's correct place for RSI/MACD/vol/false-BO/timing (§5, §8). */
+function isInEntryZone(s) {
+  const price = parseFloat(s.price) || 0;
+  const eMax  = parseFloat(s.entry_max) || 0;
+  if (!price || !eMax) return false;
+  // server entry-hit rule: price at/below entry-zone top (+0.5% tolerance)
+  return price <= eMax * 1.005;
+}
+
+function renderFillTimePanel(s) {
+  if (!isInEntryZone(s)) return "";
+
+  const rsi      = parseFloat(s.rsi);
+  const macdDays = (s.macd_crossover_days_ago !== undefined && s.macd_crossover_days_ago !== null) ? parseInt(s.macd_crossover_days_ago) : -1;
+  const volR     = parseFloat(s.vol_ratio) || 0;
+  const fbRisk   = (s.false_breakout_risk || "LOW").toUpperCase();
+  const timing   = (s.timing_state || "UNKNOWN").toUpperCase();
+
+  const rsiOk  = !isNaN(rsi) && rsi >= 40 && rsi <= 65;
+  const macdOk = macdDays >= 0 && macdDays <= 5;
+  const volOk  = volR >= 1.5;
+  const fbOk   = fbRisk === "LOW";
+  const timeOk = timing === "WATCH_SUPPORT" || timing === "WATCH_RESISTANCE";
+
+  const row = (ok, label, val) =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;font-size:10.5px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+       <span style="color:var(--muted)">${ok ? "✅" : "⚠️"} ${label}</span>
+       <span style="font-weight:700;color:${ok ? 'var(--green)' : 'var(--yellow)'}">${val}</span>
+     </div>`;
+
+  const rsiVal  = !isNaN(rsi) ? rsi.toFixed(1) : "—";
+  const macdVal = macdDays >= 0 ? `${macdDays}d ago` : "no fresh cross";
+  const volVal  = volR ? `${volR.toFixed(2)}×` : "—";
+
+  return `
+    <div style="margin:10px 16px;padding:10px 12px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:8px" title="Fill-time confirmation signals — checked when price reaches the entry zone, not at scan-day. Mirrors the Telegram ENTRY-READY alert.">
+      <div style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">
+        🎯 Fill-Time Confirmation
+        <span style="font-size:8.5px;font-weight:600;background:rgba(255,255,255,0.06);color:var(--muted);padding:1px 5px;border-radius:3px">PRICE IN ENTRY ZONE</span>
+      </div>
+      ${row(rsiOk,  "RSI (40–65)",       rsiVal)}
+      ${row(macdOk, "MACD cross (≤5d)",  macdVal)}
+      ${row(volOk,  "Vol ratio (≥1.5×)", volVal)}
+      ${row(fbOk,   "False-BO risk",     fbRisk)}
+      ${row(timeOk, "Timing (NML)",      timing)}
     </div>`;
 }
 
@@ -5997,6 +6048,16 @@ function renderWatchlist(r) {
     const t2Cls = p.above_t2 ? 'style="color:var(--green);font-weight:700"'  : 'style="color:var(--muted)"';
     const slCls = p.below_sl ? 'style="color:var(--red);font-weight:700"'    : 'style="color:var(--red)"';
 
+    // Fill-time confirmation row: shown when this pending entry has reached its entry zone.
+    // Live signals come from the latest scan cache (positions.csv doesn't carry rsi/macd/timing).
+    const _ftCache = (window._scannedStocksCache && window._scannedStocksCache[p.symbol]) || null;
+    let _ftPanelRow = "";
+    if (_ftCache) {
+      const _ftStock = Object.assign({}, _ftCache, { price: p.current, entry_max: p.entry });
+      const _panel = renderFillTimePanel(_ftStock);
+      if (_panel) _ftPanelRow = `<tr><td colspan="10" style="padding:0;background:rgba(0,0,0,0.12)">${_panel}</td></tr>`;
+    }
+
     return `<tr>
       <td>
         <b>${p.symbol}</b>
@@ -6024,7 +6085,7 @@ function renderWatchlist(r) {
           <button class="remove-btn" onclick="removeStockFromWatchlist('${p.symbol}')" title="Remove from watchlist" style="background:transparent; border:none; color:var(--red); cursor:pointer; font-size:16px; padding:2px 6px; border-radius:4px; transition: background 0.2s;">🗑️</button>
         </div>
       </td>
-    </tr>`;
+    </tr>${_ftPanelRow}`;
   }).join("");
 
   const watchlistBlock = (r.watchlist_positions||[]).length
@@ -7786,22 +7847,7 @@ function recalcPosSize() {
 
   const risk        = cap * rPct / 100;
   const riskPerShr  = Math.max(0, entry - sl);
-  const rawQty      = riskPerShr > 0 ? Math.floor(risk / riskPerShr) : 0;
-
-  // Capital Clamping Logic: cap allocation at 20% of capital
-  const maxAlloc = cap * 0.20;
-  let qty = rawQty;
-  let isCapped = false;
-  
-  if (entry > 0) {
-    const maxQtyByAlloc = Math.floor(maxAlloc / entry);
-    if (qty > maxQtyByAlloc) {
-      qty = maxQtyByAlloc;
-      isCapped = true;
-    }
-  }
-
-  const deployed = qty * entry;
+  const baseQty     = riskPerShr > 0 ? Math.floor(risk / riskPerShr) : 0;
 
   // Calculate Conviction, Regime, Expiry Sizing Factors
   let convictionMult = 1.0;
@@ -7848,8 +7894,9 @@ function recalcPosSize() {
 
   const finalMult = convictionMult * regimeMult * expiryMult;
 
-  // Calculate Adjusted Suggested Quantity
-  let qtyAdj = Math.floor(qty * finalMult);
+  // Calculate Adjusted Suggested Quantity: apply multipliers BEFORE clamping to the 20% cap
+  let qtyAdj = Math.floor(baseQty * finalMult);
+  const maxAlloc = cap * 0.20;
   let isCappedAdj = false;
   if (entry > 0) {
     const maxQtyByAlloc = Math.floor(maxAlloc / entry);
@@ -7859,6 +7906,18 @@ function recalcPosSize() {
     }
   }
   const deployedAdj = qtyAdj * entry;
+
+  // Unadjusted quantity calculation (for reference/display)
+  let qty = baseQty;
+  let isCapped = false;
+  if (entry > 0) {
+    const maxQtyByAlloc = Math.floor(maxAlloc / entry);
+    if (qty > maxQtyByAlloc) {
+      qty = maxQtyByAlloc;
+      isCapped = true;
+    }
+  }
+  const deployed = qty * entry;
 
   const rr       = riskPerShr > 0 ? (tgt - entry) / riskPerShr : 0;
   const chasePct = sl > 0 ? ((entry - sl) / entry * 100) : 0;
@@ -8392,15 +8451,30 @@ function getStockValidation(s) {
     setupCls = "fail";
     setupIcon = "✗";
   }
-  const caSetup = { label: "Setup Quality (Max 25)", cls: setupCls, icon: setupIcon, val: setupVal, score: setupScore, formula: "Setup Quality Rules (Weight: 25 pts):\n- BREAKOUT = 25 pts\n- PULLBACK = 18 pts\n- SUPPORT_BOUNCE = 18 pts\n- CONSOLIDATION = 12 pts\n- OTHER/UNKNOWN = 0 pts\n*Note: Setup Grade C caps overall quality score to max 50 pts." };
+  const caSetup = { label: "Setup Quality (Max 25)", cls: setupCls, icon: setupIcon, val: setupVal, score: setupScore, formula: "Setup Quality Rules (Weight: 25 pts):\n- BREAKOUT = 25 pts\n- PULLBACK = 18 pts\n- SUPPORT_BOUNCE = 18 pts\n- CONSOLIDATION = 12 pts\n- OTHER/UNKNOWN = 0 pts" };
 
   // Category 2: Trend Structure (20 pts)
-  const emaAligned = s.ema_aligned !== false;
-  let trendScore = emaAligned ? 20 : 0;
-  let trendVal = emaAligned ? "Aligned (Price > EMA20 > EMA50) ✓" : "EMA Misaligned ✗";
-  let trendCls = emaAligned ? "pass" : "fail";
-  let trendIcon = emaAligned ? "✓" : "✗";
-  const caTrend = { label: "Trend Structure (Max 20)", cls: trendCls, icon: trendIcon, val: trendVal, score: trendScore, formula: "Trend Structure Rules (Weight: 20 pts):\n- Aligned Trend (Price > EMA20 > EMA50) = 20 pts\n- Misaligned Trend = 0 pts" };
+  const sPrice = parseFloat(s.price) || 0;
+  const sEma20 = parseFloat(s.ema20) || 0;
+  const sEma50 = parseFloat(s.ema50) || 0;
+  let trendScore, trendVal, trendCls, trendIcon;
+  if (sPrice > sEma20 && sEma20 > sEma50) {
+    trendScore = 20;
+    trendVal = "Aligned (Price > EMA20 > EMA50) ✓";
+    trendCls = "pass";
+    trendIcon = "✓";
+  } else if (sPrice > sEma20) {
+    trendScore = 10;
+    trendVal = "Partial (Price > EMA20, EMA20 ≤ EMA50) !";
+    trendCls = "warn";
+    trendIcon = "!";
+  } else {
+    trendScore = 0;
+    trendVal = "Misaligned (Price ≤ EMA20) ✗";
+    trendCls = "fail";
+    trendIcon = "✗";
+  }
+  const caTrend = { label: "Trend Structure (Max 20)", cls: trendCls, icon: trendIcon, val: trendVal, score: trendScore, formula: "Trend Structure Rules (Weight: 20 pts):\n- Full Alignment (Price > EMA20 > EMA50) = 20 pts\n- Partial (Price > EMA20 but EMA20 <= EMA50) = 10 pts\n- Misaligned (Price <= EMA20) = 0 pts" };
 
   // Category 3: Base Quality (15 pts)
   const baseDays = parseInt(s.base_days) || 0;
@@ -8452,7 +8526,7 @@ function getStockValidation(s) {
 
   // Category 5: Institutional Accumulation (15 pts)
   let instScore = 7.5;
-  let instVal = "Neutral/No Data";
+  let instVal = "Neutral / Missing Data";
   let instCls = "warn";
   let instIcon = "!";
   if (s.shareholding && s.shareholding.status === "success") {
@@ -8540,8 +8614,6 @@ function getStockValidation(s) {
     coreChecks: checks,
     passCount: checks.filter(c => c.cls === "pass").length,
     total: checks.length,
-    scoreClass: "moderate",
-    scoreLabel: "MODERATE",
     weeklyTrendVal,
     weeklyTrendColor,
     weeklyTrendBg,
@@ -8577,7 +8649,7 @@ function isDataStale(s) {
 }
 
 function computeCompositeScore(s, v) {
-  // If failed security gate on server (verdict === "SKIP"), it is blocked
+  // Rely on server's safety gate execution: any SKIP verdict from apply_risk_filters blocks the setup
   if (s.verdict === "SKIP") {
     return { score: 0, eligible: false, reasons: s.reasons || ["Failed Safety Gate"] };
   }
@@ -8587,24 +8659,13 @@ function computeCompositeScore(s, v) {
     return { score: 0, eligible: false, reasons: ["Stale data / older than 1 trading day"] };
   }
 
-  // Hard gates - Fundamental / Live Status ON_HOLD (if any)
-  if (s.fundamental_status === "ON_HOLD" || s.live_status === "ON_HOLD") {
-    return { score: 0, eligible: false, reasons: ["Status ON_HOLD"] };
-  }
-
-  // Calculate sum of checklist scores
+  // Calculate sum of category scores
   let score = 0;
   v.checks.forEach(c => {
     score += c.score;
   });
 
-  // Setup Grade C Cap (Max 50 pts)
-  const sGrade = s.setup_grade || "C";
   const reasons = [];
-  if (sGrade === "C") {
-    score = Math.min(score, 50);
-    reasons.push("Low Quality Setup (Grade C Cap)");
-  }
 
   const eligible = score >= 50;
   if (!eligible) {
@@ -8724,25 +8785,14 @@ function renderStockValidation() {
 
       <!-- Premium Automated Technical Health Dashboard (Graphical Gauges) -->
       <div class="ca-vcard-dashboard" style="padding:12px 16px;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:10px">
-        
-        <!-- Row 1: Weekly Trend & False Breakout Risk Pills -->
+
+        <!-- Row 1: Weekly Trend Pill -->
         <div style="display:flex;gap:8px;align-items:center;justify-content:space-between">
           <!-- Weekly Trend -->
           <div class="ca-gauge-pill ${v.weeklyTrendClass}" style="flex:1;text-align:center;padding:6px;border-radius:6px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid ${v.weeklyTrendColor};background:${v.weeklyTrendBg};color:${v.weeklyTrendColor}" title="Weekly Trend Safety Gate:\n- BULLISH: Passes\n- BEARISH: Blocked (Gate Fail)\nSource: weekly_trend">
             ${v.weeklyTrendIcon} Weekly Trend: ${v.weeklyTrendVal}
           </div>
-          <!-- False Breakout Risk -->
-          <div class="ca-gauge-pill ${v.fbClass}" style="flex:1;text-align:center;padding:6px;border-radius:6px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid ${v.fbColor};background:${v.fbBg};color:${v.fbColor}" title="False Breakout Risk:\n- LOW risk: Passes\n- HIGH risk: Warning\nSource: false_breakout_risk">
-            ${v.fbIcon} Breakout: ${v.fbVal}
-          </div>
         </div>
-
-        <!-- False Breakout Danger Banner if HIGH RISK -->
-        ${v.fbRisk === "HIGH" ? `
-          <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:8px 10px;font-size:10.5px;color:#FCA5A5;font-style:italic;line-height:1.4">
-            ⚠ ${v.fbDesc}
-          </div>
-        ` : ""}
 
         <!-- Row 2: Consolidation Pattern Base Meter -->
         <div style="display:flex;flex-direction:column;gap:4px" title="Consolidation Base Meter:\n- STABLE BASE: base_days >= 20 (Ideal)\n- CONSOLIDATING: base_days >= 5\n- VOLATILE: base_days < 5\nSource: base_days & base_status">

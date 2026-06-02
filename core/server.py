@@ -518,6 +518,16 @@ def process_single_stock(stock, df_sym, sector_pulse, filters):
             except Exception as grading_err:
                 logger.warning("[scan] Grading failed for %s: %s", symbol, grading_err)
 
+        # Fill-time confirmation: granular NML timing state (same helper the ENTRY-READY alert uses)
+        try:
+            from core.risk_filters import evaluate_nml_logic
+        except ImportError:
+            from core_risk_filters import evaluate_nml_logic
+        try:
+            timing_status, timing_reason = evaluate_nml_logic(symbol, tech)
+        except Exception:
+            timing_status, timing_reason = "UNKNOWN", ""
+
         return {
             "status":     "success",
             "symbol":     symbol,
@@ -527,6 +537,7 @@ def process_single_stock(stock, df_sym, sector_pulse, filters):
             "rsi":        tech["rsi"],
             "ema20":      tech["ema20"],
             "macd":       tech["macd"],
+            "macd_crossover_days_ago": tech.get("macd_crossover_days_ago", -1),
             "vol_ratio":  tech["volume_ratio"],
             "vol_ratios_5d": tech.get("vol_ratios_5d", []),
             "avg_volume_20d": tech.get("avg_volume_20d", 0),
@@ -559,6 +570,8 @@ def process_single_stock(stock, df_sym, sector_pulse, filters):
             "base_status":         tech.get("base_status", "UNKNOWN"),
             "false_breakout_risk": tech.get("false_breakout_risk", "LOW"),
             "false_breakout_desc": tech.get("false_breakout_desc", ""),
+            "timing_state":        timing_status,
+            "timing_reason":       timing_reason,
             "earnings_days_until": earn_days_until,
             "earnings_date":       earn_date_str,
             "earnings_source":     earn_source,
@@ -2082,11 +2095,50 @@ def check_positions_and_notify() -> list:
 
             entry_done = _truthy(pos.get("Entry_Notified"))
             if entry_hit and not entry_done:
+                confirm_lines = []
+                try:
+                    tech_info = fetch_stock_technicals(sym)
+                    if tech_info:
+                        # RSI Sweet Spot: 40-65
+                        rsi = tech_info.get("rsi", 0.0)
+                        rsi_ok = "✅" if 40 <= rsi <= 65 else "⚠️"
+                        confirm_lines.append(f"{rsi_ok} <b>RSI</b>: {rsi:.1f} (Sweet Spot: 40-65)")
+
+                        # MACD Freshness
+                        macd_days = tech_info.get("macd_crossover_days_ago", -1)
+                        macd_ok = "✅" if 0 <= macd_days <= 5 else "ℹ️"
+                        macd_text = f"{macd_days}d ago" if macd_days >= 0 else "no fresh crossover"
+                        confirm_lines.append(f"{macd_ok} <b>MACD Cross</b>: {macd_text}")
+
+                        # Vol Ratio
+                        vol_r = tech_info.get("volume_ratio", 1.0)
+                        vol_ok = "✅" if vol_r >= 1.5 else "⚠️"
+                        confirm_lines.append(f"{vol_ok} <b>Vol Ratio</b>: {vol_r:.2f}x (Ideal >= 1.5x)")
+
+                        # False Breakout Risk
+                        fb_risk = tech_info.get("false_breakout_risk", "LOW")
+                        fb_ok = "✅" if fb_risk == "LOW" else "⚠️"
+                        confirm_lines.append(f"{fb_ok} <b>False Breakout Risk</b>: {fb_risk}")
+
+                        # Live Timing State (NML)
+                        try:
+                            from core.risk_filters import evaluate_nml_logic
+                        except ImportError:
+                            from core_risk_filters import evaluate_nml_logic
+                        timing_status, timing_reason = evaluate_nml_logic(sym, tech_info)
+                        timing_ok = "✅" if timing_status in ("WATCH_SUPPORT", "WATCH_RESISTANCE") else "⚠️"
+                        confirm_lines.append(f"{timing_ok} <b>Timing (NML)</b>: {timing_status} ({timing_reason or 'PASS'})")
+                except Exception as ex:
+                    logger.warning("[server/positions] Failed to compute fill-time confirmation signals for %s: %s", sym, ex)
+
+                confirm_panel = "\n".join(confirm_lines)
+                confirm_panel_text = f"\n\n<b>🔍 Fill-Time Confirmation Panel:</b>\n{confirm_panel}" if confirm_lines else ""
+
                 pending_alerts.append(
                     f"🎯 <b>ENTRY READY — {sym}</b>\n"
                     f"{name}\n"
                     f"Now ₹{cur:.2f} (entry zone ≈ ₹{ep:.2f})\n"
-                    f"Time to consider opening the position."
+                    f"Time to consider opening the position.{confirm_panel_text}"
                 )
                 df.at[idx, "Entry_Notified"] = True
                 df.at[idx, "Entry_Hit_Date"] = today_str
@@ -2294,6 +2346,7 @@ _HYDRATE_FIELDS = (
     "atr_pct", "near_52w_high", "ema9_cross_ema21", "ema9_cross_days_ago",
     "rsi_pullback_zone", "high_52w", "dist_52w_pct", "weekly_trend",
     "base_days", "base_status", "false_breakout_risk", "false_breakout_desc",
+    "macd_crossover_days_ago",
 )
 
 
@@ -2334,6 +2387,28 @@ def _hydrate_brief_missing_fields(brief: dict) -> None:
                 s["earnings_days_until"] = None
                 s["earnings_date"]       = ""
                 s["earnings_source"]     = "unknown"
+
+    # Timing state (NML) for the fill-time confirmation panel — added later; hydrate
+    # stale briefs via the same helper the ENTRY-READY alert uses.
+    timing_needs = [s for s in stocks if "timing_state" not in s]
+    if timing_needs:
+        try:
+            from core.risk_filters import evaluate_nml_logic
+        except ImportError:
+            from core_risk_filters import evaluate_nml_logic
+        logger.info("[scan] hydrating timing state for %d stale stock(s)", len(timing_needs))
+        for s in timing_needs:
+            try:
+                tech = fetch_stock_technicals(s.get("symbol", ""))
+                if not tech:
+                    continue
+                t_status, t_reason = evaluate_nml_logic(s.get("symbol", ""), tech)
+                s["timing_state"]  = t_status
+                s["timing_reason"] = t_reason
+            except Exception as exc:
+                logger.warning("[scan] timing hydrate %s failed: %s", s.get("symbol"), exc)
+                s["timing_state"]  = "UNKNOWN"
+                s["timing_reason"] = ""
 
 
 def _now_date() -> str:
