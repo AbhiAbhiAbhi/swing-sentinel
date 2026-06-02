@@ -8392,7 +8392,7 @@ function getStockValidation(s) {
     setupCls = "fail";
     setupIcon = "✗";
   }
-  const caSetup = { label: "Setup Quality (Max 25)", cls: setupCls, icon: setupIcon, val: setupVal, score: setupScore };
+  const caSetup = { label: "Setup Quality (Max 25)", cls: setupCls, icon: setupIcon, val: setupVal, score: setupScore, formula: "Setup Quality Rules (Weight: 25 pts):\n- BREAKOUT = 25 pts\n- PULLBACK = 18 pts\n- SUPPORT_BOUNCE = 18 pts\n- CONSOLIDATION = 12 pts\n- OTHER/UNKNOWN = 0 pts\n*Note: Setup Grade C caps overall quality score to max 50 pts." };
 
   // Category 2: Trend Structure (20 pts)
   const emaAligned = s.ema_aligned !== false;
@@ -8400,7 +8400,7 @@ function getStockValidation(s) {
   let trendVal = emaAligned ? "Aligned (Price > EMA20 > EMA50) ✓" : "EMA Misaligned ✗";
   let trendCls = emaAligned ? "pass" : "fail";
   let trendIcon = emaAligned ? "✓" : "✗";
-  const caTrend = { label: "Trend Structure (Max 20)", cls: trendCls, icon: trendIcon, val: trendVal, score: trendScore };
+  const caTrend = { label: "Trend Structure (Max 20)", cls: trendCls, icon: trendIcon, val: trendVal, score: trendScore, formula: "Trend Structure Rules (Weight: 20 pts):\n- Aligned Trend (Price > EMA20 > EMA50) = 20 pts\n- Misaligned Trend = 0 pts" };
 
   // Category 3: Base Quality (15 pts)
   const baseDays = parseInt(s.base_days) || 0;
@@ -8424,7 +8424,7 @@ function getStockValidation(s) {
     baseCls = "fail";
     baseIcon = "✗";
   }
-  const caBase = { label: "Base Quality (Max 15)", cls: baseCls, icon: baseIcon, val: baseVal, score: baseScore };
+  const caBase = { label: "Base Quality (Max 15)", cls: baseCls, icon: baseIcon, val: baseVal, score: baseScore, formula: "Base Quality Rules (Weight: 15 pts):\n- STABLE BASE (base_days >= 20) = 15 pts\n- CONSOLIDATING (base_days >= 5) = 9 pts\n- VOLATILE / WEAK BASE = 0 pts" };
 
   // Category 4: Trend Strength (15 pts)
   const adx = parseFloat(s.adx) || 0;
@@ -8448,7 +8448,7 @@ function getStockValidation(s) {
     adxCls = "fail";
     adxIcon = "✗";
   }
-  const caADX = { label: "ADX Trend Strength (Max 15)", cls: adxCls, icon: adxIcon, val: adxVal, score: adxScore };
+  const caADX = { label: "ADX Trend Strength (Max 15)", cls: adxCls, icon: adxIcon, val: adxVal, score: adxScore, formula: "ADX Trend Strength Rules (Weight: 15 pts):\n- Strong Trend (ADX > 25) = 15 pts\n- Moderate Trend (ADX 20-25) = 9 pts\n- Weak Trend (ADX < 20) = 0 pts" };
 
   // Category 5: Institutional Accumulation (15 pts)
   let instScore = 7.5;
@@ -8476,7 +8476,7 @@ function getStockValidation(s) {
       instIcon = "!";
     }
   }
-  const caInst = { label: "Institutional (Max 15)", cls: instCls, icon: instIcon, val: instVal, score: instScore };
+  const caInst = { label: "Institutional (Max 15)", cls: instCls, icon: instIcon, val: instVal, score: instScore, formula: "Institutional Accumulation Rules (Weight: 15 pts):\n- ACCUMULATION (consensus_score >= 3.0) = 15 pts\n- DISTRIBUTION (consensus_score <= -3.0) = 0 pts\n- NEUTRAL / MISSING DATA = 7.5 pts" };
 
   // Category 6: Volatility Fit (10 pts)
   const atrPct = parseFloat(s.atr_pct) || 0;
@@ -8500,7 +8500,7 @@ function getStockValidation(s) {
     atrCls = "fail";
     atrIcon = "✗";
   }
-  const caVol = { label: "Volatility ATR Fit (Max 10)", cls: atrCls, icon: atrIcon, val: atrVal, score: atrScore };
+  const caVol = { label: "Volatility ATR Fit (Max 10)", cls: atrCls, icon: atrIcon, val: atrVal, score: atrScore, formula: "Volatility ATR Fit Rules (Weight: 10 pts):\n- Ideal (ATR% between 2.0% and 4.0%) = 10 pts\n- Sub-optimal (ATR% 1.5-2.0% or 4.0-6.0%) = 6 pts\n- Unfit (ATR% < 1.5% or > 6.0%) = 0 pts" };
 
   const checks = [caSetup, caTrend, caBase, caADX, caInst, caVol];
 
@@ -8728,11 +8728,11 @@ function renderStockValidation() {
         <!-- Row 1: Weekly Trend & False Breakout Risk Pills -->
         <div style="display:flex;gap:8px;align-items:center;justify-content:space-between">
           <!-- Weekly Trend -->
-          <div class="ca-gauge-pill ${v.weeklyTrendClass}" style="flex:1;text-align:center;padding:6px;border-radius:6px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid ${v.weeklyTrendColor};background:${v.weeklyTrendBg};color:${v.weeklyTrendColor}">
+          <div class="ca-gauge-pill ${v.weeklyTrendClass}" style="flex:1;text-align:center;padding:6px;border-radius:6px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid ${v.weeklyTrendColor};background:${v.weeklyTrendBg};color:${v.weeklyTrendColor}" title="Weekly Trend Safety Gate:\n- BULLISH: Passes\n- BEARISH: Blocked (Gate Fail)\nSource: weekly_trend">
             ${v.weeklyTrendIcon} Weekly Trend: ${v.weeklyTrendVal}
           </div>
           <!-- False Breakout Risk -->
-          <div class="ca-gauge-pill ${v.fbClass}" style="flex:1;text-align:center;padding:6px;border-radius:6px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid ${v.fbColor};background:${v.fbBg};color:${v.fbColor}">
+          <div class="ca-gauge-pill ${v.fbClass}" style="flex:1;text-align:center;padding:6px;border-radius:6px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid ${v.fbColor};background:${v.fbBg};color:${v.fbColor}" title="False Breakout Risk:\n- LOW risk: Passes\n- HIGH risk: Warning\nSource: false_breakout_risk">
             ${v.fbIcon} Breakout: ${v.fbVal}
           </div>
         </div>
@@ -8745,7 +8745,7 @@ function renderStockValidation() {
         ` : ""}
 
         <!-- Row 2: Consolidation Pattern Base Meter -->
-        <div style="display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;flex-direction:column;gap:4px" title="Consolidation Base Meter:\n- STABLE BASE: base_days >= 20 (Ideal)\n- CONSOLIDATING: base_days >= 5\n- VOLATILE: base_days < 5\nSource: base_days & base_status">
           <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
             <span style="color:var(--muted)">Consolidation Base:</span>
             <span style="font-weight:700;color:${v.baseColor}">${v.baseDays} Days (${v.baseLabel})</span>
@@ -8757,7 +8757,7 @@ function renderStockValidation() {
 
         <!-- Row 3: Institutional Shareholding Trend (FII/DII) -->
         ${s.shareholding && s.shareholding.status === "success" ? `
-          <div style="display:flex; flex-direction:column; gap:6px; border-top:1px dashed var(--border); padding-top:10px; margin-top:8px">
+          <div style="display:flex; flex-direction:column; gap:6px; border-top:1px dashed var(--border); padding-top:10px; margin-top:8px" title="Institutional Shareholding Trend (FII/DII):\n- ACCUMULATION: consensus_score >= 3.0 (Favorable)\n- DISTRIBUTION: consensus_score <= -3.0 (Gate Fail/Blocked)\n- NEUTRAL / NO DATA: Normal\nBreakdown: ${s.shareholding.breakdown || ''}">
             <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px">
               <span style="color:var(--muted)">Screener Trend (${s.shareholding.latest_quarter}):</span>
               <span style="font-weight:800; font-size:10px; padding:1px 5px; border-radius:4px; ${
@@ -8796,7 +8796,7 @@ function renderStockValidation() {
       </div>
 
       <!-- Setup Grade Factor Breakdown (4 analysis-time factors) -->
-      <div style="padding:10px 16px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.015)">
+      <div style="padding:10px 16px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.015)" title="Setup Grade Factor Breakdown:\n- TREND: Capped at 1.0 (EMA Alignment & Weekly Trend)\n- STRUCTURE: Capped at 1.0 (Pattern, Stable Base, Low Breakout Risk)\n- VOLUME: Capped at 1.0 (Vol Ratio threshold)\n- LANDMINES: Capped at 1.0 (Return and ADX restrictions)\nTotal score = sum of these four factors (Grade A: >= 5.0, Grade B: >= 3.5, Grade C: < 3.5)">
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:700;display:flex;justify-content:space-between;align-items:center">
           <span>Setup Grade Breakdown</span>
           <span class="grade-badge ${(s.setup_grade||'C') === 'A' ? 'a' : (s.setup_grade||'C') === 'B' ? 'b' : 'c'}" style="font-size:9px;padding:2px 7px">Grade ${s.setup_grade || 'C'} <span style="font-weight:400;opacity:.7">${s.setup_score || '0'}/6</span></span>
@@ -8830,19 +8830,19 @@ function renderStockValidation() {
           function _lbl(v){return v>=1.0?'1.0':v>=0.5?'0.5':'0.0'}
 
           return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'
-            + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:7px 10px">'
+            + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:7px 10px" title="TREND Formula:\n- Price > EMA20 (+0.5)\n- EMA20 > EMA50 (+0.5)\n- Weekly Trend is BULLISH (+0.5)\nTotal: 3/3 = 1.0, 2/3 = 0.5, else = 0.0">'
             + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;font-weight:700;color:var(--muted)">① TREND</span><span class="gf-score '+_cls(t_sc)+'">'+_lbl(t_sc)+'</span></div>'
             + '<div style="font-size:9.5px;color:var(--muted);line-height:1.4">P <b style="color:var(--text)">'+(_p>_e20?'>':'<')+' EMA20</b> · EMA20 '+(_e20>_e50?'>':'<')+' EMA50 · Wk: <b style="color:var(--text)">'+(s.weekly_trend||'—')+'</b></div>'
             + '</div>'
-            + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:7px 10px">'
+            + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:7px 10px" title="STRUCTURE Formula:\n- Setup is BREAKOUT/PULLBACK/SUPPORT_BOUNCE\n- Base is STABLE_BASE/CONSOLIDATING\n- Breakout Risk is LOW\nTotal: All pass = 1.0, Partial = 0.5, else = 0.0">'
             + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;font-weight:700;color:var(--muted)">② STRUCTURE</span><span class="gf-score '+_cls(st_sc)+'">'+_lbl(st_sc)+'</span></div>'
             + '<div style="font-size:9.5px;color:var(--muted);line-height:1.4">Setup: <b style="color:var(--text)">'+(s.setup||'—')+'</b> · Base: <b style="color:var(--text)">'+(s.base_status||'—')+'</b></div>'
             + '</div>'
-            + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:7px 10px">'
+            + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:7px 10px" title="VOLUME Formula:\n- Vol Ratio >= 1.5 = 1.0\n- Vol Ratio >= 1.0 and < 1.5 = 0.5\n- Vol Ratio < 1.0 = 0.0">'
             + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;font-weight:700;color:var(--muted)">③ VOLUME</span><span class="gf-score '+_cls(v_sc)+'">'+_lbl(v_sc)+'</span></div>'
             + '<div style="font-size:9.5px;color:var(--muted);line-height:1.4">Vol Ratio: <b style="color:var(--text)">'+_vr.toFixed(2)+'x</b> '+(_vr>=1.5?'(strong)':_vr>=1.0?'(ok)':'(weak)')+'</div>'
             + '</div>'
-            + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:7px 10px">'
+            + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:7px 10px" title="LANDMINES Formula:\n- Start at 1.0\n- Deduct 0.5 if 20d Return > 25% (Overextended)\n- Deduct 0.5 if ADX < 20 (Weak trend)\nCapped at minimum 0.0">'
             + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;font-weight:700;color:var(--muted)">④ LANDMINES</span><span class="gf-score '+_cls(l_sc)+'">'+_lbl(l_sc)+'</span></div>'
             + '<div style="font-size:9.5px;color:var(--muted);line-height:1.4">20d Ret: <b style="color:var(--text)">'+_r20.toFixed(1)+'%</b>'+(_r20>25?' ⚠️':'')+ ' · ADX: <b style="color:var(--text)">'+_adx.toFixed(1)+'</b>'+(_adx<20?' ⚠️':'')+'</div>'
             + '</div>'
@@ -8855,11 +8855,11 @@ function renderStockValidation() {
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:700">General Setup Verification:</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           ${v.coreChecks.map(c => `
-            <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;align-items:center;gap:6px;min-height:36px;font-size:11px">
+            <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;align-items:center;gap:6px;min-height:36px;font-size:11px" title="${c.formula || ''}">
               <span class="ca-check-icon ${c.cls}" style="width:16px;height:16px;font-size:9px">${c.icon}</span>
               <div style="display:flex;flex-direction:column;min-width:0;flex:1">
-                <span style="color:var(--muted);font-size:9px;line-height:1.3" title="${c.label}">${c.label}</span>
-                <span style="font-weight:600;line-height:1.3;color:${c.cls==='pass'?'var(--green)':c.cls==='warn'?'var(--yellow)':c.cls==='na'?'var(--muted)':'var(--red)'}" title="${c.val}">${c.val}</span>
+                <span style="color:var(--muted);font-size:9px;line-height:1.3">${c.label}</span>
+                <span style="font-weight:600;line-height:1.3;color:${c.cls==='pass'?'var(--green)':c.cls==='warn'?'var(--yellow)':c.cls==='na'?'var(--muted)':'var(--red)'}">${c.val}</span>
               </div>
             </div>
           `).join("")}
@@ -8907,8 +8907,8 @@ function renderStockValidation() {
 
       <div class="ca-vcard-foot">
         ${item.eligible
-          ? `<span class="ca-score ${item.scoreClass}">${item.scoreLabel} — ${v.passCount}/${v.total} · Score ${item.score}/100</span>`
-          : `<span class="ca-score weak" style="border:1px solid var(--red); background:rgba(239,68,68,0.12); color:#ef4444; font-weight:bold" title="Gatekeeper Blocks: ${item.reasons.join('; ')}">⚠️ BLOCKED: ${item.reasons[0]}</span>`
+          ? `<span class="ca-score ${item.scoreClass}" title="Quality Score is eligible (>= 50/100). Passes all safety gates.">${item.scoreLabel} — ${v.passCount}/${v.total} · Score ${item.score}/100</span>`
+          : `<span class="ca-score weak" style="border:1px solid var(--red); background:rgba(239,68,68,0.12); color:#ef4444; font-weight:bold" title="Gatekeeper Blocks: ${item.reasons.join('; ')}\n\nSafety Gate Rules:\n1. Status: ON_HOLD = Blocked\n2. Weekly Trend: BEARISH = Blocked\n3. Fundamentals: Negative EPS/PE/ROE/EBITDA = Blocked\n4. Institutional: DISTRIBUTION = Blocked\n5. Liquidity: Volume < 100k shares = Blocked\n6. Overextended: 20d return > 25% = Blocked\n7. Debate: SKIP = Blocked\n8. Data freshness: Stale (>1 trading day) = Blocked\n9. Sector x Nifty alignment: Misaligned = Blocked">⚠️ BLOCKED: ${item.reasons[0]}</span>`
         }
         <div style="display:flex;gap:6px">
           <button class="ca-btn" onclick="selectStockForTrading(${item.originalIdx})" style="font-size:10px;padding:4px 8px;background:var(--blue-bg);color:var(--blue);border-color:var(--blue)">→ Trading</button>
