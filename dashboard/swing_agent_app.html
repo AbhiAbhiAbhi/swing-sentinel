@@ -8898,8 +8898,8 @@ function renderStockValidation() {
 
       <div class="ca-vcard-foot">
         ${item.eligible
-          ? `<span class="ca-score ${item.scoreClass}" title="Quality Score is eligible (>= 50/100). Passes all safety gates.">${item.scoreLabel} — ${v.passCount}/${v.total} · Score ${item.score}/100</span>`
-          : `<span class="ca-score weak" style="border:1px solid var(--red); background:rgba(239,68,68,0.12); color:#ef4444; font-weight:bold" title="Gatekeeper Blocks: ${item.reasons.join('; ')}\n\nSafety Gate Rules:\n1. Status: ON_HOLD = Blocked\n2. Weekly Trend: BEARISH = Blocked\n3. Fundamentals: Negative EPS/PE/ROE/EBITDA = Blocked\n4. Institutional: DISTRIBUTION = Blocked\n5. Liquidity: Volume < 100k shares = Blocked\n6. Overextended: 20d return > 25% = Blocked\n7. Debate: SKIP = Blocked\n8. Data freshness: Stale (>1 trading day) = Blocked\n9. Sector x Nifty alignment: Misaligned = Blocked">⚠️ BLOCKED: ${item.reasons[0]}</span>`
+          ? `<span class="ca-score ${item.scoreClass}" title="Quality Score is eligible (>= 50/100). Passes all safety gates.">${item.scoreLabel} — ${v.passCount}/${v.total} · Quality Score ${item.score}/100</span>`
+          : `<span class="ca-score weak" style="border:1px solid var(--red); background:rgba(239,68,68,0.12); color:#ef4444; font-weight:bold" title="Safety gates: ${item.reasons.join('; ')}\n\nSafety Gate Rules:\n1. Status: ON_HOLD = Blocked\n2. Weekly Trend: BEARISH = Blocked\n3. Fundamentals: Negative EPS/PE/ROE/EBITDA = Blocked\n4. Institutional: DISTRIBUTION = Blocked\n5. Liquidity: Volume < 100k shares = Blocked\n6. Overextended: 20d return > 25% = Blocked\n7. Debate: SKIP = Blocked\n8. Data freshness: Stale (>1 trading day) = Blocked\n9. Sector x Nifty alignment: Misaligned = Blocked">⚠️ BLOCKED: ${item.reasons[0]}</span>`
         }
         <div style="display:flex;gap:6px">
           <button class="ca-btn" onclick="selectStockForTrading(${item.originalIdx})" style="font-size:10px;padding:4px 8px;background:var(--blue-bg);color:var(--blue);border-color:var(--blue)">→ Trading</button>
