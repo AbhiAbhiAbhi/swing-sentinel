@@ -8,6 +8,7 @@ import json
 import logging
 import os
 from datetime import datetime
+import pytz
 from typing import Dict, List
 
 try:
@@ -40,7 +41,7 @@ def run_morning_scanner():
     """
 
     print("\n" + "=" * 60)
-    print(f"[Scanner] Starting morning scan: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    print(f"[Scanner] Starting morning scan: {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%Y-%m-%d %H:%M')}")
     print("=" * 60)
 
     # Step 1: Market Context
@@ -158,8 +159,8 @@ def run_morning_scanner():
 
     # Step 5: Compile Brief
     brief = {
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "time": datetime.now().strftime("%H:%M"),
+        "date": datetime.now(pytz.timezone("Asia/Kolkata")).strftime("%Y-%m-%d"),
+        "time": datetime.now(pytz.timezone("Asia/Kolkata")).strftime("%H:%M"),
         "market_context": {
             "nifty": nifty_data,
             "fii_dii": fii_dii,
@@ -407,7 +408,7 @@ def send_alert(brief: Dict):
 
 def _send_empty_brief(nifty_data: Dict, sentiment: str):
     _send_telegram(
-        f"📊 *Morning Brief — {datetime.now().strftime('%Y-%m-%d')}*\n\n"
+        f"📊 *Morning Brief — {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%Y-%m-%d')}*\n\n"
         f"Nifty 50: {nifty_data['level']} ({nifty_data['change_pct']:+.2f}%)\n"
         f"Sentiment: {sentiment}\n\n"
         f"⚠️ No setups matched today — market may be closed or conditions not met."

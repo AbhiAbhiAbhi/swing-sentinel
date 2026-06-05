@@ -7,6 +7,7 @@ import json
 import logging
 import os
 from datetime import datetime
+import pytz
 
 # Resolve paths relative to the project root (one level up from core/)
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -68,6 +69,14 @@ _universes_cache_mtime = 0
 
 _scheduler = None
 _maintenance_time = "08:30"
+
+try:
+    from core.prune_logic import evaluate_prune
+except ImportError:
+    try:
+        from core_prune_logic import evaluate_prune
+    except ImportError:
+        def evaluate_prune(tech, row=None): return "RE-EVALUATE", ""
 
 try:
     from core.morning_watchlist_maintenance import run_morning_maintenance
@@ -441,26 +450,30 @@ def api_debate(symbol: str):
             "sentiment": _sentiment(nifty, fii)
         }
 
-        # 4. Extract LLM settings overrides
-        override_config = {}
-        if "bull_model" in body:
-            override_config["bull_agent"] = {
-                "provider": body.get("bull_provider", "gemini"),
-                "model": body["bull_model"],
-                "temperature": float(body.get("bull_temperature", 0.4))
-            }
-        if "bear_model" in body:
-            override_config["bear_agent"] = {
-                "provider": body.get("bear_provider", "gemini"),
-                "model": body["bear_model"],
-                "temperature": float(body.get("bear_temperature", 0.4))
-            }
-        if "judge_model" in body:
-            override_config["judge_agent"] = {
-                "provider": body.get("judge_provider", "gemini"),
-                "model": body["judge_model"],
-                "temperature": float(body.get("judge_temperature", 0.2))
-            }
+        # 4. Extract LLM settings overrides.
+        # Preferred: a nested {"override_config": {bull_agent, bear_agent, judge_agent}} payload.
+        # Fallback: legacy flat fields (bull_provider/bull_model/bull_temperature, ...) so older
+        # callers and the preview/review dashboards keep working.
+        override_config = body.get("override_config") or {}
+        if not override_config:
+            if "bull_model" in body:
+                override_config["bull_agent"] = {
+                    "provider": body.get("bull_provider", "gemini"),
+                    "model": body["bull_model"],
+                    "temperature": float(body.get("bull_temperature", 0.4))
+                }
+            if "bear_model" in body:
+                override_config["bear_agent"] = {
+                    "provider": body.get("bear_provider", "gemini"),
+                    "model": body["bear_model"],
+                    "temperature": float(body.get("bear_temperature", 0.4))
+                }
+            if "judge_model" in body:
+                override_config["judge_agent"] = {
+                    "provider": body.get("judge_provider", "gemini"),
+                    "model": body["judge_model"],
+                    "temperature": float(body.get("judge_temperature", 0.2))
+                }
 
         # 5. Execute debate
         try:
@@ -768,116 +781,100 @@ def api_scan():
                 res.pop("status", None)
                 filtered_out.append(res)
 
+        # Map existing watchlist symbols to their Entry_Date
+        entry_date_map = {}
+        positions_path = os.path.join(_ROOT, "data", "positions.csv")
+        if os.path.exists(positions_path):
+            try:
+                df_p = pd.read_csv(positions_path)
+                if not df_p.empty and "Symbol" in df_p.columns and "Entry_Date" in df_p.columns:
+                    for _, row in df_p.iterrows():
+                        sym_upper = str(row["Symbol"]).strip().upper()
+                        if pd.notna(row["Entry_Date"]):
+                            entry_date_map[sym_upper] = str(row["Entry_Date"])
+            except Exception as e:
+                logger.warning("[server] Failed to build entry_date_map: %s", e)
+
+        # Attach entry_date to scan_results and filtered_out
+        today_str = _now_date()
+        for s in scan_results:
+            sym_upper = s["symbol"].upper()
+            s["entry_date"] = entry_date_map.get(sym_upper, today_str)
+
+        for s in filtered_out:
+            sym_upper = s["symbol"].upper()
+            s["entry_date"] = entry_date_map.get(sym_upper, today_str)
+
         # ── Daily Cadence Rules for OPEN watchlist candidates ──
+        # Pruning is decided by evaluate_prune() on freshly-recomputed Analysis-tab
+        # data points (fetch_stock_technicals) — NOT by scan presence/absence.
+        # A stock absent from the scan is still re-judged on its own technicals;
+        # if those can't be fetched, it is HELD (never pruned on missing data).
+        # Pruned rows are NOT dropped — they get Status="PRUNED" + Prune_Reason +
+        # Prune_Date and stay in the CSV for the separate dashboard section.
         positions_path = os.path.join(_ROOT, "data", "positions.csv")
         if os.path.exists(positions_path):
             try:
                 df_positions = pd.read_csv(positions_path)
                 if not df_positions.empty and "Status" in df_positions.columns:
-                    # Ensure columns exist
-                    if "Absent_Cycles" not in df_positions.columns:
-                        df_positions["Absent_Cycles"] = 0
-                    df_positions["Absent_Cycles"] = df_positions["Absent_Cycles"].fillna(0).astype(int)
-                    
-                    rows_to_drop = []
+                    _ensure_cols(df_positions, ["Prune_Reason", "Prune_Date"])
                     csv_updated = False
-                    
+
                     for idx, row in df_positions.iterrows():
-                        if str(row["Status"]).upper() != "OPEN":
+                        if str(row["Status"]).strip().upper() != "OPEN":
                             continue
-                        
+
                         sym = str(row["Symbol"]).strip().upper()
-                        
-                        # 1. Is it present in today's passed scan_results?
-                        scan_match = next((s for s in scan_results if s["symbol"].upper() == sym), None)
+
+                        # Recompute this candidate's OWN Analysis-tab data points.
+                        # Prefer today's scan numbers if present (cheap), else fetch.
+                        scan_match = next(
+                            (s for s in scan_results if s["symbol"].upper() == sym), None
+                        )
+                        filtered_match = next(
+                            (s for s in filtered_out if s["symbol"].upper() == sym), None
+                        )
+                        tech = scan_match or filtered_match
+                        if tech is None:
+                            try:
+                                tech = fetch_stock_technicals(sym) or {}
+                            except Exception as exc:
+                                logger.warning("[cadence] tech fetch failed for %s: %s", sym, exc)
+                                tech = {}
+
+                        state, reason = evaluate_prune(tech, row.to_dict())
+
+                        if state == "PRUNE":
+                            df_positions.at[idx, "Status"]       = "PRUNED"
+                            df_positions.at[idx, "Prune_Reason"] = reason
+                            df_positions.at[idx, "Prune_Date"]   = _now_date()
+                            csv_updated = True
+                            logger.info("[cadence] PRUNED %s — %s", sym, reason)
+                            continue
+
+                        # RE-EVALUATE: candidate stays. If it also passed today's
+                        # scan, refresh its plan values so the card stays current.
                         if scan_match:
-                            # Passes scan -> Keep + refresh entry/SL/T1/T2 to today's calculated values
                             df_positions.at[idx, "Entry_Price"] = scan_match.get("entry_min", df_positions.at[idx, "Entry_Price"])
-                            df_positions.at[idx, "Target_1"] = scan_match.get("target_1", df_positions.at[idx, "Target_1"])
-                            df_positions.at[idx, "Target_2"] = scan_match.get("target_2", df_positions.at[idx, "Target_2"])
-                            df_positions.at[idx, "Current_SL"] = scan_match.get("sl", df_positions.at[idx, "Current_SL"])
+                            df_positions.at[idx, "Target_1"]    = scan_match.get("target_1", df_positions.at[idx, "Target_1"])
+                            df_positions.at[idx, "Target_2"]    = scan_match.get("target_2", df_positions.at[idx, "Target_2"])
+                            df_positions.at[idx, "Current_SL"]  = scan_match.get("sl", df_positions.at[idx, "Current_SL"])
                             df_positions.at[idx, "Setup_Grade"] = scan_match.get("setup_grade", df_positions.at[idx, "Setup_Grade"])
                             df_positions.at[idx, "Setup_Score"] = scan_match.get("setup_score", df_positions.at[idx, "Setup_Score"])
-                            
-                            # Also update expiry multiplier/reason if present
                             if scan_match.get("expiry_info"):
                                 df_positions.at[idx, "Expiry_Multiplier"] = scan_match["expiry_info"].get("multiplier", "")
-                                df_positions.at[idx, "Expiry_Reason"] = scan_match["expiry_info"].get("reason", "")
+                                df_positions.at[idx, "Expiry_Reason"]     = scan_match["expiry_info"].get("reason", "")
                             elif scan_match.get("expiry_multiplier") is not None:
                                 df_positions.at[idx, "Expiry_Multiplier"] = scan_match.get("expiry_multiplier", "")
-                                df_positions.at[idx, "Expiry_Reason"] = scan_match.get("expiry_reason", "")
-                                
-                            df_positions.at[idx, "Absent_Cycles"] = 0
+                                df_positions.at[idx, "Expiry_Reason"]     = scan_match.get("expiry_reason", "")
                             csv_updated = True
-                            logger.info("[scan/cadence] Refreshed OPEN candidate %s with today's values", sym)
-                            continue
-                            
-                        # 2. Is it present in today's filtered_out list?
-                        filtered_match = next((s for s in filtered_out if s["symbol"].upper() == sym), None)
-                        if filtered_match:
-                            # Explicitly fails a gate (verdict == SKIP with a reason) -> Delete
-                            verdict_val = str(filtered_match.get("verdict", "SKIP")).upper()
-                            if verdict_val == "SKIP":
-                                reasons_str = "; ".join(filtered_match.get("reasons", []))
-                                rows_to_drop.append(idx)
-                                csv_updated = True
-                                logger.info("[scan/cadence] Deleted OPEN candidate %s: failed safety gate (%s)", sym, reasons_str)
-                            else:
-                                # Verdict is WATCH or WARNING -> Keep it and reset Absent_Cycles since it was scanned today!
-                                df_positions.at[idx, "Absent_Cycles"] = 0
-                                csv_updated = True
-                                logger.info("[scan/cadence] Kept filtered OPEN candidate %s with verdict %s", sym, verdict_val)
-                            continue
-                            
-                        # 3. Absent from today's scan (no match in success or filtered_out)
-                        # The stock dropped off the scanner (exactly what you warned about)
-                        # Fetch its basic price data directly via yfinance to check structural health
-                        try:
-                            tech = fetch_stock_technicals(sym)
-                            if tech:
-                                # Run ONLY the slow-moving structural gates (Weekly trend, EMA alignment)
-                                # DO NOT run the strict Chartink momentum filters
-                                gate_result = apply_structural_safety_gates(tech)
-                                if gate_result.passed:
-                                    # It's still in alignment! Keep it and update the EMA20 tracking.
-                                    refresh_trade_levels(df_positions, idx, tech)
-                                    csv_updated = True
-                                    logger.info("[scan/cadence] Kept absent OPEN candidate %s: passed structural safety gates. Refreshed levels.", sym)
-                                else:
-                                    # It actually broke a major rule (e.g., cracked below a critical support/EMA)
-                                    rows_to_drop.append(idx)
-                                    csv_updated = True
-                                    logger.info("[scan/cadence] Deleted OPEN candidate %s: failed structural safety gates (%s)", sym, gate_result.fail_reason)
-                            else:
-                                # Failed to fetch data, fallback to incrementing Absent_Cycles
-                                absent_cycles = int(df_positions.at[idx, "Absent_Cycles"]) + 1
-                                if absent_cycles > 1:
-                                    rows_to_drop.append(idx)
-                                    csv_updated = True
-                                    logger.info("[scan/cadence] Deleted OPEN candidate %s: absent and failed to fetch yfinance data", sym)
-                                else:
-                                    df_positions.at[idx, "Absent_Cycles"] = absent_cycles
-                                    csv_updated = True
-                                    logger.info("[scan/cadence] Kept absent OPEN candidate %s (failed fetch fallback, cycle %d)", sym, absent_cycles)
-                        except Exception as exc:
-                            logger.error("[scan/cadence] Error checking health for absent %s: %s", sym, exc)
-                            # Fallback: increment absent cycles
-                            absent_cycles = int(df_positions.at[idx, "Absent_Cycles"]) + 1
-                            if absent_cycles > 1:
-                                rows_to_drop.append(idx)
-                                csv_updated = True
-                            else:
-                                df_positions.at[idx, "Absent_Cycles"] = absent_cycles
-                                csv_updated = True
-                            
-                    if rows_to_drop:
-                        df_positions = df_positions.drop(rows_to_drop).reset_index(drop=True)
-                        
+                            logger.info("[cadence] Refreshed re-evaluate candidate %s", sym)
+
                     if csv_updated:
                         _save_positions_csv(df_positions, positions_path)
-                        logger.info("[scan/cadence] Successfully applied cadence rules to positions.csv")
+                        logger.info("[cadence] Applied Analysis-tab prune rules to positions.csv")
             except Exception as e:
-                logger.error("[scan/cadence] Error processing daily cadence rules: %s", e)
+                logger.error("[cadence] Error applying prune rules: %s", e)
 
         result = {
             "status":        "success",
@@ -1126,6 +1123,52 @@ def _extract_snapshot(r) -> dict:
     }
 
 
+@app.route("/api/positions/pruned")
+def api_positions_pruned():
+    """Return candidates that were pruned from analysis (Status == PRUNED)."""
+    path = os.path.join(_ROOT, "data", "positions.csv")
+    if not os.path.exists(path):
+        return jsonify({"pruned": []})
+    df = pd.read_csv(path)
+    if df.empty or "Status" not in df.columns:
+        return jsonify({"pruned": []})
+
+    pruned = df[df["Status"].astype(str).str.upper() == "PRUNED"].copy()
+    # NaN -> "" for clean JSON
+    pruned = pruned.where(pd.notna(pruned), "")
+    records = pruned.to_dict(orient="records")
+    # newest first by Prune_Date when available
+    records.sort(key=lambda r: str(r.get("Prune_Date", "")), reverse=True)
+    return jsonify({"pruned": records, "count": len(records)})
+
+
+@app.route("/api/positions/restore", methods=["POST"])
+def api_positions_restore():
+    """Move a PRUNED candidate back to OPEN (re-evaluate) state."""
+    data = request.get_json(force=True, silent=True) or {}
+    symbol = str(data.get("symbol", "")).strip().upper()
+    if not symbol:
+        return jsonify({"status": "error", "message": "symbol required"}), 400
+
+    path = os.path.join(_ROOT, "data", "positions.csv")
+    if not os.path.exists(path):
+        return jsonify({"status": "error", "message": "no positions file"}), 404
+
+    df = pd.read_csv(path)
+    df["Symbol"] = df["Symbol"].astype(str).str.strip().str.upper()
+    mask = (df["Symbol"] == symbol) & (df["Status"].astype(str).str.upper() == "PRUNED")
+    if not mask.any():
+        return jsonify({"status": "error", "message": f"{symbol} not in pruned list"}), 404
+
+    idx = df[mask].index[-1]
+    df.at[idx, "Status"]       = "OPEN"
+    df.at[idx, "Prune_Reason"] = ""
+    df.at[idx, "Prune_Date"]   = ""
+    _save_positions_csv(df, path)
+    logger.info("[positions/restore] %s restored to OPEN", symbol)
+    return jsonify({"status": "ok", "message": f"{symbol} restored to analysis"})
+
+
 @app.route("/api/positions/add", methods=["POST"])
 def api_positions_add():
     """Add a new position from the Watchlist button on a stock card."""
@@ -1274,7 +1317,7 @@ def api_schedule_maintenance():
                     trigger = CronTrigger(day_of_week="mon-fri", hour=h, minute=m, timezone=ist)
                     if job:
                         job.reschedule(trigger=trigger)
-                        logger.info("[server] Rescheduled watchlist_maintenance job to %s IST", _maintenance_time)
+                        logger.info("[server] Rescheduled Keep & refresh Scan job to %s IST", _maintenance_time)
                     else:
                         # Job does not exist yet, create it
                         _scheduler.add_job(
@@ -1284,7 +1327,7 @@ def api_schedule_maintenance():
                             max_instances=1,
                             coalesce=True,
                         )
-                        logger.info("[server] Created watchlist_maintenance job at %s IST", _maintenance_time)
+                        logger.info("[server] Created Keep & refresh Scan job at %s IST", _maintenance_time)
                 except Exception as e:
                     logger.warning("[server] Failed to reschedule job: %s", e)
                     
@@ -1795,7 +1838,7 @@ def api_positions_close():
 
         _ensure_cols(df, ["Closing_Price", "Outcome", "Status", "T2_Hit_Date", "SL_Hit_Date", "Post_Mortem_Why", "Post_Mortem_Maximize", "T2_Notified", "SL_Notified"])
 
-        today_str = datetime.now().strftime("%Y-%m-%d")
+        today_str = datetime.now(pytz.timezone("Asia/Kolkata")).strftime("%Y-%m-%d")
 
         df.at[idx, "Closing_Price"] = exit_price
         df.at[idx, "Outcome"] = outcome
@@ -1907,7 +1950,7 @@ def api_results():
         # ── Live prices for active symbols (OPEN + BOUGHT) in bulk ──
         active_symbols = pd.concat([open_df["Symbol"], bought_df["Symbol"]]).astype(str).unique().tolist() if (not open_df.empty or not bought_df.empty) else []
         price_map    = fetch_prices_bulk(active_symbols) if active_symbols else {}
-        today        = datetime.now().date()
+        today        = datetime.now(pytz.timezone("Asia/Kolkata")).date()
 
         # Build watchlist_positions list (OPEN status)
         watchlist_list = []
@@ -2573,11 +2616,11 @@ def _hydrate_brief_missing_fields(brief: dict) -> None:
 
 
 def _now_date() -> str:
-    return datetime.now().strftime("%Y-%m-%d")
+    return datetime.now(pytz.timezone("Asia/Kolkata")).strftime("%Y-%m-%d")
 
 
 def _now_time() -> str:
-    return datetime.now().strftime("%H:%M")
+    return datetime.now(pytz.timezone("Asia/Kolkata")).strftime("%H:%M")
 
 
 # ── Background poller ───────────────────────────────────────────────────────
@@ -2613,7 +2656,7 @@ def _start_scheduler():
         max_instances=1,
         coalesce=True,
     )
-    # Daily Watchlist Maintenance before market hours (Mon-Fri)
+    # Keep & refresh Scan before market hours (Mon-Fri)
     _load_maintenance_time()
     try:
         h, m = _maintenance_time.split(":")
@@ -2624,9 +2667,9 @@ def _start_scheduler():
             max_instances=1,
             coalesce=True,
         )
-        logger.info("[poll] scheduled daily watchlist maintenance at %s IST", _maintenance_time)
+        logger.info("[poll] scheduled Keep & refresh Scan at %s IST", _maintenance_time)
     except Exception as e:
-        logger.error("[poll] failed to schedule watchlist maintenance: %s", e)
+        logger.error("[poll] failed to schedule Keep & refresh Scan: %s", e)
 
     _scheduler.start()
     logger.info("[poll] background scheduler started — polling every minute, Mon-Fri 9:15-15:30 IST")

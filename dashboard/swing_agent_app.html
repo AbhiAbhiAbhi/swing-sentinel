@@ -21,6 +21,14 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
+@keyframes subtle-pulse {
+  0%, 100% { border-color: var(--border); }
+  50% { border-color: var(--blue); box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); }
+}
+.pulse-active {
+  animation: subtle-pulse 1.5s infinite;
+}
+
 :root {
   /* Sentinel Terminal Premium HSL Palette */
   --bg:          #08090c;
@@ -891,7 +899,9 @@ body.light-theme .tab-btn.tab-analytics.active   {color:#7047A3 !important; back
 .ca-gate-item .gi-dot.fail{background:var(--red)}
 .ca-gate-item .gi-name{color:var(--muted);min-width:120px}
 .ca-gate-item.fail .gi-name{color:var(--red);font-weight:700}
-.ca-gate-item .gi-reason{color:var(--red);flex:1}
+.ca-gate-item .gi-value{color:var(--text,#e5e7eb);font-weight:600;white-space:nowrap}
+.ca-gate-item.pass .gi-value{color:var(--green)}
+.ca-gate-item .gi-reason{color:var(--red);flex:1;margin-left:auto}
 
 /* Score ring + conviction tier */
 .ca-score-block{display:flex;align-items:center;gap:16px;padding:14px 16px;border-bottom:1px solid var(--border)}
@@ -1110,6 +1120,27 @@ body.light-theme .analytics-subtab-btn.active {
   border-radius: 4px;
   margin-top: 4px;
 }
+
+/* ── Pruned-from-Analysis section ─────────────────────────── */
+.pruned-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.pruned-card{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 14px;border-radius:10px;
+  background:var(--card-muted,rgba(255,80,80,.06));
+  border:1px solid var(--border-danger,rgba(255,80,80,.25));
+  opacity:.92;
+}
+.pruned-card .pc-left{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pruned-card .pc-sym{font-weight:700;font-size:14px}
+.pruned-card .pc-reason{font-size:12px;color:var(--muted,#bca);line-height:1.35}
+.pruned-card .pc-date{font-size:11px;color:var(--muted,#988);margin-top:2px}
+.pruned-card .pc-restore{
+  flex:none;cursor:pointer;border:none;border-radius:8px;
+  padding:7px 12px;font-size:12px;font-weight:600;
+  background:var(--blue,#3b82f6);color:#fff;
+}
+.pruned-card .pc-restore:hover{filter:brightness(1.1)}
+.pruned-empty{font-size:12px;color:var(--muted,#9aa);padding:8px 2px}
 </style>
 </head>
 <body class="light-theme">
@@ -1173,36 +1204,45 @@ body.light-theme .analytics-subtab-btn.active {
     <button id="agentSettingsBtn" onclick="toggleAgentSettings()" title="Configure LLM Agents" class="theme-toggle-btn">
       🤖 <span style="font-size:11px; font-weight:700; color:var(--text)">Agents</span>
     </button>
-    <div id="agentSettingsPopover" class="agent-popover" style="display:none; position:absolute; top:60px; right:150px; width:280px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px; box-shadow:0 10px 30px rgba(0,0,0,0.5); z-index:10000; backdrop-filter:blur(10px); flex-direction:column; gap:12px; text-align:left">
+    <div id="agentSettingsPopover" class="agent-popover" style="display:none; position:absolute; top:60px; right:150px; width:330px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px; box-shadow:0 10px 30px rgba(0,0,0,0.5); z-index:10000; backdrop-filter:blur(10px); flex-direction:column; gap:12px; text-align:left">
       <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:var(--text); border-bottom:1px solid var(--border); padding-bottom:8px; display:flex; align-items:center; gap:6px">🤖 Global LLM Orchestration</div>
-      <div style="display:flex; flex-direction:column; gap:4px">
+      <div class="agent-config-group" style="display:flex; flex-direction:column; gap:4px">
         <label style="font-size:9.5px; color:var(--muted); text-transform:uppercase; font-weight:700">🔵 Bullish Analyst Agent</label>
-        <select id="pop_bull_model" class="f-inp f-inp-wide" style="font-size:11.5px; padding:6px 10px; width:100%; font-weight:600; background:var(--card); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md)" onchange="savePopoverSettings()">
-          <option value="gemini/gemini-2.0-flash">Gemini 2.0 Flash (Recommended)</option>
-          <option value="gemini/gemini-2.5-flash">Gemini 2.5 Flash</option>
-          <option value="openai/gpt-4o-mini">GPT-4o-mini</option>
-          <option value="anthropic/claude-3-5-haiku">Claude 3.5 Haiku</option>
-        </select>
+        <div style="display:flex; gap:8px; align-items:stretch">
+          <select id="bull-model-select" class="f-inp" style="flex:1; font-size:11.5px; padding:6px 10px; font-weight:600; background:var(--card); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md); text-align:left" onchange="savePopoverSettings()">
+            <option value="gemini/gemini-2.0-flash">Gemini 2.0 Flash (Recommended)</option>
+            <option value="gemini/gemini-2.5-flash">Gemini 2.5 Flash</option>
+            <option value="openai/gpt-4o-mini">GPT-4o-mini</option>
+            <option value="anthropic/claude-3-5-haiku">Claude 3.5 Haiku</option>
+          </select>
+          <input type="number" id="bull-temp-input" class="f-inp" min="0" max="1" step="0.1" value="0.4" title="Temperature (0–1)" style="width:62px; padding:6px 8px; text-align:center; font-size:11.5px; background:var(--card); border:1px solid var(--green); color:var(--text); border-radius:var(--radius-md)" onchange="savePopoverSettings()">
+        </div>
       </div>
-      <div style="display:flex; flex-direction:column; gap:4px">
+      <div class="agent-config-group" style="display:flex; flex-direction:column; gap:4px">
         <label style="font-size:9.5px; color:var(--muted); text-transform:uppercase; font-weight:700">🔴 Bearish Risk Agent</label>
-        <select id="pop_bear_model" class="f-inp f-inp-wide" style="font-size:11.5px; padding:6px 10px; width:100%; font-weight:600; background:var(--card); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md)" onchange="savePopoverSettings()">
-          <option value="gemini/gemini-2.0-flash">Gemini 2.0 Flash (Recommended)</option>
-          <option value="gemini/gemini-2.5-flash">Gemini 2.5 Flash</option>
-          <option value="openai/gpt-4o-mini">GPT-4o-mini</option>
-          <option value="anthropic/claude-3-5-haiku">Claude 3.5 Haiku</option>
-        </select>
+        <div style="display:flex; gap:8px; align-items:stretch">
+          <select id="bear-model-select" class="f-inp" style="flex:1; font-size:11.5px; padding:6px 10px; font-weight:600; background:var(--card); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md); text-align:left" onchange="savePopoverSettings()">
+            <option value="gemini/gemini-2.0-flash">Gemini 2.0 Flash (Recommended)</option>
+            <option value="gemini/gemini-2.5-flash">Gemini 2.5 Flash</option>
+            <option value="openai/gpt-4o-mini">GPT-4o-mini</option>
+            <option value="anthropic/claude-3-5-haiku">Claude 3.5 Haiku</option>
+          </select>
+          <input type="number" id="bear-temp-input" class="f-inp" min="0" max="1" step="0.1" value="0.4" title="Temperature (0–1)" style="width:62px; padding:6px 8px; text-align:center; font-size:11.5px; background:var(--card); border:1px solid var(--red); color:var(--text); border-radius:var(--radius-md)" onchange="savePopoverSettings()">
+        </div>
       </div>
-      <div style="display:flex; flex-direction:column; gap:4px">
+      <div class="agent-config-group" style="display:flex; flex-direction:column; gap:4px">
         <label style="font-size:9.5px; color:var(--muted); text-transform:uppercase; font-weight:700">⚖️ Chief Investment Judge</label>
-        <select id="pop_judge_model" class="f-inp f-inp-wide" style="font-size:11.5px; padding:6px 10px; width:100%; font-weight:600; background:var(--card); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md)" onchange="savePopoverSettings()">
-          <option value="gemini/gemini-2.5-pro">Gemini 2.5 Pro (Recommended)</option>
-          <option value="gemini/gemini-2.0-flash">Gemini 2.0 Flash</option>
-          <option value="openai/gpt-4o">GPT-4o</option>
-          <option value="anthropic/claude-3-5-sonnet">Claude 3.5 Sonnet</option>
-        </select>
+        <div style="display:flex; gap:8px; align-items:stretch">
+          <select id="judge-model-select" class="f-inp" style="flex:1; font-size:11.5px; padding:6px 10px; font-weight:600; background:var(--card); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md); text-align:left" onchange="savePopoverSettings()">
+            <option value="gemini/gemini-2.5-pro">Gemini 2.5 Pro (Recommended)</option>
+            <option value="gemini/gemini-2.0-flash">Gemini 2.0 Flash</option>
+            <option value="openai/gpt-4o">GPT-4o</option>
+            <option value="anthropic/claude-3-5-sonnet">Claude 3.5 Sonnet</option>
+          </select>
+          <input type="number" id="judge-temp-input" class="f-inp" min="0" max="1" step="0.1" value="0.2" title="Temperature (0–1)" style="width:62px; padding:6px 8px; text-align:center; font-size:11.5px; background:var(--card); border:1px solid var(--blue); color:var(--text); border-radius:var(--radius-md)" onchange="savePopoverSettings()">
+        </div>
       </div>
-      <div style="font-size:9px; color:var(--muted); line-height:1.4">Select your global LLMs. They will automatically coordinate and run the virtual debate on any stock card in your Analysis tab.</div>
+      <div style="font-size:9px; color:var(--muted); line-height:1.4">Select your global LLMs and per-agent temperature (0 = focused, 1 = creative). They coordinate and run the virtual debate on any stock card in your Analysis tab.</div>
     </div>
     <button id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Light/Dark Mode" class="theme-toggle-btn">
       <svg class="sun-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1227,7 +1267,7 @@ body.light-theme .analytics-subtab-btn.active {
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
         </svg>
       </span>
-      <span class="btn-text">Scan Now</span>
+      <span class="btn-text">Scan</span>
     </button>
   </div>
 </header>
@@ -1531,7 +1571,7 @@ body.light-theme .analytics-subtab-btn.active {
   </div>
   <div class="sec-body">
   <div class="actions-grid" id="actionsGrid">
-    <div class="empty"><div class="empty-sub">Hit <b>Scan Now</b> to load today's actions.</div></div>
+    <div class="empty"><div class="empty-sub">Hit <b>Scan</b> to load today's actions.</div></div>
   </div>
   </div>
   </div>
@@ -1559,7 +1599,7 @@ body.light-theme .analytics-subtab-btn.active {
     <div class="empty">
       <div class="empty-icon">📭</div>
       <div class="empty-title">No setups yet</div>
-      <div class="empty-sub">Click <b>Scan Now</b> or run <code>python server.py</code></div>
+      <div class="empty-sub">Click <b>Scan</b> or run <code>python server.py</code></div>
     </div>
   </div>
   </div>
@@ -1704,27 +1744,7 @@ body.light-theme .analytics-subtab-btn.active {
   </div>
   </div>
 
-  <!-- Chart Analysis Checklist -->
-  <div id="sec_chart_checklist">
-  <div class="tab-section-head">
-    <span style="display:flex;align-items:center;gap:6px">
-      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--orange)">
-        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-        <line x1="9" y1="9" x2="15" y2="9"></line>
-        <line x1="9" y1="13" x2="15" y2="13"></line>
-        <line x1="9" y1="17" x2="11" y2="17"></line>
-      </svg>
-      Chart Analysis Checklist <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">Before Entry — validate each stock</small>
-    </span>
-    <div style="display:flex;align-items:center;gap:8px">
-      <span class="pill" id="caChecklistPill">8 checks</span>
-      <button class="sec-toggle" onclick="toggleSection('sec_chart_checklist')" title="Expand / Shrink"><span class="chevron">▼</span></button>
-    </div>
-  </div>
-  <div class="sec-body">
-  <div class="cli-list" id="caChecklist"></div>
-  </div>
-  </div>
+
 
   <!-- Per-Stock Chart Validation -->
   <div id="sec_chart_validate">
@@ -1745,7 +1765,7 @@ body.light-theme .analytics-subtab-btn.active {
     <div class="empty" style="padding:30px 20px">
       <div class="empty-icon">📊</div>
       <div class="empty-title">No stocks to validate</div>
-      <div class="empty-sub">Run <b>Scan Now</b> in Watchlist first, then come here to validate each stock's chart</div>
+      <div class="empty-sub">Run <b>Scan</b> in Watchlist first, then come here to validate each stock's chart</div>
     </div>
   </div>
   </div>
@@ -1788,7 +1808,7 @@ body.light-theme .analytics-subtab-btn.active {
   </div>
   <div class="sec-body">
   <div class="stock-sel-bar" id="stockSelBar">
-    <span style="color:var(--muted);font-size:12px">No scanned stocks — run Scan Now first</span>
+    <span style="color:var(--muted);font-size:12px">No scanned stocks — run Scan first</span>
   </div>
   </div>
   </div>
@@ -1946,10 +1966,10 @@ body.light-theme .analytics-subtab-btn.active {
       <div class="tab-sub">Active positions, performance tracking, trade journal, and edge metrics.</div>
     </div>
     <div class="watchlist-schedule-panel" style="display:inline-flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-size:12px; height:fit-content; margin-top:5px;">
-      <span style="color:var(--muted); font-weight:600;">⏰ Daily Watchlist Maintenance:</span>
+      <span style="color:var(--muted); font-weight:600;">⏰ Keep & refresh Scan:</span>
       <input type="time" id="maintenanceTime" value="08:30" style="background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:3px 6px; color:var(--text); font-size:12px; width:80px; outline:none; font-family:monospace; border-color:var(--border);" />
       <button class="ca-btn pine" onclick="setMaintenanceSchedule()" style="font-size:11px; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:700;">Set Time</button>
-      <button class="ca-btn pine" onclick="triggerMaintenanceNow()" style="font-size:11px; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:700; background:rgba(59,130,246,0.12); color:var(--blue); border-color:rgba(59,130,246,0.3);" title="Run morning maintenance script immediately for OPEN watchlist candidates">⚡ Run Now</button>
+      <button class="ca-btn pine" onclick="triggerMaintenanceNow()" style="font-size:11px; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:700; background:rgba(59,130,246,0.12); color:var(--blue); border-color:rgba(59,130,246,0.3);" title="Run Keep & refresh Scan immediately for OPEN watchlist candidates">⚡ Run Now</button>
     </div>
   </div>
 
@@ -1976,6 +1996,27 @@ body.light-theme .analytics-subtab-btn.active {
     <div class="empty" style="padding:30px 20px">
       <div class="empty-sub">Loading watchlist…</div>
     </div>
+  </div>
+
+  <!-- ── PRUNED CANDIDATES — terminally invalidated, kept for the record ── -->
+  <div id="prunedSection" class="pruned-section" style="display:none;margin-top:28px">
+    <div class="tab-head" style="border-top:1px solid var(--border,#2a2a2a);padding-top:18px">
+      <div>
+        <h3 style="display:flex;align-items:center;gap:8px;margin:0;color:var(--muted,#9aa)">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+               stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+          </svg>
+          Pruned from Analysis
+          <span id="prunedPill" class="news-tag" style="font-size:11px"></span>
+        </h3>
+        <div class="tab-sub" style="color:var(--muted,#9aa)">
+          Thesis terminally invalidated (trend broke, or a false breakout already fired).
+          These are kept for the record — restore one only if it sets up cleanly again.
+        </div>
+      </div>
+    </div>
+    <div id="prunedList" class="pruned-list"></div>
   </div>
   </div>
   </div>
@@ -6227,6 +6268,68 @@ function renderWatchlist(r) {
     : "";
 
   wrap.innerHTML = summary + setups + watchlistBlock + activeBlock + closedBlock;
+
+  // Pruned (terminally invalidated) candidates render in their own section below.
+  renderPrunedSection();
+}
+
+/* ── Pruned-from-Analysis section ────────────────────────── */
+function _esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
+
+async function renderPrunedSection(){
+  const section = document.getElementById("prunedSection");
+  const list    = document.getElementById("prunedList");
+  const pill    = document.getElementById("prunedPill");
+  if(!section || !list) return;
+
+  let pruned = [];
+  try{
+    const json = await apiFetch("/api/positions/pruned");
+    pruned = json.pruned || [];
+  }catch(e){
+    console.error("[pruned] fetch failed", e);
+    return;
+  }
+
+  // Hide the whole section when there is nothing pruned.
+  if(!pruned.length){ section.style.display = "none"; return; }
+  section.style.display = "block";
+  if(pill) pill.textContent = `${pruned.length} removed`;
+
+  list.innerHTML = pruned.map(p => {
+    const sym    = _esc(p.Symbol || p.symbol || "?");
+    const reason = _esc(p.Prune_Reason || "Thesis invalidated.");
+    const date   = _esc(p.Prune_Date || "");
+    return `
+      <div class="pruned-card" data-sym="${sym}">
+        <div class="pc-left">
+          <span class="pc-sym">${sym}</span>
+          <span class="pc-reason">${reason}</span>
+          ${date ? `<span class="pc-date">Pruned ${date}</span>` : ""}
+        </div>
+        <button class="pc-restore" onclick="restorePruned('${sym}')">Restore</button>
+      </div>`;
+  }).join("");
+}
+
+async function restorePruned(symbol){
+  try{
+    const json = await apiFetch("/api/positions/restore", {
+      method:"POST",
+      body: JSON.stringify({symbol})
+    });
+    if(json.status === "ok"){
+      if(typeof toast === "function") toast(`${symbol} restored to analysis`, "success");
+      renderPrunedSection();
+      // Refresh the main watchlist/analysis list.
+      if(typeof loadPositions === "function") loadPositions();
+    }else{
+      if(typeof toast === "function") toast(json.message || "Restore failed", "error");
+    }
+  }catch(e){
+    console.error("[pruned] restore failed", e);
+    if(typeof toast === "function") toast("Restore failed", "error");
+  }
 }
 
 /* ── Full render from data object ────────────────────────── */
@@ -6282,7 +6385,7 @@ async function runScan() {
   } finally {
     btn.disabled = false;
     btn.classList.remove("loading");
-    btn.querySelector(".btn-text").textContent = "Scan Now";
+    btn.querySelector(".btn-text").textContent = "Scan";
   }
 }
 
@@ -6339,7 +6442,7 @@ async function setMaintenanceSchedule() {
     });
     if (r && r.status === "ok") {
       window._maintenanceTime = r.time;
-      toast(`Watchlist maintenance scheduled for ${r.time} IST`, "success");
+      toast(`Keep & refresh Scan scheduled for ${r.time} IST`, "success");
     } else {
       toast(r.message || "Failed to update schedule", "error");
     }
@@ -6351,13 +6454,13 @@ async function setMaintenanceSchedule() {
 
 async function triggerMaintenanceNow() {
   if (!BASE) return;
-  toast("⚡ Running morning watchlist maintenance... Please wait.", "info", 60000);
+  toast("⚡ Running Keep & refresh Scan... Please wait.", "info", 60000);
   try {
     const r = await apiFetch("/api/schedule/maintenance/run", {
       method: "POST"
     });
     // Remove the long running notification and show results
-    toast("Watchlist maintenance complete!", "success", 3000);
+    toast("Keep & refresh Scan complete!", "success", 3000);
     if (r && r.status === "success") {
       const keptCount = r.kept ? r.kept.length : 0;
       const delCount = r.deleted ? r.deleted.length : 0;
@@ -6371,11 +6474,11 @@ async function triggerMaintenanceNow() {
       // Reload positions to update table view in real-time
       loadPositions();
     } else {
-      toast(r.message || "Maintenance completed with warnings", "warn");
+      toast(r.message || "Keep & refresh Scan completed with warnings", "warn");
     }
   } catch (err) {
-    console.error("Manual maintenance run failed:", err);
-    toast("Watchlist maintenance failed or timed out", "error");
+    console.error("Manual Keep & refresh Scan failed:", err);
+    toast("Keep & refresh Scan failed or timed out", "error");
   }
 }
 
@@ -6480,8 +6583,18 @@ async function saveManualOverrides(symbol, btn) {
 let _debateConfig = {
   bull_model: "gemini/gemini-1.5-flash",
   bear_model: "gemini/gemini-1.5-flash",
-  judge_model: "gemini/gemini-1.5-pro"
+  judge_model: "gemini/gemini-1.5-pro",
+  bull_temp: 0.4,
+  bear_temp: 0.4,
+  judge_temp: 0.2
 };
+
+/* Clamp a temperature input value to [0,1], falling back to a default on NaN. */
+function _readTemp(id, fallback) {
+  const v = parseFloat(document.getElementById(id)?.value);
+  if (Number.isNaN(v)) return fallback;
+  return Math.min(1, Math.max(0, v));
+}
 
 async function loadDebateConfig() {
   if (!BASE) return;
@@ -6492,14 +6605,25 @@ async function loadDebateConfig() {
       _debateConfig.bull_model = `${c.bull_agent?.provider}/${c.bull_agent?.model}`;
       _debateConfig.bear_model = `${c.bear_agent?.provider}/${c.bear_agent?.model}`;
       _debateConfig.judge_model = `${c.judge_agent?.provider}/${c.judge_agent?.model}`;
-      
-      const bullSelect = document.getElementById("pop_bull_model");
-      const bearSelect = document.getElementById("pop_bear_model");
-      const judgeSelect = document.getElementById("pop_judge_model");
-      
+      _debateConfig.bull_temp = c.bull_agent?.temperature ?? 0.4;
+      _debateConfig.bear_temp = c.bear_agent?.temperature ?? 0.4;
+      _debateConfig.judge_temp = c.judge_agent?.temperature ?? 0.2;
+
+      const bullSelect = document.getElementById("bull-model-select");
+      const bearSelect = document.getElementById("bear-model-select");
+      const judgeSelect = document.getElementById("judge-model-select");
+
       if (bullSelect) bullSelect.value = _debateConfig.bull_model;
       if (bearSelect) bearSelect.value = _debateConfig.bear_model;
       if (judgeSelect) judgeSelect.value = _debateConfig.judge_model;
+
+      const bullTemp = document.getElementById("bull-temp-input");
+      const bearTemp = document.getElementById("bear-temp-input");
+      const judgeTemp = document.getElementById("judge-temp-input");
+
+      if (bullTemp) bullTemp.value = _debateConfig.bull_temp;
+      if (bearTemp) bearTemp.value = _debateConfig.bear_temp;
+      if (judgeTemp) judgeTemp.value = _debateConfig.judge_temp;
     }
   } catch (err) {
     console.warn("Debate config load failed:", err);
@@ -6507,28 +6631,31 @@ async function loadDebateConfig() {
 }
 
 async function savePopoverSettings() {
-  _debateConfig.bull_model = document.getElementById("pop_bull_model").value;
-  _debateConfig.bear_model = document.getElementById("pop_bear_model").value;
-  _debateConfig.judge_model = document.getElementById("pop_judge_model").value;
-  
+  _debateConfig.bull_model = document.getElementById("bull-model-select").value;
+  _debateConfig.bear_model = document.getElementById("bear-model-select").value;
+  _debateConfig.judge_model = document.getElementById("judge-model-select").value;
+  _debateConfig.bull_temp = _readTemp("bull-temp-input", 0.4);
+  _debateConfig.bear_temp = _readTemp("bear-temp-input", 0.4);
+  _debateConfig.judge_temp = _readTemp("judge-temp-input", 0.2);
+
   if (!BASE) return;
-  
+
   try {
     const payload = {
       bull_agent: {
         provider: _debateConfig.bull_model.split("/")[0],
         model: _debateConfig.bull_model.split("/")[1],
-        temperature: 0.4
+        temperature: _debateConfig.bull_temp
       },
       bear_agent: {
         provider: _debateConfig.bear_model.split("/")[0],
         model: _debateConfig.bear_model.split("/")[1],
-        temperature: 0.4
+        temperature: _debateConfig.bear_temp
       },
       judge_agent: {
         provider: _debateConfig.judge_model.split("/")[0],
         model: _debateConfig.judge_model.split("/")[1],
-        temperature: 0.2
+        temperature: _debateConfig.judge_temp
       }
     };
     
@@ -6635,16 +6762,31 @@ async function loadDebateData(symbol, force = false) {
   }, 2500);
   
   try {
+    // Read model + temperature live from the config fields, sent as a nested override_config.
+    const _sel = id => (document.getElementById(id)?.value || "");
+    const _prov = v => v.split("/")[0];
+    const _mdl = v => v.split("/")[1] || v;
     const res = await apiFetch(`/api/debate/${symbol}`, {
       method: "POST",
       body: JSON.stringify({
-        bull_provider: _debateConfig.bull_model.split("/")[0],
-        bull_model: _debateConfig.bull_model.split("/")[1],
-        bear_provider: _debateConfig.bear_model.split("/")[0],
-        bear_model: _debateConfig.bear_model.split("/")[1],
-        judge_provider: _debateConfig.judge_model.split("/")[0],
-        judge_model: _debateConfig.judge_model.split("/")[1],
-        force_refresh: force
+        force_refresh: force,
+        override_config: {
+          bull_agent: {
+            provider: _prov(_sel("bull-model-select")),
+            model: _mdl(_sel("bull-model-select")),
+            temperature: _readTemp("bull-temp-input", 0.4)
+          },
+          bear_agent: {
+            provider: _prov(_sel("bear-model-select")),
+            model: _mdl(_sel("bear-model-select")),
+            temperature: _readTemp("bear-temp-input", 0.4)
+          },
+          judge_agent: {
+            provider: _prov(_sel("judge-model-select")),
+            model: _mdl(_sel("judge-model-select")),
+            temperature: _readTemp("judge-temp-input", 0.2)
+          }
+        }
       })
     });
     clearInterval(statusInterval);
@@ -7401,7 +7543,7 @@ function loadPreset(name) {
   if (!presets[name]) { toast(`Preset "${name}" not found`, "error"); return; }
   setFilters(presets[name]);
   markFiltersDirty();
-  toast(`Loaded "${name}" — click Scan Now to apply`, "info");
+  toast(`Loaded "${name}" — click Scan to apply`, "info");
 }
 
 async function deletePreset() {
@@ -7676,16 +7818,7 @@ const CHECKLIST_ITEMS = {
     "Determine market bias: bullish / bearish / neutral",
     "Re-check watchlist — still aligned with market direction?",
   ],
-  chart: [
-    "Check weekly chart first — confirm key S/R zones",
-    "Switch to daily — confirm trend direction",
-    "Identify pattern: flat base / bull flag / ascending triangle",
-    "Base should be 5–15 days long (longer = more powerful)",
-    "Check sector index — is the sector also trending up?",
-    "Confirm RSI: no bearish divergence, not overbought (>75)",
-    "Stock not in F&O ban list (NSE updates daily)",
-    "No upcoming results / dividend / ex-date within 5 days",
-  ],
+
   entry: [
     "Calculate risk per share: Entry price − Stop-loss price",
     "Position size: Max 1–2% of total capital at risk per trade",
@@ -7761,12 +7894,29 @@ function switchTab(tabId) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tabId));
   try { localStorage.setItem(LS_ACTIVE_TAB_KEY, tabId); } catch {}
   // Trigger tab-specific refresh
-  if (tabId === "analysis")   { renderBiasBuilder(); renderChartAnalysis(); renderCAChecklist(); renderStockValidation(); }
+  if (tabId === "analysis")   { renderBiasBuilder(); renderChartAnalysis(); renderStockValidation(); }
   if (tabId === "trading")    { renderEntryGates(); renderEntryChecklist(); renderStockSelector(); recalcPosSize(); recalcTrail(); }
   if (tabId === "portfolio")  { loadPositions(); renderReviewMetrics(); renderJournalList(); loadMaintenanceSchedule(); }
   if (tabId === "analytics")  { loadPositions(); }
   // Scroll to top of tab
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function sendToSizer(symbol) {
+  switchTab('trading');
+  fetchPlanForSymbol(symbol);
+  
+  // Add minor flash pulse animation to calculator and scroll to it
+  setTimeout(() => {
+    const calcBox = document.getElementById("tc_pos_sizer");
+    if (calcBox) {
+      calcBox.scrollIntoView({ behavior: "smooth", block: "center" });
+      calcBox.classList.add("pulse-active");
+      setTimeout(() => {
+        calcBox.classList.remove("pulse-active");
+      }, 1500);
+    }
+  }, 150);
 }
 
 function restoreActiveTab() {
@@ -7863,7 +8013,7 @@ function renderChartAnalysis() {
     list.innerHTML = `<div class="empty" style="padding:30px 20px">
       <div class="empty-icon">📭</div>
       <div class="empty-title">No scanned stocks</div>
-      <div class="empty-sub">Run <b>Scan Now</b> in Watchlist Building first</div>
+      <div class="empty-sub">Run <b>Scan</b> in Watchlist Building first</div>
     </div>`;
     return;
   }
@@ -8340,6 +8490,22 @@ async function fetchPlanForSymbol(symbol) {
     const j = await r.json();
     if (!r.ok || j.status === "error") throw new Error(j.message || `HTTP ${r.status}`);
     renderPlanCard(j);
+
+    // Auto-fill calculator parameters
+    const entryPrice = j.entry_min || j.price || 0;
+    if (document.getElementById("ps_entry")) document.getElementById("ps_entry").value  = entryPrice;
+    if (document.getElementById("ps_sl")) document.getElementById("ps_sl").value     = j.sl || 0;
+    if (document.getElementById("ps_target")) document.getElementById("ps_target").value = j.target_2 || j.target_1 || 0;
+    if (typeof recalcPosSize === "function") recalcPosSize();
+
+    if (document.getElementById("ts_entry")) document.getElementById("ts_entry").value = entryPrice;
+    if (document.getElementById("ts_sl")) document.getElementById("ts_sl").value    = j.sl || 0;
+    if (document.getElementById("ts_cur")) document.getElementById("ts_cur").value   = j.price || entryPrice;
+    if (typeof recalcTrail === "function") recalcTrail();
+
+    _selectedTradeStock = j;
+    if (typeof renderEntryChecklist === "function") renderEntryChecklist();
+    if (typeof renderStockSelector === "function") renderStockSelector();
   } catch (e) {
     status.textContent = `Could not fetch ${sym}: ${e.message}`;
     status.style.color = "var(--red)";
@@ -8508,34 +8674,7 @@ function renderReviewMetrics() {
   holdEl.textContent = `${avgHold.toFixed(1)}`;
 }
 
-/* ══════════════════════════════════════════════════════════
-   CHART ANALYSIS — Interactive Checklist (ca1-ca8)
-   ══════════════════════════════════════════════════════════ */
 
-function renderCAChecklist() {
-  const cont = document.getElementById("caChecklist");
-  if (!cont) return;
-  const items = CHECKLIST_ITEMS.chart || [];
-  const pill  = document.getElementById("caChecklistPill");
-  const done  = items.filter((_, i) => !!_checkedItems[`chart_${i}`]).length;
-  if (pill) pill.textContent = `${done}/${items.length} done`;
-  cont.innerHTML = items.map((text, i) => {
-    const key = `chart_${i}`;
-    const isDone = !!_checkedItems[key];
-    return `<div class="cli-item ${isDone?"done":""}" data-key="${key}" onclick="toggleCli('${key}',this);updateCAChecklistPill()">
-      <div class="cli-check"></div>
-      <span class="cli-num">${String(i+1).padStart(2,"0")}</span>
-      <span class="cli-text">${text}</span>
-    </div>`;
-  }).join("");
-}
-
-function updateCAChecklistPill() {
-  const items = CHECKLIST_ITEMS.chart || [];
-  const done  = items.filter((_, i) => !!_checkedItems[`chart_${i}`]).length;
-  const pill  = document.getElementById("caChecklistPill");
-  if (pill) pill.textContent = `${done}/${items.length} done`;
-}
 
 /* ══════════════════════════════════════════════════════════
    CHART ANALYSIS — Per-Stock Validation Matrix
@@ -8566,61 +8705,67 @@ function evaluateGates(s) {
     return m.length ? m[0] : null;
   };
   const gates = [];
-  const add = (num, name, fail, reason) => gates.push({ num, name, pass: !fail, reason: fail ? reason : null });
+  const add = (num, name, fail, reason, value) => gates.push({ num, name, pass: !fail, reason: fail ? reason : null, value: value != null ? String(value) : "—" });
 
   // 1 · Status — ON_HOLD on fundamental or live status
   const onHoldFund = (s.fundamental_status || "").toUpperCase() === "ON_HOLD";
   const onHoldLive = (s.live_status || "").toUpperCase() === "ON_HOLD";
   add(1, "Status", onHoldFund || onHoldLive,
-    onHoldFund ? "Fundamental status ON_HOLD" : "Live status ON_HOLD");
+    onHoldFund ? "Fundamental status ON_HOLD" : "Live status ON_HOLD",
+    `Fund: ${s.fundamental_status || "—"} · Live: ${s.live_status || "—"}`);
 
   // 2 · Weekly trend — bearish
   const wt = (s.weekly_trend || "BULLISH").toUpperCase();
   const wtReason = hit(["weekly trend", "bearish weekly"]);
   add(2, "Weekly trend", wt === "BEARISH" || !!wtReason,
-    wtReason || "Bearish weekly trend");
+    wtReason || "Bearish weekly trend", wt);
 
   // 3 · Fundamentals — weakness flagged
   const fundReason = hit(["fundamental", "negative eps", "negative pe", "weak roe", "ebitda", "earnings weak"]);
   const fundStatusBad = ["REJECTED", "WEAK", "FAIL"].includes((s.fundamental_status || "").toUpperCase());
   add(3, "Fundamentals", !!fundReason || fundStatusBad,
-    fundReason || "Fundamental weakness flagged");
+    fundReason || "Fundamental weakness flagged", s.fundamental_status || "—");
 
   // 4 · Institutional — distribution detected
-  let instFail = false, instReason = null;
+  let instFail = false, instReason = null, instVal = "No data";
   if (s.shareholding && s.shareholding.status === "success") {
     const sh = s.shareholding;
     const cls = (sh.classification || "NEUTRAL").toUpperCase();
     const sc = sh.consensus_score !== undefined ? sh.consensus_score : 0;
+    instVal = `${cls} (${sc >= 0 ? "+" : ""}${sc})`;
     if (cls === "DISTRIBUTION" || sc <= -3.0) { instFail = true; instReason = "Institutional distribution (" + sc + ")"; }
   }
   if (!instFail) { const r = hit(["distribution"]); if (r) { instFail = true; instReason = r; } }
-  add(4, "Institutional", instFail, instReason);
+  add(4, "Institutional", instFail, instReason, instVal);
 
   // 5 · Liquidity — below min turnover/volume
   const liqReason = hit(["liquidity", "turnover", "illiquid", "below min", "volume too low"]);
-  add(5, "Liquidity", !!liqReason, liqReason || "Below minimum liquidity");
+  add(5, "Liquidity", !!liqReason, liqReason || "Below minimum liquidity",
+    liqReason ? "Below min" : "OK");
 
   // 6 · Overextension — 20d return > 25%
   const r20 = parseFloat(s.return_20d);
   const overext = !isNaN(r20) && r20 > 25;
-  add(6, "Overextension", overext, "Overextended (+" + (isNaN(r20) ? "?" : r20.toFixed(1)) + "% in 20d)");
+  add(6, "Overextension", overext, "Overextended (+" + (isNaN(r20) ? "?" : r20.toFixed(1)) + "% in 20d)",
+    isNaN(r20) ? "—" : `${r20 >= 0 ? "+" : ""}${r20.toFixed(1)}% / 20d`);
 
   // 7 · Debate verdict — adversarial debate = SKIP
   const verdict = (s.verdict || "").toUpperCase();
   const dverdict = (s.debate_verdict || (s.debate && s.debate.verdict) || "").toUpperCase();
   add(7, "Debate verdict", verdict === "SKIP" || dverdict === "SKIP" || dverdict === "AVOID",
-    "Adversarial debate verdict: SKIP");
+    "Adversarial debate verdict: SKIP", dverdict || verdict || "—");
 
   // 8 · Data freshness — older than 1 trading day
-  add(8, "Data freshness", isDataStale(s), "Stale data (older than 1 trading day)");
+  add(8, "Data freshness", isDataStale(s), "Stale data (older than 1 trading day)",
+    isDataStale(s) ? "Stale" : "Fresh");
 
   // 9 · Sector × Nifty regime — RED sector / rotation-trap / hard-skip cell
   const rm = s.regime_multiplier;
   const hardSkip = rm !== undefined && parseFloat(rm) === 0;
   const regReason = hit(["rotation trap", "sector rotation", "sector red", "hard skip", "regime block"]);
   add(9, "Sector × Nifty regime", hardSkip || !!regReason,
-    regReason || "Sector rotation trap (Nifty / sector regime block)");
+    regReason || "Sector rotation trap (Nifty / sector regime block)",
+    rm !== undefined ? `${parseFloat(rm).toFixed(2)}×` : "—");
 
   const failedGates = gates.filter(g => !g.pass);
   return {
@@ -8822,12 +8967,27 @@ function isDataStale(s) {
   if (s.is_default) return true;
   const dateStr = s.scan_date || s.date || window._scanDate;
   if (dateStr) {
-    const scanTime = new Date(dateStr).getTime();
-    const nowTime = new Date().getTime();
-    const diffDays = (nowTime - scanTime) / (1000 * 60 * 60 * 24);
-    const scanDay = new Date(dateStr).getDay(); // 0: Sun, 5: Fri, 6: Sat
-    const maxDiff = (scanDay === 5) ? 3.2 : 1.2;
-    if (diffDays > maxDiff) return true;
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // 0-indexed
+      const day = parseInt(parts[2], 10);
+      
+      const scanDate = new Date(year, month, day);
+      const scanDay = scanDate.getDay(); // 0: Sun, 5: Fri, 6: Sat
+      
+      // Calculate current date at midnight local time
+      const now = new Date();
+      const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      // Difference in days (rounded to nearest integer)
+      const diffDays = Math.round((todayMidnight.getTime() - scanDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Friday scan remains valid Monday (3 days). Other scans valid 1 day.
+      const maxDiff = (scanDay === 5) ? 3 : 1;
+      
+      if (diffDays > maxDiff) return true;
+    }
   }
   return false;
 }
@@ -8876,7 +9036,7 @@ function renderStockValidation() {
     grid.innerHTML = `<div class="empty" style="padding:30px 20px">
       <div class="empty-icon">📊</div>
       <div class="empty-title">No stocks to validate</div>
-      <div class="empty-sub">Run <b>Scan Now</b> in Watchlist first</div>
+      <div class="empty-sub">Run <b>Scan</b> in Watchlist first</div>
     </div>`;
     return;
   }
@@ -8935,6 +9095,7 @@ function renderStockValidation() {
       `<div class="ca-gate-item ${g.pass ? "pass" : "fail"}">
         <span class="gi-dot ${g.pass ? "pass" : "fail"}"></span>
         <span class="gi-name">${g.num}. ${g.name}</span>
+        <span class="gi-value">${g.value || "—"}</span>
         ${g.pass ? "" : `<span class="gi-reason">${g.reason || "Failed"}</span>`}
       </div>`
     ).join("");
@@ -8992,6 +9153,9 @@ function renderStockValidation() {
             <button onclick="removeStockFromWatchlist('${s.symbol}')" title="Remove from watchlist" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:2px;border-radius:4px;line-height:1">🗑️</button>
           </div>
           <div style="font-size:11px;color:var(--muted)">${s.name || s.symbol}</div>
+          <div style="font-size:9.5px;color:var(--muted);margin-top:4.5px;display:flex;align-items:center;gap:3px" title="The date when this stock setup was first identified and added to the analysis view.">
+            <span>📅</span> First Scanned: <b>${s.entry_date || new Date().toISOString().slice(0, 10)}</b>
+          </div>
           ${s.index_membership && s.index_membership.length ? `
             <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px">
               ${s.index_membership.map(idx => `<span class="tag t-index" style="font-size:9px;padding:1px 5px">${idx}</span>`).join("")}
@@ -9046,14 +9210,29 @@ function renderStockValidation() {
         </div>
       </div>
 
-      <div class="ca-vcard-foot">
-        ${item.blocked
-          ? `<span class="ca-score weak" title="Failed gate(s): ${item.reasons.join('; ')}">⚠️ Blocked by safety gate</span>`
-          : `<span class="ca-score ${item.tier.cls === "inelig" ? "weak" : item.tier.cls}" title="Quality Score ${item.score}/100 · ${item.tier.label} (${item.tier.mult} conviction)">Eligible · ${item.tier.label}</span>`
-        }
-        <div style="display:flex;gap:6px">
-          <button class="ca-btn" onclick="selectStockForTrading(${item.originalIdx})" style="font-size:10px;padding:4px 8px;background:var(--blue-bg);color:var(--blue);border-color:var(--blue)">→ Trading</button>
+      <div class="ca-vcard-foot" style="display:flex; flex-direction:column; align-items:stretch; gap:8px">
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%">
+          ${item.blocked
+            ? `<span class="ca-score weak" title="Failed gate(s): ${item.reasons.join('; ')}">⚠️ Blocked by safety gate</span>`
+            : `<span class="ca-score ${item.tier.cls === "inelig" ? "weak" : item.tier.cls}" title="Quality Score ${item.score}/100 · ${item.tier.label} (${item.tier.mult} conviction)">Eligible · ${item.tier.label}</span>`
+          }
         </div>
+        <button class="ca-btn" onclick="sendToSizer('${s.symbol}')" style="font-size:11.5px; padding:8px 12px; background:var(--blue-bg); color:var(--blue); border-color:var(--blue); font-weight:700; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; width:100%; border-radius:8px; transition:all 0.15s; box-shadow:0 2px 8px rgba(59,130,246,0.12)" onmouseover="this.style.background='var(--blue)';this.style.color='#ffffff'" onmouseout="this.style.background='var(--blue-bg)';this.style.color='var(--blue)'">
+          <div style="display:flex; align-items:center; gap:6px">
+            <span>📐 Size & Plan Trade</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width:12px;height:12px">
+              <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div style="font-size:9.5px; font-weight:500; opacity:0.85; display:flex; gap:6px; flex-wrap:wrap; justify-content:center">
+            <span>SL: ₹${fmtP(s.sl || 0)}</span> · 
+            <span>T1: ₹${fmtP(s.target_1 || 0)}</span> · 
+            <span>T2: ₹${fmtP(s.target_2 || 0)}</span>
+          </div>
+          <div style="font-size:9.5px; font-weight:500; opacity:0.75">
+            📋 Entry Checklist: ${gr.passCount} / ${gr.total} Passed
+          </div>
+        </button>
       </div>
     </div>`;
   }).join("")}</div>`;
@@ -9243,7 +9422,7 @@ function renderStockSelector() {
   if (!bar) return;
   const stocks = _scannedStocks || [];
   if (!stocks.length) {
-    bar.innerHTML = `<div style="padding:16px; color:var(--muted); font-size:12px">No scanned stocks — run Scan Now first</div>`;
+    bar.innerHTML = `<div style="padding:16px; color:var(--muted); font-size:12px">No scanned stocks — run Scan first</div>`;
     return;
   }
   
@@ -9425,7 +9604,6 @@ function _initChecklistsAndTools() {
   try { recalcTrail();        } catch {}
   renderBiasBuilder();
   renderEntryGates();
-  renderCAChecklist();
   renderStockValidation();
   renderStockSelector();
   renderEntryChecklist();

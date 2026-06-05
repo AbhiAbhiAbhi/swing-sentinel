@@ -4,6 +4,7 @@ import logging
 import json
 from datetime import datetime
 import pandas as pd
+import pytz
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -19,6 +20,7 @@ try:
     from core.trade_plan import calculate_trade_plan
     from core.risk_filters import apply_structural_safety_gates
     from core.expiry_grading import grade_setup, expiry_context
+    from core.prune_logic import evaluate_prune
 except ImportError:
     # Fallback to direct imports if run from inside core/
     try:
@@ -26,12 +28,14 @@ except ImportError:
         from core_trade_plan import calculate_trade_plan
         from core_risk_filters import apply_structural_safety_gates
         from expiry_grading import grade_setup, expiry_context
+        from core_prune_logic import evaluate_prune
     except ImportError:
         # Fallback to local files if path is configured otherwise
         from data_fetcher import fetch_stock_technicals
         from trade_plan import calculate_trade_plan
         from risk_filters import apply_structural_safety_gates
         from expiry_grading import grade_setup, expiry_context
+        from prune_logic import evaluate_prune
 
 _universes_cache_data = None
 _universes_cache_mtime = 0
@@ -123,11 +127,12 @@ def send_telegram_alert(msg: str):
 
 
 def send_summary_notification(kept, deleted, absent, manual=False):
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+    ist = pytz.timezone("Asia/Kolkata")
+    now_str = datetime.now(ist).strftime("%Y-%m-%d %H:%M")
     source = "Manual Trigger" if manual else "Daily Scheduler"
     
     lines = [
-        f"🌅 <b>Watchlist Morning Maintenance ({source})</b>",
+        f"🌅 <b>Keep & refresh Scan ({source})</b>",
         f"<i>Time: {now_str} IST</i>",
         ""
     ]
@@ -165,7 +170,7 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
     """
     Executes morning maintenance workflow for all candidates with OPEN status in positions.csv.
     """
-    logger.info("Starting morning watchlist maintenance workflow (manual=%s)...", manual_trigger)
+    logger.info("Starting Keep & refresh Scan workflow (manual=%s)...", manual_trigger)
     
     positions_path = os.path.join(_ROOT, "data", "positions.csv")
     if not os.path.exists(positions_path):
@@ -182,12 +187,15 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
         logger.info("No positions to maintain.")
         return {"status": "success", "message": "No positions found", "kept": [], "deleted": []}
         
-    # Ensure Absent_Cycles column exists
+    # Ensure Absent_Cycles, Prune_Reason, and Prune_Date columns exist
     if "Absent_Cycles" not in df_positions.columns:
         df_positions["Absent_Cycles"] = 0
     df_positions["Absent_Cycles"] = df_positions["Absent_Cycles"].fillna(0).astype(int)
     
-    rows_to_drop = []
+    for col in ["Prune_Reason", "Prune_Date"]:
+        if col not in df_positions.columns:
+            df_positions[col] = ""
+            
     csv_updated = False
     
     kept_symbols = []
@@ -204,9 +212,9 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
         try:
             tech = fetch_stock_technicals(sym)
             if tech:
-                # Run the slow-moving structural gates (Weekly trend, daily EMA alignment)
-                gate_result = apply_structural_safety_gates(tech)
-                if gate_result.passed:
+                # Run the canonical evaluate_prune logic
+                state, reason = evaluate_prune(tech, row.to_dict())
+                if state == "RE-EVALUATE":
                     # Overwrite levels (adapt to progression of trend-anchor moving averages)
                     refresh_trade_levels(df_positions, idx, tech)
                     csv_updated = True
@@ -224,27 +232,31 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
                         "score": updated_row.get("Setup_Score", 0.0),
                         "setup": updated_row.get("Setup", "")
                     })
-                    logger.info("Kept & refreshed: %s (passed structural safety gates)", sym)
+                    logger.info("Kept & refreshed: %s (passed structural checks)", sym)
                 else:
-                    # Failed structural safety gates -> Delete
-                    rows_to_drop.append(idx)
+                    # Failed structural checks -> Mark as PRUNED instead of deleting
+                    df_positions.at[idx, "Status"] = "PRUNED"
+                    df_positions.at[idx, "Prune_Reason"] = reason
+                    df_positions.at[idx, "Prune_Date"] = datetime.now(pytz.timezone("Asia/Kolkata")).strftime("%Y-%m-%d")
                     csv_updated = True
                     deleted_symbols.append({
                         "symbol": sym,
-                        "reason": gate_result.fail_reason
+                        "reason": reason
                     })
-                    logger.info("Deleted: %s (failed structural safety gates: %s)", sym, gate_result.fail_reason)
+                    logger.info("Pruned: %s (%s)", sym, reason)
             else:
                 # Fetch failed (tech is empty) -> Increment Absent_Cycles
                 absent_cycles = int(df_positions.at[idx, "Absent_Cycles"]) + 1
                 if absent_cycles > 1:
-                    rows_to_drop.append(idx)
+                    df_positions.at[idx, "Status"] = "PRUNED"
+                    df_positions.at[idx, "Prune_Reason"] = f"Absent from data feed (failed yfinance fetch for {absent_cycles} cycles)"
+                    df_positions.at[idx, "Prune_Date"] = datetime.now(pytz.timezone("Asia/Kolkata")).strftime("%Y-%m-%d")
                     csv_updated = True
                     deleted_symbols.append({
                         "symbol": sym,
                         "reason": f"Absent from data feed (failed yfinance fetch for {absent_cycles} cycles)"
                     })
-                    logger.info("Deleted: %s (absent & failed to fetch for %d cycles)", sym, absent_cycles)
+                    logger.info("Pruned: %s (absent & failed to fetch for %d cycles)", sym, absent_cycles)
                 else:
                     df_positions.at[idx, "Absent_Cycles"] = absent_cycles
                     csv_updated = True
@@ -258,7 +270,9 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
             # Increment Absent_Cycles
             absent_cycles = int(df_positions.at[idx, "Absent_Cycles"]) + 1
             if absent_cycles > 1:
-                rows_to_drop.append(idx)
+                df_positions.at[idx, "Status"] = "PRUNED"
+                df_positions.at[idx, "Prune_Reason"] = f"Error during analysis ({exc})"
+                df_positions.at[idx, "Prune_Date"] = datetime.now(pytz.timezone("Asia/Kolkata")).strftime("%Y-%m-%d")
                 csv_updated = True
                 deleted_symbols.append({
                     "symbol": sym,
@@ -271,9 +285,6 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
                     "symbol": sym,
                     "cycle": absent_cycles
                 })
-                
-    if rows_to_drop:
-        df_positions = df_positions.drop(rows_to_drop).reset_index(drop=True)
         
     if csv_updated:
         # Atomic write

@@ -11,3 +11,4 @@ data/universes_cache.json
 scratch/
 .env
 .env.local
+.playwright-mcp/

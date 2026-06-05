@@ -20,6 +20,7 @@ import json
 import threading
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
+import pytz
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +152,7 @@ def _fetch_earnings_yfinance(symbol: str):
             return None
 
         edate = earnings_date.date() if hasattr(earnings_date, "date") else earnings_date
-        today = datetime.now().date()
+        today = datetime.now(pytz.timezone("Asia/Kolkata")).date()
         return edate if edate >= today else None
     except Exception as exc:
         logger.debug("[yfinance_earnings] %s: %s", symbol, exc)
@@ -165,7 +166,7 @@ def fetch_earnings_date(symbol: str) -> Tuple[Optional[int], str, str]:
     source is "NSE", "yfinance", or "unknown".
     """
     sym = symbol.strip().upper()
-    today = datetime.now().date()
+    today = datetime.now(pytz.timezone("Asia/Kolkata")).date()
 
     # Source 1: NSE event calendar (single bulk fetch, cached hourly)
     nse_cal = _warm_nse_calendar()
@@ -369,7 +370,7 @@ def filter_weak_sector(symbol: str, sector_pulse: Optional[dict] = None) -> Tupl
 def fetch_past_earnings_date(symbol: str) -> Optional[Tuple[int, str]]:
     """Return (days_ago, date_str) for the most recent past earnings date (within the last 30 days)."""
     sym = symbol.strip().upper()
-    today = datetime.now().date()
+    today = datetime.now(pytz.timezone("Asia/Kolkata")).date()
     
     _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     EARNINGS_CACHE_FILE = os.path.join(_ROOT, "data", "earnings_cache.json")

@@ -56,8 +56,12 @@ def save_debate_config(config: Dict[str, Any]) -> None:
 
 # ── Unified API Ingestion / Callers ───────────────────────────────────────────
 
-def _call_gemini_api(model: str, system_prompt: str, user_prompt: str, temperature: float) -> str:
-    """Robust caller for Gemini API using either google-genai, google-generativeai, or raw requests."""
+def _call_gemini_api(model: str, system_prompt: str, user_prompt: str, temperature: float, json_mode: bool = False) -> str:
+    """Robust caller for Gemini API using either google-genai, google-generativeai, or raw requests.
+
+    When json_mode is True, the model is forced to emit a raw JSON object via responseMimeType,
+    removing the need for fragile markdown-fence stripping (used by the Judge agent only).
+    """
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
         raise ValueError(
@@ -70,6 +74,9 @@ def _call_gemini_api(model: str, system_prompt: str, user_prompt: str, temperatu
         import requests
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
         headers = {"Content-Type": "application/json"}
+        generation_config = {"temperature": temperature}
+        if json_mode:
+            generation_config["responseMimeType"] = "application/json"
         payload = {
             "contents": [
                 {
@@ -78,9 +85,7 @@ def _call_gemini_api(model: str, system_prompt: str, user_prompt: str, temperatu
                     ]
                 }
             ],
-            "generationConfig": {
-                "temperature": temperature
-            }
+            "generationConfig": generation_config
         }
         resp = requests.post(url, headers=headers, json=payload, timeout=30)
         resp.raise_for_status()
@@ -109,10 +114,13 @@ def _call_gemini_api(model: str, system_prompt: str, user_prompt: str, temperatu
     try:
         from google import genai
         client = genai.Client(api_key=api_key)
+        genai_config = {"system_instruction": system_prompt, "temperature": temperature}
+        if json_mode:
+            genai_config["response_mime_type"] = "application/json"
         response = client.models.generate_content(
             model=model,
             contents=user_prompt,
-            config={"system_instruction": system_prompt, "temperature": temperature}
+            config=genai_config
         )
         if response.text:
             return response.text
@@ -127,9 +135,12 @@ def _call_gemini_api(model: str, system_prompt: str, user_prompt: str, temperatu
             model_name=model,
             system_instruction=system_prompt
         )
+        old_gen_config = {"temperature": temperature}
+        if json_mode:
+            old_gen_config["response_mime_type"] = "application/json"
         response = model_instance.generate_content(
             user_prompt,
-            generation_config={"temperature": temperature}
+            generation_config=old_gen_config
         )
         if response.text:
             return response.text
@@ -184,11 +195,15 @@ def _call_anthropic_api(model: str, system_prompt: str, user_prompt: str, temper
         raise RuntimeError(f"Anthropic API call failed: {exc}")
 
 
-def run_llm_call(provider: str, model: str, system_prompt: str, user_prompt: str, temperature: float) -> str:
-    """Routes LLM execution to the configured provider."""
+def run_llm_call(provider: str, model: str, system_prompt: str, user_prompt: str, temperature: float, json_mode: bool = False) -> str:
+    """Routes LLM execution to the configured provider.
+
+    json_mode forces native JSON output where supported (Gemini). OpenAI/Anthropic already return
+    clean text; the Judge step keeps a markdown-stripping fallback for those providers.
+    """
     provider = provider.lower().strip()
     if provider == "gemini":
-        return _call_gemini_api(model, system_prompt, user_prompt, temperature)
+        return _call_gemini_api(model, system_prompt, user_prompt, temperature, json_mode=json_mode)
     elif provider == "openai":
         return _call_openai_api(model, system_prompt, user_prompt, temperature)
     elif provider == "anthropic":
@@ -248,15 +263,16 @@ def run_adversarial_debate(
     market_str = json.dumps(market_context, indent=2)
 
     # ── 3. Step 1: Bull Agent Call ─────────────────────────────────────────────
-    bull_system = """You are a highly optimistic, momentum-focused technical and fundamental analyst. 
+    bull_system = """You are a highly optimistic, momentum-focused technical analyst specializing in the Indian equity markets (NSE/BSE).
 Your ONLY job is to construct the absolute strongest BUY argument for the provided stock.
-You must focus heavily on:
-1. Chart breakout patterns, consolidation setups, volume spikes, and rising averages.
-2. Relative strength compared to the sector and macro market.
-3. Positive corporate actions, earnings catalysts, new order contracts, or structural growth stories in the news.
-4. Explaining why recent volatility represents a healthy pullback or accumulation rather than structural weakness.
 
-Keep your response extremely professional, sharp, and concise (under 250 words). Focus only on factors supporting a BUY conviction."""
+You must focus heavily on:
+1. Chart breakout patterns (e.g., Stage 2 continuations, VCP, flat bases, rounding bottoms), volume expansion parameters, and moving average alignments (e.g., 20 EMA, 50 DMA, 200 DMA structural support).
+2. Relative Strength (RS) comparison against Nifty 50 and its sector benchmark.
+3. Institutional tracking: signs of delivery volume spikes, steady accumulation blocks, or positive DII/FII buying interest.
+4. High-velocity catalysts: massive new order inflows, defense/infra capex allocations, or positive fundamental trend changes in the news.
+
+Keep your response sharp and concise (under 250 words). Focus strictly on data points supporting an aggressive swing long conviction."""
 
     bull_user = f"""Construct the BUY case for the stock: {symbol} in the {sector} sector.
 
@@ -283,22 +299,26 @@ MACRO MARKET CONTEXT:
         return {"status": "error", "message": f"Bull Agent failed: {exc}"}
 
     # ── 4. Step 2: Bear Agent Call ─────────────────────────────────────────────
-    bear_system = """You are a highly skeptical, risk-averse Red-Team short seller and risk auditor.
-Your ONLY job is to construct the absolute strongest argument for NOT buying this stock (SKIP / WATCH).
-You must search for and highlight:
-1. Hidden chart weaknesses: overhead resistance levels, declining support channels, or negative RSI divergences.
-2. Macro and Sector risks: sector overextension, global index volatility, or general market relative weakness.
-3. Negative fundamental disclosures in corporate releases: promoter pledging increases, auditor concerns, tax disputes, high debt, or promoter selling.
-4. Key volatility risks: upcoming high-risk binary events like board meetings or earnings announcements in the next few days.
+    bear_system = """You are a highly skeptical, risk-averse Red-Team auditor and forensic market short-seller in the Indian markets.
+Your job is to read the provided Bullish Thesis and systematically dismantle its assumptions using the raw technical data and headlines.
 
-Do not pull any punches. Your value lies in exposing hidden pitfalls that bullish traders miss due to confirmation bias. Keep your argument under 250 words."""
+You must identify and highlight:
+1. Technical Traps: False breakouts on low volume, severe bearish RSI divergences on the daily frame, or overhead structural resistance columns.
+2. Regulatory & Liquidity Risks: Proximity to upper/lower circuit limits, high promoter pledging percentages, or immediate risk of being moved into ASM (Additional Surveillance Measure) / GSM stages.
+3. Structural F&O Friction: If the stock is highly vulnerable to repeatedly hitting the exchange F&O Ban list, draining institutional momentum.
+4. Binary Risks: Crucial corporate actions or upcoming quarterly earnings results scheduled within the next 3 trading sessions.
 
-    bear_user = f"""Construct the bearish Red-Team "DON'T BUY" case for the stock: {symbol} in the {sector} sector.
+Expose the hidden pitfalls that long-biased swing traders ignore due to confirmation bias. Keep your counter-argument under 250 words."""
 
-TECHNICAL STATS:
+    bear_user = f"""Construct the bearish counter-argument for {symbol} in the {sector} sector.
+
+PROPOSED BULLISH THESIS TO DISMANTLE:
+{bull_output}
+
+RAW SYSTEM TECHNICAL STATS:
 {tech_str}
 
-RELEVANT HEADLINES & SENTIMENT:
+RELEVANT HEADLINES & CONTEXT:
 {news_str}
 
 MACRO MARKET CONTEXT:
@@ -318,33 +338,43 @@ MACRO MARKET CONTEXT:
         return {"status": "error", "message": f"Bear Agent failed: {exc}"}
 
     # ── 5. Step 3: The Judge Call ──────────────────────────────────────────────
-    judge_system = """You are a highly conservative, logical Chief Investment Officer (CIO) and Portfolio Manager.
-Your job is to weigh the Bullish Thesis and Bearish Thesis presented by your analyst agents and issue a final, definitive decision.
+    judge_system = """You are the conservative, data-grounded Chief Investment Officer (CIO) for an elite Indian swing trading fund.
+Your job is to cross-examine the Bullish Thesis and the Bearish Rebuttal against the raw data points and issue an absolute go/no-go trading directive using our standard 5-key framework.
 
-Strict Risk Policy constraints:
-- Risk-to-Reward (R:R) must be favorable (ideally > 1:2 entry zone).
-- High binary risks (e.g. quarterly earnings releases in less than 3 days) must be treated with absolute caution (recommending WATCH rather than BUY).
-- Technical gatekeeper conditions must be respected.
+Strict Risk Directives:
+- Evaluate "TECHNICAL COMPLIANCE" internally: If the stock violates structural rules (e.g., trades below 50 DMA, has severe RSI divergence, or lacks institutional volume), you must force the first bullet point of your 'reasons' to start with "TECHNICAL COMPLIANCE: FAIL - [Reason]". Otherwise, start it with "TECHNICAL COMPLIANCE: PASS - [Reason]".
+- If India VIX is above 18, or the general Trend Regime is Amber/Red, apply a strict 25% markdown to your conviction_score.
+- Any major binary risk (earnings/board meet) within 3 days must automatically drop the verdict to "WATCH".
+- The Risk-to-Reward (R:R) layout must mathematically project better than 1:2.
 
-Your response must be in valid JSON format ONLY. Do not include markdown code wrappers (like ```json) or leading/trailing text. Output a JSON object with the exact keys:
+Your response must be in valid JSON format ONLY. Do not include markdown code wrappers (like ```json). Use our exact 5-key schema:
 {
   "verdict": "BUY" | "WATCH" | "SKIP",
-  "conviction_score": 1-10,
-  "top_triggers": ["List the top 2 bullish triggers supporting the setup"],
-  "top_red_flags": ["List the top 2 bearish flags or warning points"],
-  "judge_rationale": "Detail your objective final verdict and execution plan in 3-4 sentences"
+  "conviction_score": 1,
+  "reasons": [
+    "TECHNICAL COMPLIANCE: [PASS/FAIL] - [Brief technical justification]",
+    "Momentum catalyst 1",
+    "Momentum catalyst 2"
+  ],
+  "red_flags": [
+    "Structural or macro risk 1",
+    "Structural or macro risk 2"
+  ],
+  "rationale": "3-4 sentences outlining the executive summary of the debate, specific entry-range cautions, and how to handle position risk based on the findings."
 }"""
 
     judge_user = f"""Deliver the final judgment for the stock: {symbol}.
 
-BULL CASE ARGUMENT (Optimist Analyst):
+BULL CASE THESIS:
 {bull_output}
 
-BEAR CASE ARGUMENT (Red-Team Auditor):
+BEAR REBUTTAL:
 {bear_output}
 
-ORIGINAL TECHNICAL DATA:
-{tech_str}"""
+RAW DATA FEED FOR VERIFICATION:
+Technical Stats: {tech_str}
+Market Pulse: {market_str}
+News Feeds: {news_str}"""
 
     logger.info("[debate] Running Judge Agent synthesis for %s using %s...", symbol, judge_cfg.get("model"))
     try:
@@ -353,7 +383,8 @@ ORIGINAL TECHNICAL DATA:
             model=judge_cfg.get("model", "gemini-1.5-pro"),
             system_prompt=judge_system,
             user_prompt=judge_user,
-            temperature=float(judge_cfg.get("temperature", 0.2))
+            temperature=float(judge_cfg.get("temperature", 0.2)),
+            json_mode=True
         ).strip()
         
         # Clean potential markdown block wrappers if model ignores instructions
@@ -370,7 +401,35 @@ ORIGINAL TECHNICAL DATA:
             "message": f"Judge failed to generate valid structured data: {exc}"
         }
 
-    # ── 6. Assemble & Save final Cache ─────────────────────────────────────────
+    # ── 6. Normalize keys & enforce deterministic risk markdown ────────────────
+    # The Judge emits the 5-key schema (reasons / red_flags / rationale). Map these onto the
+    # persisted output keys the dashboard already reads (top_triggers / top_red_flags /
+    # judge_rationale), keeping old keys as a fallback for resilience.
+    triggers = judge_json.get("reasons", judge_json.get("top_triggers", []))
+    red_flags = judge_json.get("red_flags", judge_json.get("top_red_flags", []))
+    rationale = judge_json.get("rationale", judge_json.get("judge_rationale", "No explanation provided."))
+
+    # Code-enforced conviction markdown: LLMs are unreliable at arithmetic, so apply the
+    # VIX>18 / Amber-Red 25% haircut deterministically using the real values in market_context.
+    try:
+        conviction_score = int(round(float(judge_json.get("conviction_score", 5))))
+    except (TypeError, ValueError):
+        conviction_score = 5
+    nifty_ctx = market_context.get("nifty", {}) if isinstance(market_context, dict) else {}
+    try:
+        india_vix = float(nifty_ctx.get("vix", 0) or 0)
+    except (TypeError, ValueError):
+        india_vix = 0.0
+    trend_regime = str(nifty_ctx.get("regime", "GREEN")).upper()
+    if india_vix > 18 or trend_regime in ("AMBER", "RED"):
+        marked_down = max(1, int(round(conviction_score * 0.75)))
+        logger.info(
+            "[debate] Applying 25%% conviction markdown for %s (VIX=%.2f, regime=%s): %d -> %d",
+            symbol, india_vix, trend_regime, conviction_score, marked_down
+        )
+        conviction_score = marked_down
+
+    # ── 7. Assemble & Save final Cache ─────────────────────────────────────────
     final_output = {
         "status": "success",
         "symbol": symbol,
@@ -379,10 +438,10 @@ ORIGINAL TECHNICAL DATA:
         "bull_case": bull_output,
         "bear_case": bear_output,
         "verdict": judge_json.get("verdict", "WATCH"),
-        "conviction_score": judge_json.get("conviction_score", 5),
-        "top_triggers": judge_json.get("top_triggers", []),
-        "top_red_flags": judge_json.get("top_red_flags", []),
-        "judge_rationale": judge_json.get("judge_rationale", "No explanation provided."),
+        "conviction_score": conviction_score,
+        "top_triggers": triggers,
+        "top_red_flags": red_flags,
+        "judge_rationale": rationale,
         "cached": False,
         "models_used": {
             "bull_agent": bull_cfg.get("model", "unknown"),

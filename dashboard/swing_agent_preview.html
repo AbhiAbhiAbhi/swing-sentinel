@@ -21,6 +21,14 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
+@keyframes subtle-pulse {
+  0%, 100% { border-color: var(--border); }
+  50% { border-color: var(--blue); box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); }
+}
+.pulse-active {
+  animation: subtle-pulse 1.5s infinite;
+}
+
 :root {
   /* Sentinel Terminal Premium HSL Palette */
   --bg:          #08090c;
@@ -1165,7 +1173,7 @@ body.light-theme .analytics-subtab-btn.active {
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
         </svg>
       </span>
-      <span class="btn-text">Scan Now</span>
+      <span class="btn-text">Scan</span>
     </button>
   </div>
 </header>
@@ -1469,7 +1477,7 @@ body.light-theme .analytics-subtab-btn.active {
   </div>
   <div class="sec-body">
   <div class="actions-grid" id="actionsGrid">
-    <div class="empty"><div class="empty-sub">Hit <b>Scan Now</b> to load today's actions.</div></div>
+    <div class="empty"><div class="empty-sub">Hit <b>Scan</b> to load today's actions.</div></div>
   </div>
   </div>
   </div>
@@ -1497,7 +1505,7 @@ body.light-theme .analytics-subtab-btn.active {
     <div class="empty">
       <div class="empty-icon">📭</div>
       <div class="empty-title">No setups yet</div>
-      <div class="empty-sub">Click <b>Scan Now</b> or run <code>python server.py</code></div>
+      <div class="empty-sub">Click <b>Scan</b> or run <code>python server.py</code></div>
     </div>
   </div>
   </div>
@@ -1642,27 +1650,7 @@ body.light-theme .analytics-subtab-btn.active {
   </div>
   </div>
 
-  <!-- Chart Analysis Checklist -->
-  <div id="sec_chart_checklist">
-  <div class="tab-section-head">
-    <span style="display:flex;align-items:center;gap:6px">
-      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--orange)">
-        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-        <line x1="9" y1="9" x2="15" y2="9"></line>
-        <line x1="9" y1="13" x2="15" y2="13"></line>
-        <line x1="9" y1="17" x2="11" y2="17"></line>
-      </svg>
-      Chart Analysis Checklist <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">Before Entry — validate each stock</small>
-    </span>
-    <div style="display:flex;align-items:center;gap:8px">
-      <span class="pill" id="caChecklistPill">8 checks</span>
-      <button class="sec-toggle" onclick="toggleSection('sec_chart_checklist')" title="Expand / Shrink"><span class="chevron">▼</span></button>
-    </div>
-  </div>
-  <div class="sec-body">
-  <div class="cli-list" id="caChecklist"></div>
-  </div>
-  </div>
+
 
   <!-- Per-Stock Chart Validation -->
   <div id="sec_chart_validate">
@@ -1683,7 +1671,7 @@ body.light-theme .analytics-subtab-btn.active {
     <div class="empty" style="padding:30px 20px">
       <div class="empty-icon">📊</div>
       <div class="empty-title">No stocks to validate</div>
-      <div class="empty-sub">Run <b>Scan Now</b> in Watchlist first, then come here to validate each stock's chart</div>
+      <div class="empty-sub">Run <b>Scan</b> in Watchlist first, then come here to validate each stock's chart</div>
     </div>
   </div>
   </div>
@@ -1726,7 +1714,7 @@ body.light-theme .analytics-subtab-btn.active {
   </div>
   <div class="sec-body">
   <div class="stock-sel-bar" id="stockSelBar">
-    <span style="color:var(--muted);font-size:12px">No scanned stocks — run Scan Now first</span>
+    <span style="color:var(--muted);font-size:12px">No scanned stocks — run Scan first</span>
   </div>
   </div>
   </div>
@@ -6214,7 +6202,7 @@ async function runScan() {
   } finally {
     btn.disabled = false;
     btn.classList.remove("loading");
-    btn.querySelector(".btn-text").textContent = "Scan Now";
+    btn.querySelector(".btn-text").textContent = "Scan";
   }
 }
 
@@ -7262,7 +7250,7 @@ function loadPreset(name) {
   if (!presets[name]) { toast(`Preset "${name}" not found`, "error"); return; }
   setFilters(presets[name]);
   markFiltersDirty();
-  toast(`Loaded "${name}" — click Scan Now to apply`, "info");
+  toast(`Loaded "${name}" — click Scan to apply`, "info");
 }
 
 async function deletePreset() {
@@ -7537,16 +7525,7 @@ const CHECKLIST_ITEMS = {
     "Determine market bias: bullish / bearish / neutral",
     "Re-check watchlist — still aligned with market direction?",
   ],
-  chart: [
-    "Check weekly chart first — confirm key S/R zones",
-    "Switch to daily — confirm trend direction",
-    "Identify pattern: flat base / bull flag / ascending triangle",
-    "Base should be 5–15 days long (longer = more powerful)",
-    "Check sector index — is the sector also trending up?",
-    "Confirm RSI: no bearish divergence, not overbought (>75)",
-    "Stock not in F&O ban list (NSE updates daily)",
-    "No upcoming results / dividend / ex-date within 5 days",
-  ],
+
   entry: [
     "Calculate risk per share: Entry price − Stop-loss price",
     "Position size: Max 1–2% of total capital at risk per trade",
@@ -7622,12 +7601,29 @@ function switchTab(tabId) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tabId));
   try { localStorage.setItem(LS_ACTIVE_TAB_KEY, tabId); } catch {}
   // Trigger tab-specific refresh
-  if (tabId === "analysis")   { renderBiasBuilder(); renderChartAnalysis(); renderCAChecklist(); renderStockValidation(); }
+  if (tabId === "analysis")   { renderBiasBuilder(); renderChartAnalysis(); renderStockValidation(); }
   if (tabId === "trading")    { renderEntryGates(); renderEntryChecklist(); renderStockSelector(); recalcPosSize(); recalcTrail(); }
   if (tabId === "portfolio")  { loadPositions(); renderReviewMetrics(); renderJournalList(); }
   if (tabId === "analytics")  { loadPositions(); }
   // Scroll to top of tab
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function sendToSizer(symbol) {
+  switchTab('trading');
+  fetchPlanForSymbol(symbol);
+  
+  // Add minor flash pulse animation to calculator and scroll to it
+  setTimeout(() => {
+    const calcBox = document.getElementById("tc_pos_sizer");
+    if (calcBox) {
+      calcBox.scrollIntoView({ behavior: "smooth", block: "center" });
+      calcBox.classList.add("pulse-active");
+      setTimeout(() => {
+        calcBox.classList.remove("pulse-active");
+      }, 1500);
+    }
+  }, 150);
 }
 
 function restoreActiveTab() {
@@ -7724,7 +7720,7 @@ function renderChartAnalysis() {
     list.innerHTML = `<div class="empty" style="padding:30px 20px">
       <div class="empty-icon">📭</div>
       <div class="empty-title">No scanned stocks</div>
-      <div class="empty-sub">Run <b>Scan Now</b> in Watchlist Building first</div>
+      <div class="empty-sub">Run <b>Scan</b> in Watchlist Building first</div>
     </div>`;
     return;
   }
@@ -8201,6 +8197,22 @@ async function fetchPlanForSymbol(symbol) {
     const j = await r.json();
     if (!r.ok || j.status === "error") throw new Error(j.message || `HTTP ${r.status}`);
     renderPlanCard(j);
+
+    // Auto-fill calculator parameters
+    const entryPrice = j.entry_min || j.price || 0;
+    if (document.getElementById("ps_entry")) document.getElementById("ps_entry").value  = entryPrice;
+    if (document.getElementById("ps_sl")) document.getElementById("ps_sl").value     = j.sl || 0;
+    if (document.getElementById("ps_target")) document.getElementById("ps_target").value = j.target_2 || j.target_1 || 0;
+    if (typeof recalcPosSize === "function") recalcPosSize();
+
+    if (document.getElementById("ts_entry")) document.getElementById("ts_entry").value = entryPrice;
+    if (document.getElementById("ts_sl")) document.getElementById("ts_sl").value    = j.sl || 0;
+    if (document.getElementById("ts_cur")) document.getElementById("ts_cur").value   = j.price || entryPrice;
+    if (typeof recalcTrail === "function") recalcTrail();
+
+    _selectedTradeStock = j;
+    if (typeof renderEntryChecklist === "function") renderEntryChecklist();
+    if (typeof renderStockSelector === "function") renderStockSelector();
   } catch (e) {
     status.textContent = `Could not fetch ${sym}: ${e.message}`;
     status.style.color = "var(--red)";
@@ -8369,34 +8381,7 @@ function renderReviewMetrics() {
   holdEl.textContent = `${avgHold.toFixed(1)}`;
 }
 
-/* ══════════════════════════════════════════════════════════
-   CHART ANALYSIS — Interactive Checklist (ca1-ca8)
-   ══════════════════════════════════════════════════════════ */
 
-function renderCAChecklist() {
-  const cont = document.getElementById("caChecklist");
-  if (!cont) return;
-  const items = CHECKLIST_ITEMS.chart || [];
-  const pill  = document.getElementById("caChecklistPill");
-  const done  = items.filter((_, i) => !!_checkedItems[`chart_${i}`]).length;
-  if (pill) pill.textContent = `${done}/${items.length} done`;
-  cont.innerHTML = items.map((text, i) => {
-    const key = `chart_${i}`;
-    const isDone = !!_checkedItems[key];
-    return `<div class="cli-item ${isDone?"done":""}" data-key="${key}" onclick="toggleCli('${key}',this);updateCAChecklistPill()">
-      <div class="cli-check"></div>
-      <span class="cli-num">${String(i+1).padStart(2,"0")}</span>
-      <span class="cli-text">${text}</span>
-    </div>`;
-  }).join("");
-}
-
-function updateCAChecklistPill() {
-  const items = CHECKLIST_ITEMS.chart || [];
-  const done  = items.filter((_, i) => !!_checkedItems[`chart_${i}`]).length;
-  const pill  = document.getElementById("caChecklistPill");
-  if (pill) pill.textContent = `${done}/${items.length} done`;
-}
 
 /* ══════════════════════════════════════════════════════════
    CHART ANALYSIS — Per-Stock Validation Matrix
@@ -8629,12 +8614,27 @@ function isDataStale(s) {
   if (s.is_default) return true;
   const dateStr = s.scan_date || s.date || window._scanDate;
   if (dateStr) {
-    const scanTime = new Date(dateStr).getTime();
-    const nowTime = new Date().getTime();
-    const diffDays = (nowTime - scanTime) / (1000 * 60 * 60 * 24);
-    const scanDay = new Date(dateStr).getDay(); // 0: Sun, 5: Fri, 6: Sat
-    const maxDiff = (scanDay === 5) ? 3.2 : 1.2;
-    if (diffDays > maxDiff) return true;
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // 0-indexed
+      const day = parseInt(parts[2], 10);
+      
+      const scanDate = new Date(year, month, day);
+      const scanDay = scanDate.getDay(); // 0: Sun, 5: Fri, 6: Sat
+      
+      // Calculate current date at midnight local time
+      const now = new Date();
+      const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      // Difference in days (rounded to nearest integer)
+      const diffDays = Math.round((todayMidnight.getTime() - scanDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Friday scan remains valid Monday (3 days). Other scans valid 1 day.
+      const maxDiff = (scanDay === 5) ? 3 : 1;
+      
+      if (diffDays > maxDiff) return true;
+    }
   }
   return false;
 }
@@ -8684,7 +8684,7 @@ function renderStockValidation() {
     grid.innerHTML = `<div class="empty" style="padding:30px 20px">
       <div class="empty-icon">📊</div>
       <div class="empty-title">No stocks to validate</div>
-      <div class="empty-sub">Run <b>Scan Now</b> in Watchlist first</div>
+      <div class="empty-sub">Run <b>Scan</b> in Watchlist first</div>
     </div>`;
     return;
   }
@@ -8946,14 +8946,29 @@ function renderStockValidation() {
         </div>
       </div>
 
-      <div class="ca-vcard-foot">
-        ${item.eligible
-          ? `<span class="ca-score ${item.scoreClass}" title="Quality Score is eligible (>= 50/100). Passes all safety gates.">${item.scoreLabel} — ${v.passCount}/${v.total} · Quality Score ${item.score}/100</span>`
-          : `<span class="ca-score weak" style="border:1px solid var(--red); background:rgba(239,68,68,0.12); color:#ef4444; font-weight:bold" title="Safety gates: ${item.reasons.join('; ')}\n\nSafety Gate Rules:\n1. Status: ON_HOLD = Blocked\n2. Weekly Trend: BEARISH = Blocked\n3. Fundamentals: Negative EPS/PE/ROE/EBITDA = Blocked\n4. Institutional: DISTRIBUTION = Blocked\n5. Liquidity: Volume < 100k shares = Blocked\n6. Overextended: 20d return > 25% = Blocked\n7. Debate: SKIP = Blocked\n8. Data freshness: Stale (>1 trading day) = Blocked\n9. Sector x Nifty alignment: Misaligned = Blocked">⚠️ BLOCKED: ${item.reasons[0]}</span>`
-        }
-        <div style="display:flex;gap:6px">
-          <button class="ca-btn" onclick="selectStockForTrading(${item.originalIdx})" style="font-size:10px;padding:4px 8px;background:var(--blue-bg);color:var(--blue);border-color:var(--blue)">→ Trading</button>
+      <div class="ca-vcard-foot" style="display:flex; flex-direction:column; align-items:stretch; gap:8px">
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%">
+          ${item.eligible
+            ? `<span class="ca-score ${item.scoreClass}" title="Quality Score is eligible (>= 50/100). Passes all safety gates.">${item.scoreLabel} — ${v.passCount}/${v.total} · Quality Score ${item.score}/100</span>`
+            : `<span class="ca-score weak" style="border:1px solid var(--red); background:rgba(239,68,68,0.12); color:#ef4444; font-weight:bold" title="Safety gates: ${item.reasons.join('; ')}\n\nSafety Gate Rules:\n1. Status: ON_HOLD = Blocked\n2. Weekly Trend: BEARISH = Blocked\n3. Fundamentals: Negative EPS/PE/ROE/EBITDA = Blocked\n4. Institutional: DISTRIBUTION = Blocked\n5. Liquidity: Volume < 100k shares = Blocked\n6. Overextended: 20d return > 25% = Blocked\n7. Debate: SKIP = Blocked\n8. Data freshness: Stale (>1 trading day) = Blocked\n9. Sector x Nifty alignment: Misaligned = Blocked">⚠️ BLOCKED: ${item.reasons[0]}</span>`
+          }
         </div>
+        <button class="ca-btn" onclick="sendToSizer('${s.symbol}')" style="font-size:11.5px; padding:8px 12px; background:var(--blue-bg); color:var(--blue); border-color:var(--blue); font-weight:700; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; width:100%; border-radius:8px; transition:all 0.15s; box-shadow:0 2px 8px rgba(59,130,246,0.12)" onmouseover="this.style.background='var(--blue)';this.style.color='#ffffff'" onmouseout="this.style.background='var(--blue-bg)';this.style.color='var(--blue)'">
+          <div style="display:flex; align-items:center; gap:6px">
+            <span>📐 Size & Plan Trade</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width:12px;height:12px">
+              <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div style="font-size:9.5px; font-weight:500; opacity:0.85; display:flex; gap:6px; flex-wrap:wrap; justify-content:center">
+            <span>SL: ₹${fmtP(s.sl || 0)}</span> · 
+            <span>T1: ₹${fmtP(s.target_1 || 0)}</span> · 
+            <span>T2: ₹${fmtP(s.target_2 || 0)}</span>
+          </div>
+          <div style="font-size:9.5px; font-weight:500; opacity:0.75">
+            📋 Entry Checklist: ${v.passCount} / ${v.total} Passed
+          </div>
+        </button>
       </div>
     </div>`;
   }).join("")}</div>`;
@@ -9143,7 +9158,7 @@ function renderStockSelector() {
   if (!bar) return;
   const stocks = _scannedStocks || [];
   if (!stocks.length) {
-    bar.innerHTML = `<div style="padding:16px; color:var(--muted); font-size:12px">No scanned stocks — run Scan Now first</div>`;
+    bar.innerHTML = `<div style="padding:16px; color:var(--muted); font-size:12px">No scanned stocks — run Scan first</div>`;
     return;
   }
   
@@ -9325,7 +9340,6 @@ function _initChecklistsAndTools() {
   try { recalcTrail();        } catch {}
   renderBiasBuilder();
   renderEntryGates();
-  renderCAChecklist();
   renderStockValidation();
   renderStockSelector();
   renderEntryChecklist();
