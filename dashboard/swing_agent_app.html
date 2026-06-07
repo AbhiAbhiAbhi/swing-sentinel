@@ -903,15 +903,22 @@ body.light-theme .tab-btn.tab-analytics.active   {color:#7047A3 !important; back
 .ca-gate-item.pass .gi-value{color:var(--green)}
 .ca-gate-item .gi-reason{color:var(--red);flex:1;margin-left:auto}
 
-/* Score ring + conviction tier */
-.ca-score-block{display:flex;align-items:center;gap:16px;padding:14px 16px;border-bottom:1px solid var(--border)}
-.ca-score-ring{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;position:relative;flex-shrink:0;
-  background:conic-gradient(var(--ring-col) calc(var(--ring-pct,0)*1%), rgba(255,255,255,0.07) 0)}
-.ca-score-ring::before{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--card)}
-.ca-score-ring .rv{position:relative;z-index:1;font-size:24px;font-weight:800;line-height:1;color:var(--ring-col)}
-.ca-score-ring .rmax{position:relative;z-index:1;font-size:9px;font-weight:600;color:var(--muted);margin-top:2px}
-.ca-score-meta{display:flex;flex-direction:column;gap:5px;min-width:0}
-.ca-score-meta .sm-label{font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+/* Always-visible Fund status ON/OFF toggle in the validation card header (Gate #1) */
+.fund-toggle{display:inline-flex;align-items:center;gap:6px;padding:2px 9px 2px 5px;border-radius:999px;border:1px solid var(--border);background:var(--card);cursor:pointer;font-size:10px;font-weight:800;line-height:1;letter-spacing:.2px;white-space:nowrap;transition:filter .12s}
+.fund-toggle:hover{filter:brightness(1.15)}
+.fund-toggle .ft-track{position:relative;width:26px;height:14px;border-radius:999px;transition:background .15s;flex-shrink:0}
+.fund-toggle .ft-knob{position:absolute;top:1px;width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.35);transition:left .15s}
+.fund-toggle.ok{color:var(--green)}
+.fund-toggle.ok .ft-track{background:var(--green)}
+.fund-toggle.ok .ft-knob{left:13px}
+.fund-toggle.hold{color:var(--red)}
+.fund-toggle.hold .ft-track{background:var(--red)}
+.fund-toggle.hold .ft-knob{left:1px}
+
+/* Compact quality-score pill + conviction tier (shown in the quality-breakdown header bar) */
+.ca-score-pill{display:inline-flex;align-items:baseline;gap:1px;font-size:15px;font-weight:800;line-height:1;color:var(--ring-col,var(--text));
+  background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:var(--radius-full);padding:4px 10px;font-variant-numeric:tabular-nums}
+.ca-score-pill .sp-max{font-size:9px;font-weight:600;color:var(--muted)}
 .ca-tier-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;padding:4px 10px;border-radius:var(--radius-sm);width:fit-content}
 .ca-tier-badge.strong{background:var(--green-bg);color:var(--green);border:1px solid rgba(16,185,129,.35)}
 .ca-tier-badge.moderate{background:var(--yellow-bg);color:var(--yellow);border:1px solid rgba(245,158,11,.35)}
@@ -919,8 +926,15 @@ body.light-theme .tab-btn.tab-analytics.active   {color:#7047A3 !important; back
 .ca-tier-badge.inelig{background:var(--red-bg);color:var(--red);border:1px solid rgba(239,68,68,.35)}
 .ca-tier-mult{font-size:11px;color:var(--muted);font-weight:600}
 
+/* Quality breakdown — collapsible (collapsed by default) */
+.ca-qbreakdown{border-bottom:1px solid var(--border)}
+.ca-qbar{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 16px;background:transparent;border:none;cursor:pointer;color:var(--text);font:inherit}
+.ca-qbar:hover{background:rgba(255,255,255,0.02)}
+.ca-qbar-title{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:7px}
+
 /* Quality rows (6 structural categories) */
-.ca-qrows{display:flex;flex-direction:column}
+.ca-qrows{display:none;flex-direction:column;padding-bottom:6px}
+.ca-qrows.open{display:flex}
 .ca-qrow{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:10px;padding:8px 16px;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.04)}
 .ca-qrow:last-child{border-bottom:none}
 .ca-qrow .qr-label{color:var(--muted);font-size:11px}
@@ -1141,6 +1155,103 @@ body.light-theme .analytics-subtab-btn.active {
 }
 .pruned-card .pc-restore:hover{filter:brightness(1.1)}
 .pruned-empty{font-size:12px;color:var(--muted,#9aa);padding:8px 2px}
+
+/* ── Stock Validation Matrix – Light Mode Fixes ─────────────────────────────
+   The base card styles use rgba(255,255,255,…) borders/backgrounds and
+   #e5e7eb fallback text values that are near-invisible on the cream light
+   background. Override everything that relies on white-alpha transparency.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Card shell */
+body.light-theme .ca-vcard {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(107, 104, 96, 0.14);
+}
+body.light-theme .ca-vcard-head {
+  border-bottom-color: rgba(107, 104, 96, 0.12);
+}
+body.light-theme .ca-vcard-foot {
+  background: rgba(0, 0, 0, 0.025);
+  border-top-color: rgba(107, 104, 96, 0.12);
+}
+
+/* Check rows (parameters list) */
+body.light-theme .ca-check-row {
+  border-bottom-color: rgba(0, 0, 0, 0.07);
+}
+body.light-theme .ca-check-label {
+  color: var(--text);
+}
+body.light-theme .ca-check-val {
+  color: var(--text);
+}
+
+/* Gate strip – collapsed bar & hover */
+body.light-theme .ca-gate-strip {
+  border-bottom-color: rgba(107, 104, 96, 0.12);
+}
+body.light-theme .ca-gate-bar:hover {
+  background: rgba(0, 0, 0, 0.035);
+}
+body.light-theme .ca-gate-bar .ca-gate-title {
+  color: var(--muted);
+}
+
+/* Gate expanded list items */
+body.light-theme .ca-gate-item .gi-name {
+  color: var(--muted);
+}
+body.light-theme .ca-gate-item .gi-value {
+  color: var(--text);        /* override the dark #e5e7eb fallback */
+}
+body.light-theme .ca-gate-item.pass .gi-value {
+  color: var(--green);
+}
+body.light-theme .ca-gate-item.fail .gi-name {
+  color: var(--red);
+}
+body.light-theme .ca-gate-item .gi-reason {
+  color: var(--red);
+}
+
+/* Quality-score pill + breakdown toggle */
+body.light-theme .ca-score-pill {
+  background: rgba(0, 0, 0, 0.04);
+}
+body.light-theme .ca-qbar:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* Quality rows */
+body.light-theme .ca-qrow {
+  border-bottom-color: rgba(0, 0, 0, 0.07);
+}
+body.light-theme .ca-qrow .qr-label {
+  color: var(--muted);
+}
+body.light-theme .ca-qrow .qr-val {
+  color: var(--text);
+}
+body.light-theme .ca-qrow .qr-score {
+  color: var(--text);
+}
+
+/* Blocked panel */
+body.light-theme .ca-blocked-panel {
+  background: rgba(200, 58, 58, 0.04);
+}
+body.light-theme .ca-blocked-reasons li {
+  color: var(--text);
+}
+
+/* Blocked card opacity bump so it stays readable */
+body.light-theme .ca-vcard.blocked {
+  opacity: 0.82;
+  border-left-color: var(--red);
+}
+body.light-theme .ca-vcard.blocked:hover {
+  opacity: 1;
+}
 </style>
 </head>
 <body class="light-theme">
@@ -1634,17 +1745,29 @@ body.light-theme .analytics-subtab-btn.active {
      TAB 02 — ANALYSIS (Pre-Market + Chart Analysis combined)
      ════════════════════════════════════════════════════════════════ -->
 <section class="tab-content" data-tab="analysis">
-  <div class="tab-head">
+  <div class="tab-head" style="align-items: center; margin-bottom: 20px;">
     <div>
       <h2 style="display:flex;align-items:center;gap:10px">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--orange)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="20" x2="18" y2="10"></line>
-          <line x1="12" y1="20" x2="12" y2="4"></line>
-          <line x1="6" y1="20" x2="6" y2="14"></line>
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--yellow)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+          <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
         </svg>
-        Analysis
+        Chart Analysis Matrix
       </h2>
-      <div class="tab-sub">Pre-market cues, global context, composite bias score, and chart-level stock validation.</div>
+      <div class="tab-sub">Granular trade-setup structural diagnostics, alpha factor grading breakdown, and real-time adversarial bull vs bear multi-agent due diligence.</div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px; margin-left: auto;">
+      <button id="maintenanceBtn" onclick="triggerManualMaintenance()"
+              style="display: flex; align-items: center; gap: 8px; background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue); border-radius: var(--radius-md); padding: 0 16px; height: 36px; font-size: 12.5px; font-weight: 700; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); white-space: nowrap;"
+              title="Manually trigger the canonical structural safety check over all OPEN watchlist items. Re-evaluates prunes and morphs entry/exit anchors around progressing moving averages.">
+        <svg class="refresh-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.6s ease;">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        <span class="maint-btn-text">Keep & Refresh Watchlist</span>
+      </button>
     </div>
   </div>
 
@@ -1768,6 +1891,29 @@ body.light-theme .analytics-subtab-btn.active {
       <div class="empty-sub">Run <b>Scan</b> in Watchlist first, then come here to validate each stock's chart</div>
     </div>
   </div>
+  </div>
+  </div>
+
+
+  <!-- ── PRUNED CANDIDATES — terminally invalidated, kept for the record ── -->
+  <div id="prunedSection" class="pruned-section" style="display:none">
+  <div class="tab-section-head">
+    <span style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--red)">
+        <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+      </svg>
+      Pruned from Analysis <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">Thesis terminally invalidated — kept for the record</small>
+    </span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="pill" id="prunedPill">0 removed</span>
+      <button class="sec-toggle" onclick="toggleSection('prunedSection')" title="Expand / Shrink"><span class="chevron">▼</span></button>
+    </div>
+  </div>
+  <div class="sec-body">
+    <div class="tab-sub" style="color:var(--muted,#9aa);margin-bottom:8px">
+      Trend broke, or a false breakout already fired. Restore one only if it sets up cleanly again.
+    </div>
+    <div id="prunedList" class="pruned-list"></div>
   </div>
   </div>
 
@@ -1969,7 +2115,6 @@ body.light-theme .analytics-subtab-btn.active {
       <span style="color:var(--muted); font-weight:600;">⏰ Keep & refresh Scan:</span>
       <input type="time" id="maintenanceTime" value="08:30" style="background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:3px 6px; color:var(--text); font-size:12px; width:80px; outline:none; font-family:monospace; border-color:var(--border);" />
       <button class="ca-btn pine" onclick="setMaintenanceSchedule()" style="font-size:11px; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:700;">Set Time</button>
-      <button class="ca-btn pine" onclick="triggerMaintenanceNow()" style="font-size:11px; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:700; background:rgba(59,130,246,0.12); color:var(--blue); border-color:rgba(59,130,246,0.3);" title="Run Keep & refresh Scan immediately for OPEN watchlist candidates">⚡ Run Now</button>
     </div>
   </div>
 
@@ -1996,27 +2141,6 @@ body.light-theme .analytics-subtab-btn.active {
     <div class="empty" style="padding:30px 20px">
       <div class="empty-sub">Loading watchlist…</div>
     </div>
-  </div>
-
-  <!-- ── PRUNED CANDIDATES — terminally invalidated, kept for the record ── -->
-  <div id="prunedSection" class="pruned-section" style="display:none;margin-top:28px">
-    <div class="tab-head" style="border-top:1px solid var(--border,#2a2a2a);padding-top:18px">
-      <div>
-        <h3 style="display:flex;align-items:center;gap:8px;margin:0;color:var(--muted,#9aa)">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
-               stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-          </svg>
-          Pruned from Analysis
-          <span id="prunedPill" class="news-tag" style="font-size:11px"></span>
-        </h3>
-        <div class="tab-sub" style="color:var(--muted,#9aa)">
-          Thesis terminally invalidated (trend broke, or a false breakout already fired).
-          These are kept for the record — restore one only if it sets up cleanly again.
-        </div>
-      </div>
-    </div>
-    <div id="prunedList" class="pruned-list"></div>
   </div>
   </div>
   </div>
@@ -5637,7 +5761,8 @@ function showSkeletons(n = 4) {
 
 /* ── Render stocks ───────────────────────────────────────── */
 let _currentStocks  = [];
-let _scannedStocks  = [];       // Raw scanned stock setups
+let _scannedStocks  = [];       // Raw scanned stock setups (Watchlist-building + Trading tabs)
+let _analysisStocks = [];       // OPEN-watchlist setups driving the Analysis-tab matrix
 let _sectorPulse    = {};
 let _activeSector   = null;     // null = show all
 let _filteredOut    = [];
@@ -5791,16 +5916,7 @@ function renderStockCard(s, i) {
     }
   }
 
-  let debateBadge = "";
-  if (s.debate && s.debate.verdict) {
-    const dv = s.debate.verdict;
-    const dvStyle = dv === "BUY" ? "background:var(--green-bg); color:var(--green); border:1px solid rgba(16,185,129,0.45)" : dv === "WATCH" ? "background:var(--yellow-bg); color:var(--yellow); border:1px solid rgba(245,158,11,0.45)" : "background:var(--red-bg); color:var(--red); border:1px solid rgba(239,68,68,0.45)";
-    debateBadge = `<span class="tag" style="${dvStyle}; font-weight:800;" title="Adversarial Judge Verdict: ${dv} (${s.debate.conviction_score}/10)">⚖️ JUDGE: ${dv}</span>`;
-  } else if (s.debate_verdict) {
-    const dv = s.debate_verdict;
-    const dvStyle = dv === "BUY" ? "background:var(--green-bg); color:var(--green); border:1px solid rgba(16,185,129,0.45)" : dv === "WATCH" ? "background:var(--yellow-bg); color:var(--yellow); border:1px solid rgba(245,158,11,0.45)" : "background:var(--red-bg); color:var(--red); border:1px solid rgba(239,68,68,0.45)";
-    debateBadge = `<span class="tag" style="${dvStyle}; font-weight:800;" title="Adversarial Judge Verdict: ${dv} (${s.debate_conviction || 5}/10)">⚖️ JUDGE: ${dv}</span>`;
-  }
+  const debateBadge = debateVerdictBadge(s);
 
   return `
     <div class="scard">
@@ -6016,18 +6132,21 @@ function renderWatchlist(r) {
       }
     }
     
+    // Fresh gate/score inputs persisted by the daily Keep & Refresh pass (Cur_* cols).
+    const fresh = !!p.scan_date;
     return {
       symbol:            p.symbol,
-      is_default:        !cached,
+      // Fresh when today's Keep & Refresh stamped scan_date; else fall back to scan cache.
+      is_default:        fresh ? false : !cached,
       name:              p.name || p.symbol,
       price:             p.current || p.entry,
       change_pct:        cached ? cached.change_pct : (p.pnl_pct || 0),
       rsi:               cached ? cached.rsi : 50,
-      vol_ratio:         cached ? cached.vol_ratio : 1,
+      vol_ratio:         (p.vol_ratio != null ? p.vol_ratio : (cached ? cached.vol_ratio : 1)),
       above_ema200:      cached ? cached.above_ema200 : true,
       ema_aligned:       cached ? cached.ema_aligned : true,
       setup:             p.setup || (cached ? cached.setup : "SWING"),
-      atr_pct:           cached ? cached.atr_pct : 3.0,
+      atr_pct:           (p.atr_pct != null ? p.atr_pct : (cached ? cached.atr_pct : 3.0)),
       sector:            cached ? cached.sector : "OTHERS",
       earnings_near:     cached ? cached.earnings_near : false,
       earnings_days_until: (cached && cached.earnings_days_until !== undefined) ? cached.earnings_days_until : null,
@@ -6043,12 +6162,12 @@ function renderWatchlist(r) {
       ema9_cross_ema21:  cached ? cached.ema9_cross_ema21 : "",
       near_52w_high:     cached ? cached.near_52w_high : false,
       high_52w:          cached ? cached.high_52w : 0,
-      weekly_trend:        cached ? cached.weekly_trend : "BULLISH",
-      base_days:           cached ? cached.base_days : 0,
-      base_status:         cached ? cached.base_status : "VOLATILE",
-      false_breakout_risk: cached ? cached.false_breakout_risk : "LOW",
+      weekly_trend:        p.weekly_trend || (cached ? cached.weekly_trend : "BULLISH"),
+      base_days:           (p.base_days != null ? p.base_days : (cached ? cached.base_days : 0)),
+      base_status:         p.base_status || (cached ? cached.base_status : "VOLATILE"),
+      false_breakout_risk: p.false_breakout_risk || (cached ? cached.false_breakout_risk : "LOW"),
       false_breakout_desc: cached ? cached.false_breakout_desc : "",
-      adx:                  cached ? (cached.adx !== undefined ? cached.adx : 25) : 25,
+      adx:                  (p.adx != null ? p.adx : (cached ? (cached.adx !== undefined ? cached.adx : 25) : 25)),
       macd_crossover_days_ago: cached ? (cached.macd_crossover_days_ago !== undefined ? cached.macd_crossover_days_ago : -1) : -1,
       confirmation_price:   p.confirmation_price || 0,
       confirm_volume_ratio: p.confirm_volume_ratio || 1.5,
@@ -6059,8 +6178,23 @@ function renderWatchlist(r) {
       acid_test_failed:     p.acid_test_failed || false,
       live_status:          p.live_status || "WAITING",
       index_membership:     p.index_membership || (cached ? cached.index_membership : []),
+      // Fresh gate/score inputs from the daily Keep & Refresh pass (Analysis-tab matrix)
+      setup_grade:          p.setup_grade || "",
+      setup_score:          p.setup_score || "",
+      ema20:                (p.ema20 != null ? p.ema20 : (cached ? cached.ema20 : 0)),
+      ema50:                (p.ema50 != null ? p.ema50 : (cached ? cached.ema50 : 0)),
+      return_20d:           (p.return_20d != null ? p.return_20d : (cached && cached.return_20d != null ? cached.return_20d : 0)),
+      verdict:              p.verdict || "",
+      reasons:              Array.isArray(p.reasons) ? p.reasons : [],
+      regime_multiplier:    (p.regime_multiplier != null ? p.regime_multiplier : undefined),
+      scan_date:            p.scan_date || "",
+      shareholding:         p.shareholding || (cached ? cached.shareholding : null),
+      debate:               p.debate || null,
     };
   });
+
+  // Analysis-tab matrix (Chart Analysis + Safety Gates) validates the OPEN watchlist.
+  _analysisStocks = _currentStocks;
 
   // Re-render tab components if they are visible in DOM to keep validations updated in real-time
   const curTab = document.querySelector(".tab-btn.active")?.dataset.tab;
@@ -6128,6 +6262,7 @@ function renderWatchlist(r) {
   const STATUS_STYLE = {
     "T2_REACHED": "background:var(--green-bg);color:var(--green);border:1px solid var(--green)",
     "T1_REACHED": "background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)",
+    "EXTENDED":   "background:rgba(245,158,11,0.10);color:#f59e0b;border:1px solid rgba(245,158,11,0.40)",
     "BELOW_SL":   "background:var(--red-bg);color:var(--red);border:1px solid var(--red)",
     "AT_ENTRY":   "background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue)",
     "WAITING":    "background:var(--card);color:var(--muted);border:1px solid var(--border)",
@@ -6135,6 +6270,7 @@ function renderWatchlist(r) {
   const STATUS_LABEL = {
     "T2_REACHED": "T2 ✓",
     "T1_REACHED": "T1 ✓",
+    "EXTENDED":   "EXT ⤴",
     "BELOW_SL":   "SL HIT",
     "AT_ENTRY":   "AT ENTRY",
     "WAITING":    "WAITING",
@@ -6143,7 +6279,11 @@ function renderWatchlist(r) {
   const watchlistRows = (r.watchlist_positions || []).map(p => {
     const pnlCls = p.pnl_pct >= 0 ? "up" : "down";
     const status = p.live_status || "WAITING";
-    const badge = `<span class="outcome-badge" style="${STATUS_STYLE[status]||STATUS_STYLE.WAITING}" title="${p.entry_notified?'Entry alert fired':'Entry alert NOT fired yet'}">${STATUS_LABEL[status]}</span>`;
+    const badgeTitle = status === "EXTENDED"
+      ? "Price already ran past T1 — entry missed, don't chase"
+      : (p.entry_notified ? 'Entry alert fired' : 'Entry alert NOT fired yet');
+    const badge = `<span class="outcome-badge" style="${STATUS_STYLE[status]||STATUS_STYLE.WAITING}" title="${badgeTitle}">${STATUS_LABEL[status]}</span>`;
+    const staleTag = p.price_stale ? ` <small style="color:var(--muted)" title="Market closed — last traded ${p.price_date}">· as of ${p.price_date}</small>` : "";
     const t1Cls = p.above_t1 ? 'style="color:var(--yellow);font-weight:700"' : 'style="color:var(--muted)"';
     const t2Cls = p.above_t2 ? 'style="color:var(--green);font-weight:700"'  : 'style="color:var(--muted)"';
     const slCls = p.below_sl ? 'style="color:var(--red);font-weight:700"'    : 'style="color:var(--red)"';
@@ -6172,7 +6312,7 @@ function renderWatchlist(r) {
         <div style="margin-top:2px;">${renderSetupAndExpiryBadges(p)}</div>
         ${renderSnapshotBadge(p)}
       </td>
-      <td>₹${fmtP(p.entry)} <small style="color:var(--muted)">→</small> <b>₹${fmtP(p.current)}</b></td>
+      <td>₹${fmtP(p.entry)} <small style="color:var(--muted)">→</small> <b>₹${fmtP(p.current)}</b>${staleTag}</td>
       <td><span ${t1Cls}>₹${fmtP(p.target_1)}</span></td>
       <td><span ${t2Cls}>₹${fmtP(p.target_2)}</span></td>
       <td><span ${slCls}>₹${fmtP(p.sl)}</span></td>
@@ -6201,6 +6341,7 @@ function renderWatchlist(r) {
     const pnlCls = p.pnl_pct >= 0 ? "up" : "down";
     const status = p.live_status || "WAITING";
     const badge = `<span class="outcome-badge" style="${STATUS_STYLE[status]||STATUS_STYLE.WAITING}" title="${p.entry_notified?'Entry alert fired':'Entry alert NOT fired yet'}">${STATUS_LABEL[status]}</span>`;
+    const staleTag = p.price_stale ? ` <small style="color:var(--muted)" title="Market closed — last traded ${p.price_date}">· as of ${p.price_date}</small>` : "";
     // Highlight T1/T2 cells if price has crossed them
     const t1Cls = p.above_t1 ? 'style="color:var(--yellow);font-weight:700"' : 'style="color:var(--muted)"';
     const t2Cls = p.above_t2 ? 'style="color:var(--green);font-weight:700"'  : 'style="color:var(--muted)"';
@@ -6220,7 +6361,7 @@ function renderWatchlist(r) {
         <div style="margin-top:2px;">${renderSetupAndExpiryBadges(p)}</div>
         ${renderSnapshotBadge(p)}
       </td>
-      <td>₹${fmtP(p.entry)} <small style="color:var(--muted)">→</small> <b>₹${fmtP(p.current)}</b></td>
+      <td>₹${fmtP(p.entry)} <small style="color:var(--muted)">→</small> <b>₹${fmtP(p.current)}</b>${staleTag}</td>
       <td><span ${t1Cls}>₹${fmtP(p.target_1)}</span></td>
       <td><span ${t2Cls}>₹${fmtP(p.target_2)}</span></td>
       <td><span ${slCls}>₹${fmtP(p.sl)}</span></td>
@@ -6346,10 +6487,13 @@ function renderAll(data) {
   }
   renderStocks(stocks);
 
-  // Refresh Analysis & Trading tab components so they show the newly scanned stocks
+  // Refresh Trading-tab stock selector with the newly scanned stocks.
+  // NOTE: renderChartAnalysis() and renderStockValidation() are NOT called here
+  // because they use _analysisStocks (sourced from /api/results via loadPositions),
+  // not the scan payload. Calling them here would render stale watchlist data
+  // (e.g. showing pruned stocks). They are correctly triggered by
+  // loadPositions() → renderWatchlist() after the fresh positions are fetched.
   try {
-    if (typeof renderChartAnalysis === "function") renderChartAnalysis();
-    if (typeof renderStockValidation === "function") renderStockValidation();
     if (typeof renderStockSelector === "function") renderStockSelector();
   } catch (e) {
     console.error("Failed to refresh tab views:", e);
@@ -6378,7 +6522,7 @@ async function runScan() {
     } else {
       toast(`Scan complete — ${(data.stocks||[]).length} setups found`, "success");
     }
-    loadPositions();
+    await loadPositions();
   } catch (err) {
     toast(`Scan failed: ${err.message}`, "error", 6000);
     renderStocks([]);
@@ -6452,33 +6596,75 @@ async function setMaintenanceSchedule() {
   }
 }
 
-async function triggerMaintenanceNow() {
+/* ── Manual Watchlist Level Adjustments & Structural Audits ── */
+async function triggerManualMaintenance() {
   if (!BASE) return;
-  toast("⚡ Running Keep & refresh Scan... Please wait.", "info", 60000);
+
+  const btn = document.getElementById("maintenanceBtn");
+  const textEl = btn.querySelector(".maint-btn-text");
+  const iconEl = btn.querySelector(".refresh-icon");
+
+  if (btn.classList.contains("loading")) return;
+
+  // Enter loading states with hardware-accelerated continuous CSS spinning rotation
+  btn.disabled = true;
+  btn.classList.add("loading");
+  btn.style.opacity = "0.7";
+  btn.style.cursor = "wait";
+  textEl.textContent = "Re-evaluating & Refreshing…";
+
+  // Apply a dynamic continuous spinning style
+  iconEl.style.transform = "rotate(360deg)";
+  const spinInterval = setInterval(() => {
+    const currentRotation = parseInt(iconEl.style.transform.replace(/[^0-9]/g, '')) || 0;
+    iconEl.style.transform = `rotate(${currentRotation + 360}deg)`;
+  }, 600);
+
   try {
-    const r = await apiFetch("/api/schedule/maintenance/run", {
-      method: "POST"
-    });
-    // Remove the long running notification and show results
-    toast("Keep & refresh Scan complete!", "success", 3000);
+    // Pipeline hits the manual morning validation flow route inside server.py
+    const r = await apiFetch("/api/schedule/maintenance/run", { method: "POST" });
+
+    // Clear out spinning timers
+    clearInterval(spinInterval);
+    iconEl.style.transform = "none";
+
     if (r && r.status === "success") {
-      const keptCount = r.kept ? r.kept.length : 0;
-      const delCount = r.deleted ? r.deleted.length : 0;
-      const absCount = r.absent_pending ? r.absent_pending.length : 0;
-      
-      let summaryMsg = `Refreshed: ${keptCount} | Deleted: ${delCount}`;
-      if (absCount > 0) summaryMsg += ` | Absent Pending: ${absCount}`;
-      
-      toast(summaryMsg, "success", 5000);
-      
-      // Reload positions to update table view in real-time
-      loadPositions();
+      const keptCount = (r.kept || []).length;
+      const prunedCount = (r.deleted || []).length;
+      const absentCount = (r.absent_pending || []).length;
+
+      let toastMsg = `Watchlist Audited successfully. Kept: ${keptCount}`;
+      if (prunedCount > 0) toastMsg += ` | Pruned: ${prunedCount}`;
+      if (absentCount > 0) toastMsg += ` | Absent Pending: ${absentCount}`;
+
+      // Dispatch system status message
+      toast(toastMsg, "success", 6000);
+
+      // Real-time decoupled load sequence invocation to synchronize client tables immediately.
+      // loadPositions() rebuilds the OPEN watchlist and re-renders the Analysis-tab matrix
+      // (Chart Analysis + Safety Gates) from the freshly-recomputed Cur_* fields.
+      if (typeof loadPositions === "function") {
+        await loadPositions();
+      }
+      // Surface any newly pruned stocks in the "Pruned from Analysis" panel.
+      if (typeof renderPrunedSection === "function") {
+        renderPrunedSection();
+      }
     } else {
-      toast(r.message || "Keep & refresh Scan completed with warnings", "warn");
+      throw new Error(r.message || "Backend rejected pipeline iteration request.");
     }
   } catch (err) {
-    console.error("Manual Keep & refresh Scan failed:", err);
-    toast("Keep & refresh Scan failed or timed out", "error");
+    clearInterval(spinInterval);
+    iconEl.style.transform = "none";
+    console.error("[Watchlist Maintenance UI Override Failed]:", err);
+    toast(`Maintenance execution context error: ${err.message}`, "error", 6000);
+  } finally {
+    // Restore layout variables back to static configuration rules
+    btn.disabled = false;
+    btn.classList.remove("loading");
+    btn.style.opacity = "1";
+    btn.style.cursor = "pointer";
+    textEl.textContent = "Keep & Refresh Watchlist";
   }
 }
 
@@ -6578,6 +6764,26 @@ async function saveManualOverrides(symbol, btn) {
   }
 }
 
+/* Toggle a candidate's Fundamental_Status (Approved ↔ On Hold) from the Safety Gate #1 pill.
+   Reuses the existing /api/positions/update-override endpoint. */
+async function toggleFundStatus(symbol, current) {
+  const next = (current || "APPROVED").toUpperCase() === "ON_HOLD" ? "APPROVED" : "ON_HOLD";
+  try {
+    const res = await apiFetch("/api/positions/update-override", {
+      method: "POST",
+      body: JSON.stringify({ symbol, fundamental_status: next })
+    });
+    if (res.error || res.status === "error") {
+      toast("Failed to update Fund status: " + (res.message || res.error || ""), "error");
+      return;
+    }
+    toast(`${symbol} Fund status → ${next}`, "success");
+    await loadPositions();   // re-renders the Analysis-tab matrix + gates
+  } catch (err) {
+    toast("Error updating Fund status: " + err, "error");
+  }
+}
+
 /* ── ⚔️ Bull vs. Bear Adversarial Debate Panel Logic ────────────────── */
 
 let _debateConfig = {
@@ -6609,13 +6815,37 @@ async function loadDebateConfig() {
       _debateConfig.bear_temp = c.bear_agent?.temperature ?? 0.4;
       _debateConfig.judge_temp = c.judge_agent?.temperature ?? 0.2;
 
+      const setSelectValueWithFallback = (selectEl, value) => {
+        if (!selectEl) return;
+        let exists = false;
+        for (let i = 0; i < selectEl.options.length; i++) {
+          if (selectEl.options[i].value === value) {
+            exists = true;
+            break;
+          }
+        }
+        if (!exists && value) {
+          const opt = document.createElement("option");
+          opt.value = value;
+          let label = value;
+          if (value.includes("/")) {
+            const parts = value.split("/");
+            const provider = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+            label = `${provider}: ${parts[1]}`;
+          }
+          opt.textContent = label;
+          selectEl.appendChild(opt);
+        }
+        selectEl.value = value;
+      };
+
       const bullSelect = document.getElementById("bull-model-select");
       const bearSelect = document.getElementById("bear-model-select");
       const judgeSelect = document.getElementById("judge-model-select");
 
-      if (bullSelect) bullSelect.value = _debateConfig.bull_model;
-      if (bearSelect) bearSelect.value = _debateConfig.bear_model;
-      if (judgeSelect) judgeSelect.value = _debateConfig.judge_model;
+      if (bullSelect) setSelectValueWithFallback(bullSelect, _debateConfig.bull_model);
+      if (bearSelect) setSelectValueWithFallback(bearSelect, _debateConfig.bear_model);
+      if (judgeSelect) setSelectValueWithFallback(judgeSelect, _debateConfig.judge_model);
 
       const bullTemp = document.getElementById("bull-temp-input");
       const bearTemp = document.getElementById("bear-temp-input");
@@ -6762,28 +6992,36 @@ async function loadDebateData(symbol, force = false) {
   }, 2500);
   
   try {
-    // Read model + temperature live from the config fields, sent as a nested override_config.
-    const _sel = id => (document.getElementById(id)?.value || "");
-    const _prov = v => v.split("/")[0];
-    const _mdl = v => v.split("/")[1] || v;
+    const _sel = id => {
+      const el = document.getElementById(id);
+      return el && el.value ? el.value : "";
+    };
+    const _prov = (v, defaultVal = "gemini") => {
+      if (!v) return defaultVal;
+      return v.split("/")[0] || defaultVal;
+    };
+    const _mdl = (v, defaultVal = "gemini-1.5-flash") => {
+      if (!v) return defaultVal;
+      return v.split("/")[1] || defaultVal;
+    };
     const res = await apiFetch(`/api/debate/${symbol}`, {
       method: "POST",
       body: JSON.stringify({
         force_refresh: force,
         override_config: {
           bull_agent: {
-            provider: _prov(_sel("bull-model-select")),
-            model: _mdl(_sel("bull-model-select")),
+            provider: _prov(_sel("bull-model-select"), "gemini"),
+            model: _mdl(_sel("bull-model-select"), "gemini-1.5-flash"),
             temperature: _readTemp("bull-temp-input", 0.4)
           },
           bear_agent: {
-            provider: _prov(_sel("bear-model-select")),
-            model: _mdl(_sel("bear-model-select")),
+            provider: _prov(_sel("bear-model-select"), "gemini"),
+            model: _mdl(_sel("bear-model-select"), "gemini-1.5-flash"),
             temperature: _readTemp("bear-temp-input", 0.4)
           },
           judge_agent: {
-            provider: _prov(_sel("judge-model-select")),
-            model: _mdl(_sel("judge-model-select")),
+            provider: _prov(_sel("judge-model-select"), "gemini"),
+            model: _mdl(_sel("judge-model-select"), "gemini-1.5-pro"),
             temperature: _readTemp("judge-temp-input", 0.2)
           }
         }
@@ -7131,12 +7369,14 @@ async function buyStockDirectly(symbol) {
 
 /* ── Buy modal ───────────────────────────────────────────── */
 let _buyStock = null;
+let _buyStockIdx = null;
 
 function openBuyModal(idx) {
   if (!BASE) { toast("Start the server first: run.bat", "error"); return; }
   const s = _scannedStocks[idx];
   if (!s) return;
   _buyStock = s;
+  _buyStockIdx = idx;
   document.getElementById("modalTitle").textContent = `Add ${s.symbol} to Watchlist`;
   document.getElementById("modalEntry").value = s.entry_min || s.price || "";
   document.getElementById("modalQty").value   = 1;
@@ -7149,6 +7389,7 @@ function openBuyModal(idx) {
 function closeBuyModal() {
   document.getElementById("buyModal").classList.remove("open");
   _buyStock = null;
+  _buyStockIdx = null;
 }
 
 async function confirmBuy() {
@@ -7181,6 +7422,7 @@ async function confirmBuy() {
       method: "POST",
       body: JSON.stringify(payload),
     });
+    const targetIdx = _buyStockIdx;
     closeBuyModal();
     if (resp.status === "duplicate") {
       toast(`${symbol} is already on your watchlist`, "info");
@@ -7188,6 +7430,10 @@ async function confirmBuy() {
       toast(`${symbol} added to watchlist`, "success");
     }
     await loadPositions();
+    
+    if (targetIdx !== null && targetIdx !== undefined) {
+      selectScannedStockForTrading(targetIdx);
+    }
   } catch(err) {
     toast(`Failed: ${err.message}`, "error");
   } finally {
@@ -7894,7 +8140,7 @@ function switchTab(tabId) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tabId));
   try { localStorage.setItem(LS_ACTIVE_TAB_KEY, tabId); } catch {}
   // Trigger tab-specific refresh
-  if (tabId === "analysis")   { renderBiasBuilder(); renderChartAnalysis(); renderStockValidation(); }
+  if (tabId === "analysis")   { renderBiasBuilder(); renderChartAnalysis(); renderStockValidation(); renderPrunedSection(); }
   if (tabId === "trading")    { renderEntryGates(); renderEntryChecklist(); renderStockSelector(); recalcPosSize(); recalcTrail(); }
   if (tabId === "portfolio")  { loadPositions(); renderReviewMetrics(); renderJournalList(); loadMaintenanceSchedule(); }
   if (tabId === "analytics")  { loadPositions(); }
@@ -8006,14 +8252,14 @@ function renderChartAnalysis() {
   const list = document.getElementById("caList");
   const pill = document.getElementById("caPill");
   if (!list) return;
-  const stocks = _scannedStocks || [];
+  const stocks = _analysisStocks || [];
   pill.textContent = `${stocks.length} stock${stocks.length !== 1 ? "s" : ""}`;
 
   if (!stocks.length) {
     list.innerHTML = `<div class="empty" style="padding:30px 20px">
       <div class="empty-icon">📭</div>
-      <div class="empty-title">No scanned stocks</div>
-      <div class="empty-sub">Run <b>Scan</b> in Watchlist Building first</div>
+      <div class="empty-title">No watchlist positions</div>
+      <div class="empty-sub">Add OPEN candidates to your watchlist first</div>
     </div>`;
     return;
   }
@@ -8697,6 +8943,8 @@ function _caCheck(pass, warn) {
    ══════════════════════════════════════════════════════════ */
 
 // The 9 Safety Gates (binary). Returns { passed, gates[], passCount, failCount, total, failedGates[] }.
+// NOTE: the adversarial debate verdict is intentionally NOT a gate — it is a judgment call
+// surfaced independently via the ⚖️ JUDGE badge / Debate Chamber, not a structural-safety block.
 function evaluateGates(s) {
   const reasons = Array.isArray(s.reasons) ? s.reasons : [];
   // Find server reason(s) matching any of the given lowercase substrings.
@@ -8707,12 +8955,11 @@ function evaluateGates(s) {
   const gates = [];
   const add = (num, name, fail, reason, value) => gates.push({ num, name, pass: !fail, reason: fail ? reason : null, value: value != null ? String(value) : "—" });
 
-  // 1 · Status — ON_HOLD on fundamental or live status
+  // 1 · Fund status — ON_HOLD on fundamental status (value rendered as an Approved↔On Hold toggle)
   const onHoldFund = (s.fundamental_status || "").toUpperCase() === "ON_HOLD";
-  const onHoldLive = (s.live_status || "").toUpperCase() === "ON_HOLD";
-  add(1, "Status", onHoldFund || onHoldLive,
-    onHoldFund ? "Fundamental status ON_HOLD" : "Live status ON_HOLD",
-    `Fund: ${s.fundamental_status || "—"} · Live: ${s.live_status || "—"}`);
+  add(1, "Fund status", onHoldFund,
+    "Fundamental status ON_HOLD",
+    (s.fundamental_status || "APPROVED").toUpperCase());
 
   // 2 · Weekly trend — bearish
   const wt = (s.weekly_trend || "BULLISH").toUpperCase();
@@ -8749,23 +8996,23 @@ function evaluateGates(s) {
   add(6, "Overextension", overext, "Overextended (+" + (isNaN(r20) ? "?" : r20.toFixed(1)) + "% in 20d)",
     isNaN(r20) ? "—" : `${r20 >= 0 ? "+" : ""}${r20.toFixed(1)}% / 20d`);
 
-  // 7 · Debate verdict — adversarial debate = SKIP
-  const verdict = (s.verdict || "").toUpperCase();
-  const dverdict = (s.debate_verdict || (s.debate && s.debate.verdict) || "").toUpperCase();
-  add(7, "Debate verdict", verdict === "SKIP" || dverdict === "SKIP" || dverdict === "AVOID",
-    "Adversarial debate verdict: SKIP", dverdict || verdict || "—");
-
-  // 8 · Data freshness — older than 1 trading day
-  add(8, "Data freshness", isDataStale(s), "Stale data (older than 1 trading day)",
+  // 7 · Data freshness — older than 1 trading day
+  add(7, "Data freshness", isDataStale(s), "Stale data (older than 1 trading day)",
     isDataStale(s) ? "Stale" : "Fresh");
 
-  // 9 · Sector × Nifty regime — RED sector / rotation-trap / hard-skip cell
+  // 8 · Sector × Nifty regime — RED sector / rotation-trap / hard-skip cell
   const rm = s.regime_multiplier;
   const hardSkip = rm !== undefined && parseFloat(rm) === 0;
   const regReason = hit(["rotation trap", "sector rotation", "sector red", "hard skip", "regime block"]);
-  add(9, "Sector × Nifty regime", hardSkip || !!regReason,
+  add(8, "Sector × Nifty regime", hardSkip || !!regReason,
     regReason || "Sector rotation trap (Nifty / sector regime block)",
     rm !== undefined ? `${parseFloat(rm).toFixed(2)}×` : "—");
+
+  // 9 · Server verdict — SKIP
+  const serverSkip = (s.verdict || "").toUpperCase() === "SKIP";
+  add(9, "Server verdict", serverSkip,
+    reasons.length ? reasons.join("; ") : "Server rejected the stock (verdict is SKIP)",
+    s.verdict || "PASS");
 
   const failedGates = gates.filter(g => !g.pass);
   return {
@@ -9025,18 +9272,62 @@ function toggleGateStrip(id, btn) {
   if (chevron) chevron.classList.toggle("open", open);
 }
 
+// ⚖️ Adversarial debate (Judge) verdict badge. Independent of the 🛡 safety gates —
+// a judgment call surfaced wherever a card needs it. Returns "" when no debate has run.
+function debateVerdictBadge(s) {
+  let dv = null, conv = null;
+  if (s.debate && s.debate.verdict) { dv = s.debate.verdict; conv = s.debate.conviction_score; }
+  else if (s.debate_verdict) { dv = s.debate_verdict; conv = s.debate_conviction || 5; }
+  if (!dv) return "";
+  const u = String(dv).toUpperCase();
+  const dvStyle = u === "BUY"
+    ? "background:var(--green-bg); color:var(--green); border:1px solid rgba(16,185,129,0.45)"
+    : u === "WATCH"
+    ? "background:var(--yellow-bg); color:var(--yellow); border:1px solid rgba(245,158,11,0.45)"
+    : "background:var(--red-bg); color:var(--red); border:1px solid rgba(239,68,68,0.45)";
+  return `<span class="tag" style="${dvStyle}; font-weight:800;" title="Adversarial Judge Verdict: ${dv} (${conv}/10) — independent of the 🛡 safety gates">⚖️ JUDGE: ${dv}</span>`;
+}
+
+// Always-visible Fund status ON/OFF toggle (Gate #1). Approved = ON (green), On Hold = OFF (red).
+// Click writes Fundamental_Status via toggleFundStatus() → /api/positions/update-override.
+function fundStatusToggle(s) {
+  const fs = (s.fundamental_status || "APPROVED").toUpperCase();
+  const onHold = fs === "ON_HOLD";
+  return `<button class="fund-toggle ${onHold ? "hold" : "ok"}"
+    onclick="event.stopPropagation(); toggleFundStatus('${s.symbol}', '${fs}')"
+    title="Fund status (Safety Gate #1) — click to toggle Approved ↔ On Hold">
+    <span class="ft-track"><span class="ft-knob"></span></span>
+    <span class="ft-text">Fund: ${onHold ? "On Hold" : "Approved"}</span>
+  </button>`;
+}
+
+// Small badge for the structural safety-gate verdict (s.verdict from apply_risk_filters).
+// Distinct from the ⚖️ adversarial debate (Judge) verdict — same color scheme as the scan grid's vBadge.
+function safetyVerdictBadge(verdict) {
+  const v = (verdict || "").toUpperCase();
+  if (!v) return "";
+  const styles = {
+    PASS:    "background:var(--green-bg); color:var(--green); border:1px solid rgba(16,185,129,0.25);",
+    WATCH:   "background:var(--blue-bg); color:var(--blue); border:1px solid rgba(59,130,246,0.25);",
+    WARNING: "background:var(--yellow-bg); color:var(--yellow); border:1px solid rgba(245,158,11,0.25);",
+    SKIP:    "background:var(--red-bg); color:var(--red); border:1px solid rgba(239,68,68,0.25);"
+  };
+  const st = styles[v] || "background:var(--card); color:var(--muted); border:1px solid var(--border);";
+  return `<span class="tag" style="${st} font-weight:700; border-radius:4px; padding:1px 6px; font-size:9px;" title="Structural safety-gate verdict from apply_risk_filters (PASS / WATCH / WARNING / SKIP). Distinct from the ⚖️ adversarial debate (Judge) verdict.">🛡 ${v}</span>`;
+}
+
 function renderStockValidation() {
   const grid = document.getElementById("caValidateGrid");
   const pill = document.getElementById("caValidatePill");
   if (!grid) return;
-  const stocks = _scannedStocks || [];
-  if (pill) pill.textContent = `0 eligible / ${stocks.length} scanned`;
+  const stocks = _analysisStocks || [];
+  if (pill) pill.textContent = `0 eligible / ${stocks.length} watchlist`;
 
   if (!stocks.length) {
     grid.innerHTML = `<div class="empty" style="padding:30px 20px">
       <div class="empty-icon">📊</div>
       <div class="empty-title">No stocks to validate</div>
-      <div class="empty-sub">Run <b>Scan</b> in Watchlist first</div>
+      <div class="empty-sub">Add OPEN candidates to your watchlist first</div>
     </div>`;
     return;
   }
@@ -9066,7 +9357,7 @@ function renderStockValidation() {
   ranked.forEach(item => { if (item.eligible && rankCounter < 4) { rankCounter++; item.rank = rankCounter; } });
 
   const eligibleCount = ranked.filter(r => r.eligible).length;
-  if (pill) pill.textContent = `${eligibleCount} eligible / ${stocks.length} scanned`;
+  if (pill) pill.textContent = `${eligibleCount} eligible / ${stocks.length} watchlist`;
 
   const emptyTopBanner = eligibleCount === 0
     ? `<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#fbbf24;line-height:1.4">⚠ No eligible stocks today — every scanned stock failed at least one safety gate.</div>`
@@ -9102,7 +9393,7 @@ function renderStockValidation() {
     const gateStripHtml = `
       <div class="ca-gate-strip">
         <button class="ca-gate-bar" onclick="toggleGateStrip('${gateId}', this)">
-          <span class="ca-gate-title">🛡 Safety gates <span class="ca-gate-chevron">▼</span></span>
+          <span class="ca-gate-title" title="🛡 Safety gates — all 9 must PASS or this stock is blocked from entry.\n1. Fund status: not ON_HOLD\n2. Weekly trend: not bearish\n3. Fundamentals: no weakness flagged\n4. Institutional: no FII/DII distribution\n5. Liquidity: meets min turnover/volume\n6. Overextension: ≤25% return over 20d\n7. Data freshness: ≤1 trading day old\n8. Sector × Nifty regime: not a rotation-trap / hard-skip cell\n9. Server verdict: backend verdict is not SKIP\nThe adversarial debate verdict is shown separately (⚖️ JUDGE badge) and does NOT block entry.\nDots show per-gate status — click the bar to expand reasons.">🛡 Safety gates <span class="ca-gate-chevron">▼</span></span>
           <span style="display:flex;align-items:center;gap:10px">
             <span class="ca-gate-dots">${gateDots}</span>
             <span class="ca-gate-count ${countCls}">${countTxt}</span>
@@ -9111,7 +9402,7 @@ function renderStockValidation() {
         <div id="${gateId}" class="ca-gate-list">${gateItems}</div>
       </div>`;
 
-    // ── Body: BLOCKED → ineligible panel only · ELIGIBLE → score ring + 6 quality rows ──
+    // ── Body: BLOCKED → ineligible panel only · ELIGIBLE → compact score pill + collapsible quality rows ──
     let bodyHtml;
     if (item.blocked) {
       const failList = gr.failedGates.map(g => `<li>${g.reason || g.name}</li>`).join("");
@@ -9122,6 +9413,7 @@ function renderStockValidation() {
       </div>`;
     } else {
       const t = item.tier;
+      const qrowsId = `qrows_${s.symbol}_${i}`;
       const qrows = item.quality.rows.map(r => `
         <div class="ca-qrow" title="${(r.formula || "").replace(/"/g, "&quot;")}">
           <span class="qr-label">${r.label}</span>
@@ -9130,18 +9422,17 @@ function renderStockValidation() {
           <span class="qr-icon ${r.cls}">${r.icon}</span>
         </div>`).join("");
       bodyHtml = `
-      <div class="ca-score-block">
-        <div class="ca-score-ring" style="--ring-pct:${item.score};--ring-col:${t.col}">
-          <span class="rv">${item.score}</span>
-          <span class="rmax">/100</span>
-        </div>
-        <div class="ca-score-meta">
-          <span class="sm-label">Quality Score</span>
-          <span class="ca-tier-badge ${t.cls}">${t.label}</span>
-          <span class="ca-tier-mult">${t.mult} conviction</span>
-        </div>
-      </div>
-      <div class="ca-qrows">${qrows}</div>`;
+      <div class="ca-qbreakdown">
+        <button class="ca-qbar" onclick="toggleGateStrip('${qrowsId}', this)">
+          <span class="ca-qbar-title" title="Setup Quality Score: ${item.score} / 100 — click to expand the ${item.quality.rows.length}-factor breakdown.">🎯 Quality score <span class="ca-gate-chevron">▼</span></span>
+          <span style="display:flex;align-items:center;gap:8px">
+            <span class="ca-score-pill" style="--ring-col:${t.col}">${item.score}<span class="sp-max">/100</span></span>
+            <span class="ca-tier-badge ${t.cls}">${t.label}</span>
+            <span class="ca-tier-mult">${t.mult} conviction</span>
+          </span>
+        </button>
+        <div id="${qrowsId}" class="ca-qrows">${qrows}</div>
+      </div>`;
     }
 
     return `<div class="${cardCls}" style="${cardStyle}">
@@ -9150,9 +9441,12 @@ function renderStockValidation() {
           ${ribbon}
           <div style="display:flex;align-items:center;gap:6px">
             <div class="sym">${s.symbol}</div>
+            ${safetyVerdictBadge(s.verdict)}
+            ${debateVerdictBadge(s)}
             <button onclick="removeStockFromWatchlist('${s.symbol}')" title="Remove from watchlist" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:2px;border-radius:4px;line-height:1">🗑️</button>
           </div>
           <div style="font-size:11px;color:var(--muted)">${s.name || s.symbol}</div>
+          <div style="margin-top:6px">${fundStatusToggle(s)}</div>
           <div style="font-size:9.5px;color:var(--muted);margin-top:4.5px;display:flex;align-items:center;gap:3px" title="The date when this stock setup was first identified and added to the analysis view.">
             <span>📅</span> First Scanned: <b>${s.entry_date || new Date().toISOString().slice(0, 10)}</b>
           </div>
@@ -9211,12 +9505,6 @@ function renderStockValidation() {
       </div>
 
       <div class="ca-vcard-foot" style="display:flex; flex-direction:column; align-items:stretch; gap:8px">
-        <div style="display:flex; justify-content:space-between; align-items:center; width:100%">
-          ${item.blocked
-            ? `<span class="ca-score weak" title="Failed gate(s): ${item.reasons.join('; ')}">⚠️ Blocked by safety gate</span>`
-            : `<span class="ca-score ${item.tier.cls === "inelig" ? "weak" : item.tier.cls}" title="Quality Score ${item.score}/100 · ${item.tier.label} (${item.tier.mult} conviction)">Eligible · ${item.tier.label}</span>`
-          }
-        </div>
         <button class="ca-btn" onclick="sendToSizer('${s.symbol}')" style="font-size:11.5px; padding:8px 12px; background:var(--blue-bg); color:var(--blue); border-color:var(--blue); font-weight:700; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; width:100%; border-radius:8px; transition:all 0.15s; box-shadow:0 2px 8px rgba(59,130,246,0.12)" onmouseover="this.style.background='var(--blue)';this.style.color='#ffffff'" onmouseout="this.style.background='var(--blue-bg)';this.style.color='var(--blue)'">
           <div style="display:flex; align-items:center; gap:6px">
             <span>📐 Size & Plan Trade</span>
@@ -9225,6 +9513,7 @@ function renderStockValidation() {
             </svg>
           </div>
           <div style="font-size:9.5px; font-weight:500; opacity:0.85; display:flex; gap:6px; flex-wrap:wrap; justify-content:center">
+            <span>LTP: ₹${fmtP(s.price || 0)}</span> · 
             <span>SL: ₹${fmtP(s.sl || 0)}</span> · 
             <span>T1: ₹${fmtP(s.target_1 || 0)}</span> · 
             <span>T2: ₹${fmtP(s.target_2 || 0)}</span>
@@ -9417,12 +9706,25 @@ function toggleGate07Details(btn) {
    STOCK SELECTOR — click scanned stock to auto-fill
    ══════════════════════════════════════════════════════════ */
 
+function getSelectorStocks() {
+  const scanned = _scannedStocks || [];
+  const watchlist = _currentStocks || [];
+  const mergedMap = new Map();
+  scanned.forEach(s => mergedMap.set(s.symbol, s));
+  watchlist.forEach(s => {
+    if (!mergedMap.has(s.symbol)) {
+      mergedMap.set(s.symbol, s);
+    }
+  });
+  return Array.from(mergedMap.values());
+}
+
 function renderStockSelector() {
   const bar = document.getElementById("stockSelBar");
   if (!bar) return;
-  const stocks = _scannedStocks || [];
+  const stocks = getSelectorStocks();
   if (!stocks.length) {
-    bar.innerHTML = `<div style="padding:16px; color:var(--muted); font-size:12px">No scanned stocks — run Scan first</div>`;
+    bar.innerHTML = `<div style="padding:16px; color:var(--muted); font-size:12px">No scanned or watchlist stocks — run Scan first</div>`;
     return;
   }
   
@@ -9484,7 +9786,8 @@ function renderStockSelector() {
 }
 
 function selectStockForTrading(idx) {
-  const s = _scannedStocks[idx];
+  const stocks = getSelectorStocks();
+  const s = stocks[idx];
   if (!s) return;
   _selectedTradeStock = s;
 

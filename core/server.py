@@ -19,7 +19,7 @@ from flask import Flask, jsonify, redirect, request, send_from_directory
 # Load .env if present (python-dotenv optional — falls back gracefully)
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(dotenv_path=os.path.join(_ROOT, ".env"))
 except ImportError:
     pass
 
@@ -169,6 +169,7 @@ try:
         fetch_global_markets,
         fetch_nifty_levels,
         fetch_prices_bulk,
+        fetch_prices_bulk_dated,
         fetch_stock_technicals,
         NSE_TICKERS,
     )
@@ -181,6 +182,7 @@ except ImportError:
         fetch_global_markets,
         fetch_nifty_levels,
         fetch_prices_bulk,
+        fetch_prices_bulk_dated,
         fetch_stock_technicals,
         NSE_TICKERS,
     )
@@ -629,7 +631,7 @@ def process_single_stock(stock, df_sym, sector_pulse, filters):
 
 
 def refresh_trade_levels(df_positions, idx, tech):
-    plan = calculate_trade_plan(tech)
+    plan = calculate_trade_plan(tech, is_refresh=True)
     df_positions.at[idx, "Entry_Price"] = plan.get("entry_zone_min", df_positions.at[idx, "Entry_Price"])
     df_positions.at[idx, "Target_1"] = plan.get("target_1", df_positions.at[idx, "Target_1"])
     df_positions.at[idx, "Target_2"] = plan.get("target_2", df_positions.at[idx, "Target_2"])
@@ -1055,6 +1057,27 @@ def _ensure_cols(df, cols: list, default="") -> None:
     for col in cols:
         if col not in df.columns:
             df[col] = pd.Series([default] * len(df), dtype=object)
+
+
+def _num(val):
+    """Coerce a possibly-blank/NaN CSV value to a float, else None (→ JSON null)."""
+    try:
+        if val is None or val == "" or (isinstance(val, float) and pd.isna(val)):
+            return None
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_reasons(val):
+    """Parse a Cur_Reasons JSON cell into a list; tolerate blanks/legacy strings."""
+    if val is None or val == "" or (isinstance(val, float) and pd.isna(val)):
+        return []
+    try:
+        parsed = json.loads(val)
+        return parsed if isinstance(parsed, list) else [str(parsed)]
+    except (TypeError, ValueError):
+        return [str(val)]
 
 
 def _save_positions_csv(df, path: str) -> None:
@@ -1921,6 +1944,10 @@ def api_results():
             "Post_Mortem_Why", "Post_Mortem_Maximize",
             "Fundamental_Status", "Fundamental_Notes", "Live_Status",
             "Setup_Grade", "Setup_Score", "Expiry_Multiplier", "Expiry_Reason",
+            "Cur_Weekly_Trend", "Cur_Return_20d", "Cur_ADX", "Cur_EMA20", "Cur_EMA50",
+            "Cur_ATR_Pct", "Cur_Base_Status", "Cur_Base_Days", "Cur_Vol_Ratio",
+            "Cur_False_Breakout_Risk", "Cur_Scan_Date", "Cur_Verdict", "Cur_Reasons",
+            "Cur_Regime_Mult",
         ])
 
         total = len(df)
@@ -1947,10 +1974,11 @@ def api_results():
                     pass
         avg_days_held = round(sum(days_list) / len(days_list), 1) if days_list else 0
 
-        # ── Live prices for active symbols (OPEN + BOUGHT) in bulk ──
+        # ── Live prices (with bar date) for active symbols (OPEN + BOUGHT) in bulk ──
         active_symbols = pd.concat([open_df["Symbol"], bought_df["Symbol"]]).astype(str).unique().tolist() if (not open_df.empty or not bought_df.empty) else []
-        price_map    = fetch_prices_bulk(active_symbols) if active_symbols else {}
+        price_map    = fetch_prices_bulk_dated(active_symbols) if active_symbols else {}
         today        = datetime.now(pytz.timezone("Asia/Kolkata")).date()
+        today_str    = today.strftime("%Y-%m-%d")
 
         # Build watchlist_positions list (OPEN status)
         watchlist_list = []
@@ -1961,7 +1989,9 @@ def api_results():
                 t1  = float(r.get("Target_1", 0))
                 t2  = float(r.get("Target_2", 0))
                 sl  = float(r.get("Current_SL", 0))
-                cp  = float(price_map.get(sym, 0) or 0)
+                cp, bar_date = price_map.get(sym, (0.0, ""))
+                cp  = float(cp or 0)
+                price_stale = bool(cp) and bar_date != today_str
                 pnl_pct = round((cp - ep) / ep * 100, 2) if ep and cp else 0
 
                 entry_date_str = str(r.get("Entry_Date", ""))
@@ -1974,11 +2004,12 @@ def api_results():
 
                 live_at_entry = bool(cp and ep and cp <= ep * 1.005)
                 live_above_t1 = bool(cp and t1 and cp >= t1)
-                live_above_t2 = bool(cp and t2 and cp >= t2)
                 live_below_sl = bool(cp and sl and cp <= sl)
 
-                if   live_above_t2: live_status = "T2_REACHED"
-                elif live_above_t1: live_status = "T1_REACHED"
+                # Watchlist candidates are NOT owned, so a price above T1/T2 is not a
+                # "target hit" — it means the setup already ran past entry. Flag it as
+                # EXTENDED (don't chase) rather than painting a misleading "T1 ✓".
+                if   live_above_t1: live_status = "EXTENDED"
                 elif live_below_sl: live_status = "BELOW_SL"
                 elif live_at_entry: live_status = "AT_ENTRY"
                 else:               live_status = "WAITING"
@@ -1995,10 +2026,13 @@ def api_results():
                     "pnl_pct":     pnl_pct,
                     "days_held":   days_held,
                     "live_status": str(r.get("Live_Status", "") or live_status),
-                    "above_t1":    live_above_t1,
-                    "above_t2":    live_above_t2,
+                    # Not owned → never highlight T1/T2 cells as a "hit" (see live_status EXTENDED).
+                    "above_t1":    False,
+                    "above_t2":    False,
                     "at_entry":    live_at_entry,
                     "below_sl":    live_below_sl,
+                    "price_stale": price_stale,
+                    "price_date":  bar_date,
                     "t1_notified":    _truthy(r.get("T1_Notified")),
                     "entry_notified": _truthy(r.get("Entry_Notified")),
                     "entry_date":  entry_date_str,
@@ -2011,6 +2045,22 @@ def api_results():
                     "setup_score": str(r.get("Setup_Score", "")),
                     "expiry_multiplier": str(r.get("Expiry_Multiplier", "")),
                     "expiry_reason": str(r.get("Expiry_Reason", "")),
+                    # Freshly-recomputed gate/score inputs from the daily Keep & Refresh
+                    # pass, so the Analysis-tab matrix re-evaluates against today's data.
+                    "weekly_trend":        str(r.get("Cur_Weekly_Trend", "") or ""),
+                    "return_20d":          _num(r.get("Cur_Return_20d")),
+                    "adx":                 _num(r.get("Cur_ADX")),
+                    "ema20":               _num(r.get("Cur_EMA20")),
+                    "ema50":               _num(r.get("Cur_EMA50")),
+                    "atr_pct":             _num(r.get("Cur_ATR_Pct")),
+                    "base_status":         str(r.get("Cur_Base_Status", "") or ""),
+                    "base_days":           _num(r.get("Cur_Base_Days")),
+                    "vol_ratio":           _num(r.get("Cur_Vol_Ratio")),
+                    "false_breakout_risk": str(r.get("Cur_False_Breakout_Risk", "") or ""),
+                    "verdict":             str(r.get("Cur_Verdict", "") or ""),
+                    "reasons":             _parse_reasons(r.get("Cur_Reasons")),
+                    "regime_multiplier":   _num(r.get("Cur_Regime_Mult")),
+                    "scan_date":           str(r.get("Cur_Scan_Date", "") or ""),
                 })
             except Exception:
                 continue
@@ -2030,7 +2080,9 @@ def api_results():
                 t1  = float(r.get("Target_1", 0))
                 t2  = float(r.get("Target_2", 0))
                 sl  = float(r.get("Current_SL", 0))
-                cp  = float(price_map.get(sym, 0) or 0)
+                cp, bar_date = price_map.get(sym, (0.0, ""))
+                cp  = float(cp or 0)
+                price_stale = bool(cp) and bar_date != today_str
                 pnl_pct = round((cp - ep) / ep * 100, 2) if ep and cp else 0
 
                 entry_date_str = str(r.get("Entry_Date", ""))
@@ -2074,6 +2126,8 @@ def api_results():
                     "above_t2":    live_above_t2,
                     "at_entry":    live_at_entry,
                     "below_sl":    live_below_sl,
+                    "price_stale": price_stale,
+                    "price_date":  bar_date,
                     "t1_notified":    _truthy(r.get("T1_Notified")),
                     "entry_notified": _truthy(r.get("Entry_Notified")),
                     "entry_date":  entry_date_str,
@@ -2123,7 +2177,7 @@ def api_results():
                 try:
                     sym = str(r.get("Symbol", ""))
                     ep  = float(r.get("Entry_Price", 0))
-                    cp  = float(price_map.get(sym, 0) or 0)
+                    cp  = float((price_map.get(sym) or (0.0, ""))[0] or 0)
                     if ep and cp:
                         unr_pnls.append((cp - ep) / ep * 100)
                 except Exception:
@@ -2250,7 +2304,7 @@ def check_positions_and_notify() -> list:
         df.loc[df["Status"].astype(str).str.upper().isin(["OPEN", "BOUGHT"]), "Symbol"]
           .astype(str).unique().tolist()
     )
-    price_map = fetch_prices_bulk(active_symbols) if active_symbols else {}
+    price_map = fetch_prices_bulk_dated(active_symbols) if active_symbols else {}
 
     for idx, row in df.iterrows():
         pos = row.to_dict()
@@ -2276,7 +2330,12 @@ def check_positions_and_notify() -> list:
 
         sym  = str(pos.get("Symbol", "?"))
         name = pos.get("Name", sym)
-        cur  = float(price_map.get(sym, 0) or 0)
+        cur, bar_date = price_map.get(sym, (0.0, ""))
+        cur  = float(cur or 0)
+        # Only act on a price from *today's* trading session. Off-hours (weekend /
+        # holiday / pre-open) yfinance returns the prior close — treating that as a
+        # live crossing stamped today's date onto stale data and fired weekend alerts.
+        price_fresh = bool(cur) and bar_date == today_str
 
         ep  = float(pos.get("Entry_Price", 0))
         qty = float(pos.get("Quantity", 0))
@@ -2290,8 +2349,9 @@ def check_positions_and_notify() -> list:
         pct                  = round(((cur - ep) / ep * 100) if ep else 0, 1)
 
         if status == "OPEN":
-            # Watched stock setup: monitor only for entry ready zone
-            entry_hit = bool(cur and ep and cur <= ep * 1.005)
+            # Watched stock setup: monitor only for entry ready zone.
+            # Gated on price_fresh so a stale prior close can't fire a weekend alert.
+            entry_hit = bool(price_fresh and ep and cur <= ep * 1.005)
             pos["entry_hit"] = entry_hit
             pos["t1_hit"]    = False
             pos["t2_hit"]    = False
@@ -2349,11 +2409,13 @@ def check_positions_and_notify() -> list:
                 csv_dirty = True
 
         elif status == "BOUGHT":
-            # Active portfolio position: monitor for profit/loss targets
+            # Active portfolio position: monitor for profit/loss targets.
+            # Gated on price_fresh so an off-hours stale close can't stamp today's
+            # date onto a target/SL crossing or fire a weekend alert.
             pos["entry_hit"] = True  # already bought and active
-            t1_hit = bool(cur and t1 and cur >= t1)
-            t2_hit = bool(cur and t2 and cur >= t2)
-            sl_hit = bool(cur and sl and cur <= sl)
+            t1_hit = bool(price_fresh and t1 and cur >= t1)
+            t2_hit = bool(price_fresh and t2 and cur >= t2)
+            sl_hit = bool(price_fresh and sl and cur <= sl)
             pos["t1_hit"] = t1_hit
             pos["t2_hit"] = t2_hit
             pos["sl_hit"] = sl_hit

@@ -303,13 +303,17 @@ def fetch_stock_technicals(symbol: str, df: Optional[pd.DataFrame] = None) -> Di
         return {}
 
 
-def fetch_prices_bulk(symbols: list) -> Dict[str, float]:
+def fetch_prices_bulk_dated(symbols: list) -> Dict[str, tuple]:
     """
-    Fetch live prices for many NSE symbols in ONE yfinance call.
-    Returns {symbol: latest_close_price}. Missing/errored symbols are absent.
+    Fetch live prices for many NSE symbols in ONE yfinance call, tagged with the
+    date of the bar each price came from.
+    Returns {symbol: (latest_close_price, "YYYY-MM-DD")}. Missing/errored symbols
+    are absent.
 
-    Used by check_positions_and_notify() — 11× faster than calling
-    fetch_stock_technicals() per position when we only need the price.
+    The bar date lets callers tell whether a price is from *today's* trading
+    session or a stale prior close (weekend / holiday / pre-open). Treating a
+    stale close as a live price made the dashboard show targets as "hit" on days
+    the market never traded.
     """
     if not symbols:
         return {}
@@ -323,7 +327,7 @@ def fetch_prices_bulk(symbols: list) -> Dict[str, float]:
         print(f"[bulk_prices] yfinance error: {e}")
         return {}
 
-    out: Dict[str, float] = {}
+    out: Dict[str, tuple] = {}
     for sym in symbols:
         try:
             # Multi-symbol return: data[<ticker>][<field>]
@@ -336,12 +340,25 @@ def fetch_prices_bulk(symbols: list) -> Dict[str, float]:
                     continue
             else:
                 close = data["Close"].dropna()
-            
+
             if len(close):
-                out[sym] = float(close.iloc[-1])
+                bar_date = close.index[-1].strftime("%Y-%m-%d")
+                out[sym] = (float(close.iloc[-1]), bar_date)
         except Exception:
             continue
     return out
+
+
+def fetch_prices_bulk(symbols: list) -> Dict[str, float]:
+    """
+    Fetch live prices for many NSE symbols in ONE yfinance call.
+    Returns {symbol: latest_close_price}. Missing/errored symbols are absent.
+
+    Thin wrapper over fetch_prices_bulk_dated() for callers that don't need the
+    bar date. Used by check_positions_and_notify() — 11× faster than calling
+    fetch_stock_technicals() per position when we only need the price.
+    """
+    return {sym: price for sym, (price, _date) in fetch_prices_bulk_dated(symbols).items()}
 
 
 def fetch_prices_and_changes_bulk(symbols: list) -> Dict[str, Dict]:

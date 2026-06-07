@@ -18,7 +18,8 @@ if _ROOT not in sys.path:
 try:
     from core.data_fetcher import fetch_stock_technicals
     from core.trade_plan import calculate_trade_plan
-    from core.risk_filters import apply_structural_safety_gates
+    from core.risk_filters import apply_structural_safety_gates, apply_risk_filters
+    from core.sectors import fetch_sector_pulse
     from core.expiry_grading import grade_setup, expiry_context
     from core.prune_logic import evaluate_prune
 except ImportError:
@@ -26,14 +27,16 @@ except ImportError:
     try:
         from core_data_fetcher import fetch_stock_technicals
         from core_trade_plan import calculate_trade_plan
-        from core_risk_filters import apply_structural_safety_gates
+        from core_risk_filters import apply_structural_safety_gates, apply_risk_filters
+        from core_sectors import fetch_sector_pulse
         from expiry_grading import grade_setup, expiry_context
         from core_prune_logic import evaluate_prune
     except ImportError:
         # Fallback to local files if path is configured otherwise
         from data_fetcher import fetch_stock_technicals
         from trade_plan import calculate_trade_plan
-        from risk_filters import apply_structural_safety_gates
+        from risk_filters import apply_structural_safety_gates, apply_risk_filters
+        from sectors import fetch_sector_pulse
         from expiry_grading import grade_setup, expiry_context
         from prune_logic import evaluate_prune
 
@@ -80,13 +83,34 @@ def get_index_membership_local(symbol: str) -> list:
     return memberships
 
 
-def refresh_trade_levels(df_positions, idx, tech):
-    plan = calculate_trade_plan(tech)
+def refresh_trade_levels(df_positions, idx, tech, gate=None):
+    plan = calculate_trade_plan(tech, is_refresh=True)
     df_positions.at[idx, "Entry_Price"] = plan.get("entry_zone_min", df_positions.at[idx, "Entry_Price"])
     df_positions.at[idx, "Target_1"] = plan.get("target_1", df_positions.at[idx, "Target_1"])
     df_positions.at[idx, "Target_2"] = plan.get("target_2", df_positions.at[idx, "Target_2"])
     df_positions.at[idx, "Current_SL"] = plan.get("stop_loss", df_positions.at[idx, "Current_SL"])
-    
+
+    # Persist freshly-recomputed gate/score inputs so the Analysis-tab matrix
+    # (driven by the OPEN watchlist) re-evaluates the 9 safety gates + quality
+    # score against today's data instead of stale buy-time snapshots.
+    today_str = datetime.now(pytz.timezone("Asia/Kolkata")).strftime("%Y-%m-%d")
+    df_positions.at[idx, "Cur_Weekly_Trend"]       = tech.get("weekly_trend", "")
+    df_positions.at[idx, "Cur_Return_20d"]         = tech.get("return_20d", "")
+    df_positions.at[idx, "Cur_ADX"]                = tech.get("adx", "")
+    df_positions.at[idx, "Cur_EMA20"]              = tech.get("ema20", "")
+    df_positions.at[idx, "Cur_EMA50"]              = tech.get("ema50", "")
+    df_positions.at[idx, "Cur_ATR_Pct"]            = tech.get("atr_pct", "")
+    df_positions.at[idx, "Cur_Base_Status"]        = tech.get("base_status", "")
+    df_positions.at[idx, "Cur_Base_Days"]          = tech.get("base_days", "")
+    df_positions.at[idx, "Cur_Vol_Ratio"]          = tech.get("volume_ratio", "")
+    df_positions.at[idx, "Cur_False_Breakout_Risk"] = tech.get("false_breakout_risk", "")
+    df_positions.at[idx, "Cur_Scan_Date"]          = today_str
+    if gate is not None:
+        df_positions.at[idx, "Cur_Verdict"]     = gate.get("verdict", "")
+        df_positions.at[idx, "Cur_Reasons"]     = json.dumps(gate.get("reasons", []))
+        df_positions.at[idx, "Cur_Regime_Mult"] = gate.get("regime_mult", "")
+
+
     setup_grade = "C"
     setup_score = 0.0
     if grade_setup and expiry_context:
@@ -192,16 +216,35 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
         df_positions["Absent_Cycles"] = 0
     df_positions["Absent_Cycles"] = df_positions["Absent_Cycles"].fillna(0).astype(int)
     
-    for col in ["Prune_Reason", "Prune_Date"]:
+    cur_cols = [
+        "Prune_Reason", "Prune_Date",
+        "Cur_Weekly_Trend", "Cur_Return_20d", "Cur_ADX", "Cur_EMA20", "Cur_EMA50",
+        "Cur_ATR_Pct", "Cur_Base_Status", "Cur_Base_Days", "Cur_Vol_Ratio",
+        "Cur_False_Breakout_Risk", "Cur_Scan_Date", "Cur_Verdict", "Cur_Reasons",
+        "Cur_Regime_Mult",
+    ]
+    # Force object dtype so per-cell writes accept both floats (return_20d, adx,
+    # EMAs, regime mult) and strings (verdict, reasons JSON) — pandas 3.0 raises
+    # on assigning a float into a str-dtype column otherwise.
+    for col in cur_cols:
         if col not in df_positions.columns:
-            df_positions[col] = ""
-            
+            df_positions[col] = pd.Series([""] * len(df_positions), dtype=object)
+        else:
+            df_positions[col] = df_positions[col].astype(object)
+
     csv_updated = False
-    
+
     kept_symbols = []
     deleted_symbols = []
     absent_pending_symbols = []
-    
+
+    # Gate #9 (Sector × Nifty regime) inputs — fetched once per run, not per stock.
+    try:
+        sector_pulse = fetch_sector_pulse()
+    except Exception as exc:
+        logger.warning("fetch_sector_pulse failed: %s", exc)
+        sector_pulse = {}
+
     for idx, row in df_positions.iterrows():
         if str(row["Status"]).upper() != "OPEN":
             continue
@@ -215,8 +258,17 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
                 # Run the canonical evaluate_prune logic
                 state, reason = evaluate_prune(tech, row.to_dict())
                 if state == "RE-EVALUATE":
-                    # Overwrite levels (adapt to progression of trend-anchor moving averages)
-                    refresh_trade_levels(df_positions, idx, tech)
+                    # Re-run the canonical stacked gates (verdict/reasons + Gate #9
+                    # regime multiplier) so the Analysis-tab matrix reflects today's
+                    # eligibility, then overwrite levels (adapt to progression of
+                    # trend-anchor moving averages).
+                    gate = None
+                    try:
+                        passed, reasons, verdict, regime_mult = apply_risk_filters(sym, tech, sector_pulse)
+                        gate = {"verdict": verdict, "reasons": reasons, "regime_mult": regime_mult}
+                    except Exception as gate_err:
+                        logger.warning("apply_risk_filters failed for %s: %s", sym, gate_err)
+                    refresh_trade_levels(df_positions, idx, tech, gate)
                     csv_updated = True
                     
                     # Fetch updated row details for the summary
@@ -311,7 +363,7 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
 if __name__ == "__main__":
     try:
         from dotenv import load_dotenv
-        load_dotenv()
+        load_dotenv(dotenv_path=os.path.join(_ROOT, ".env"))
     except ImportError:
         pass
     run_morning_maintenance()

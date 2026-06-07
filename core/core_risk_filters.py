@@ -892,9 +892,8 @@ def apply_risk_filters(symbol: str, tech: dict,
                 if mask.any():
                     row = df_p[mask].iloc[-1]
                     f_status = str(row.get("Fundamental_Status", "APPROVED")).strip().upper()
-                    l_status = str(row.get("Live_Status", "WAITING")).strip().upper()
-                    if f_status == "ON_HOLD" or l_status == "ON_HOLD":
-                        hard_skips.append(f"holding status is ON_HOLD (Fundamental: {f_status}, Live: {l_status})")
+                    if f_status == "ON_HOLD":
+                        hard_skips.append("fundamental status is ON_HOLD")
         except Exception as e:
             logger.warning("[risk_filters] Failed to check holding status from positions.csv: %s", e)
 
@@ -926,10 +925,10 @@ def apply_risk_filters(symbol: str, tech: dict,
         if not passed:
             hard_skips.append(reason)
 
-    # 7. Adversarial check (Gate #7)
-    debate_v = fetch_cached_debate_verdict(symbol)
-    if debate_v and str(debate_v.get("verdict", "")).strip().upper() == "SKIP":
-        hard_skips.append("adversarial debate verdict is SKIP")
+    # 7. Adversarial debate — DECOUPLED from safety gates.
+    #    The LLM debate verdict is a judgment call, not a structural-safety block, so it no
+    #    longer contributes a hard-skip here. It is surfaced independently in the dashboard
+    #    (⚖️ JUDGE badge / Bull-vs-Bear Debate Chamber) via server.py's fetch_cached_debate_verdict.
 
     # 8. IPO check
     passed, reason = filter_ipo_age(tech, min_ipo)

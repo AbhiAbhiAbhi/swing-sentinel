@@ -11,6 +11,14 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEBATE_CONFIG_PATH = os.path.join(_ROOT, "data", "debate_config.json")
 CACHE_DIR = os.path.join(_ROOT, "data", "due_diligence")
 
+# Load environment variables from .env in the project root
+try:
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=os.path.join(_ROOT, ".env"))
+except ImportError:
+    pass
+
+
 # ── Configuration Loader ───────────────────────────────────────────────────────
 
 def load_debate_config() -> Dict[str, Any]:

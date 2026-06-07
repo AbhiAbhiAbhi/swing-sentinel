@@ -8,9 +8,11 @@ import sys
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("poll_once")
 
+import os
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(dotenv_path=os.path.join(_ROOT, ".env"))
 except ImportError:
     pass  # GitHub Actions sets env vars directly via secrets
 

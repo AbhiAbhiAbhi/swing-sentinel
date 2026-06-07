@@ -1,17 +1,17 @@
 {
   "bull_agent": {
-    "provider": "gemini",
-    "model": "gemini-2.5-flash",
+    "provider": "anthropic",
+    "model": "claude-3-5-sonnet-20241022",
     "temperature": 0.2
   },
   "bear_agent": {
-    "provider": "gemini",
-    "model": "gemini-2.5-flash",
+    "provider": "anthropic",
+    "model": "claude-3-5-sonnet-20241022",
     "temperature": 0.2
   },
   "judge_agent": {
-    "provider": "gemini",
-    "model": "gemini-2.5-pro",
+    "provider": "anthropic",
+    "model": "claude-3-5-sonnet-20241022",
     "temperature": 0.2
   }
 }

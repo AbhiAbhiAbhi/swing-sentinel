@@ -12,7 +12,15 @@ Setup-specific SL (invalidation-based) + hybrid ATR targets:
 from typing import Dict
 
 
-def calculate_trade_plan(stock_data: Dict) -> Dict:
+def calculate_trade_plan(stock_data: Dict, is_refresh: bool = False) -> Dict:
+    """
+    Calculate entry zone, setup-specific SL, targets and R:R.
+
+    :param is_refresh: True when recalculating an already-active position (a live
+        Keep & Refresh cycle). In that case the hard SL ceiling is evaluated against
+        current spot only (price * 0.985), ignoring the static entry_min entry-zone
+        artifact that otherwise pins refreshed pullback stops to a flat ~-2.24%.
+    """
     price        = stock_data.get('price', 0)
     ema20        = stock_data.get('ema20', 0)
     ema50        = stock_data.get('ema50', 0)
@@ -53,8 +61,13 @@ def calculate_trade_plan(stock_data: Dict) -> Dict:
     else:  # CONSOLIDATION
         sl_raw = (ema50 - atr) if ema50 else (entry_mid - atr)
 
-    # Hard ceiling: SL must always be below current price and entry zone
-    sl_ceiling = min(price, entry_min) * 0.985
+    # Hard ceiling: SL must always be below current price (and entry zone on fresh entries)
+    if is_refresh:
+        # Active-position refresh: evaluate strictly against live spot so the real
+        # invalidation level flows through instead of pinning to the stale entry_min.
+        sl_ceiling = price * 0.985
+    else:
+        sl_ceiling = min(price, entry_min) * 0.985
     sl = round(min(sl_raw, sl_ceiling), 2)
 
     # ── T1: nearest resistance or ATR fallback ───────────────────────────
