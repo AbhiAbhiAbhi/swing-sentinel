@@ -6201,6 +6201,7 @@ function renderWatchlist(r) {
   if (curTab === "analysis") {
     renderChartAnalysis();
     renderStockValidation();
+    if (_newsData) renderNews();   // re-scope news to the refreshed watchlist
   } else if (curTab === "trading") {
     renderStockSelector();
   }
@@ -7830,6 +7831,14 @@ function trendLabel(t) {
   if (t === "negative") return "BEARISH";
   return "NEUTRAL";
 }
+/* Mirror of core_news_pipeline._trend_from_counts — needs a ≥10% net lean to tilt. */
+function trendFromCounts(pos, neg, neu) {
+  const total = pos + neg + neu;
+  if (total === 0) return "neutral";
+  if (pos >= neg && (pos - neg) / total >= 0.10) return "positive";
+  if (neg > pos && (neg - pos) / total >= 0.10) return "negative";
+  return "neutral";
+}
 
 function renderNewsHeadlines(items) {
   if (!items || !items.length) {
@@ -7876,6 +7885,21 @@ function renderNewsBuckets(buckets, headingPrefix) {
   }).join("");
 }
 
+/* Flatten + dedup headlines across a set of buckets (by link, fallback title). */
+function dedupHeadlines(buckets) {
+  const seen = new Set();
+  const out = [];
+  Object.values(buckets || {}).forEach(b => {
+    (b.headlines || []).forEach(h => {
+      const key = h.link || h.title || "";
+      if (key && seen.has(key)) return;
+      if (key) seen.add(key);
+      out.push(h);
+    });
+  });
+  return out;
+}
+
 function renderNews() {
   const body  = document.getElementById("newsBody");
   const trend = document.getElementById("newsTrend");
@@ -7889,29 +7913,69 @@ function renderNews() {
     return;
   }
 
-  const o = _newsData.overall;
-  const total = (o.positive + o.negative + o.neutral) || 1;
-  const tcls = trendClass(o.trend);
+  // ── Scope everything to the stocks currently in the Analysis tab ──
+  const analysis = _analysisStocks || [];
+  const relSyms = new Set(analysis.map(s => (s.symbol || "").toUpperCase()).filter(Boolean));
+
+  const relStockBuckets  = Object.fromEntries(
+    Object.entries(_newsData.stocks  || {}).filter(([sym]) => relSyms.has(sym.toUpperCase()))
+  );
+
+  // Relevant sectors = watchlist stocks' own sector (when known) ∪ the sector of each
+  // matched stock bucket. positions.csv often has a blank sector, so the bucket's
+  // pipeline-computed sector (e.g. ADANIPORTS→INFRA) is the reliable source.
+  const relSectors = new Set(
+    analysis.map(s => (s.sector || "").toUpperCase()).filter(x => x && x !== "OTHERS")
+  );
+  Object.values(relStockBuckets).forEach(b => {
+    const sec = (b.sector || "").toUpperCase();
+    if (sec && sec !== "OTHERS") relSectors.add(sec);
+  });
+
+  const relSectorBuckets = Object.fromEntries(
+    Object.entries(_newsData.sectors || {}).filter(([sec]) => relSectors.has(sec.toUpperCase()))
+  );
+
+  // Overall = union of relevant stock + sector headlines (deduped).
+  const relHeadlines = dedupHeadlines({ ...relStockBuckets, ...relSectorBuckets });
+  const pos = relHeadlines.filter(h => h.sentiment && h.sentiment.label === "positive").length;
+  const neg = relHeadlines.filter(h => h.sentiment && h.sentiment.label === "negative").length;
+  const neu = relHeadlines.length - pos - neg;
+  const total = relHeadlines.length || 1;
+  const oTrend = trendFromCounts(pos, neg, neu);
+
+  const tcls = trendClass(oTrend);
   trend.className = `news-trend ${tcls}`;
-  trendLabelEl.textContent = `Overall: ${trendLabel(o.trend)}`;
+  trendLabelEl.textContent = `Watchlist: ${trendLabel(oTrend)}`;
 
   bar.style.display = "flex";
-  bar.children[0].style.width = (o.positive / total * 100).toFixed(1) + "%";
-  bar.children[1].style.width = (o.negative / total * 100).toFixed(1) + "%";
-  bar.children[2].style.width = (o.neutral  / total * 100).toFixed(1) + "%";
+  bar.children[0].style.width = (pos / total * 100).toFixed(1) + "%";
+  bar.children[1].style.width = (neg / total * 100).toFixed(1) + "%";
+  bar.children[2].style.width = (neu / total * 100).toFixed(1) + "%";
 
   const model = _newsData.model_loaded ? "FinBERT" : (_newsData.model || "fallback");
+  const matchedStocks = Object.keys(relStockBuckets).length;
   meta.innerHTML = `
-    <span>${_newsData.headlines_total} headlines · last ${_newsData.time_window_hours}h · ${model}</span>
-    <span>+${o.positive} positive · −${o.negative} negative · =${o.neutral} neutral</span>`;
-  pill.textContent = `${_newsData.headlines_total} headlines`;
+    <span>${relHeadlines.length} relevant · ${matchedStocks}/${relSyms.size} watchlist stocks · last ${_newsData.time_window_hours}h · ${model}</span>
+    <span>+${pos} positive · −${neg} negative · =${neu} neutral</span>`;
+  pill.textContent = relSyms.size
+    ? `${relHeadlines.length} relevant · ${matchedStocks}/${relSyms.size} stocks`
+    : "0 watchlist stocks";
+
+  // No stocks in the Analysis tab yet → nothing to scope to.
+  if (!relSyms.size) {
+    body.innerHTML = `<div class="news-empty">No Analysis-tab stocks yet — add OPEN candidates to your watchlist.</div>`;
+    return;
+  }
 
   if (_newsTab === "overall") {
-    body.innerHTML = renderNewsHeadlines(o.headlines);
+    body.innerHTML = relHeadlines.length
+      ? renderNewsHeadlines(relHeadlines)
+      : `<div class="news-empty">No pre-market news matched your ${relSyms.size} watchlist stock${relSyms.size !== 1 ? "s" : ""} in the last ${_newsData.time_window_hours}h.</div>`;
   } else if (_newsTab === "sectors") {
-    body.innerHTML = renderNewsBuckets(_newsData.sectors || {}, "📍");
+    body.innerHTML = renderNewsBuckets(relSectorBuckets, "📍");
   } else {
-    body.innerHTML = renderNewsBuckets(_newsData.stocks || {}, "🏷️");
+    body.innerHTML = renderNewsBuckets(relStockBuckets, "🏷️");
   }
 }
 
@@ -8140,7 +8204,7 @@ function switchTab(tabId) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tabId));
   try { localStorage.setItem(LS_ACTIVE_TAB_KEY, tabId); } catch {}
   // Trigger tab-specific refresh
-  if (tabId === "analysis")   { renderBiasBuilder(); renderChartAnalysis(); renderStockValidation(); renderPrunedSection(); }
+  if (tabId === "analysis")   { renderBiasBuilder(); renderChartAnalysis(); renderStockValidation(); renderPrunedSection(); if (_newsData) renderNews(); }
   if (tabId === "trading")    { renderEntryGates(); renderEntryChecklist(); renderStockSelector(); recalcPosSize(); recalcTrail(); }
   if (tabId === "portfolio")  { loadPositions(); renderReviewMetrics(); renderJournalList(); loadMaintenanceSchedule(); }
   if (tabId === "analytics")  { loadPositions(); }
