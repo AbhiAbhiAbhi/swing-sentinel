@@ -191,13 +191,23 @@ def _call_anthropic_api(model: str, system_prompt: str, user_prompt: str, temper
     try:
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
-        resp = client.messages.create(
-            model=model,
-            max_tokens=2048,
-            temperature=temperature,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}]
-        )
+        kwargs = {
+            "model": model,
+            "max_tokens": 2048,
+            "system": system_prompt,
+            "messages": [{"role": "user", "content": user_prompt}],
+        }
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        try:
+            resp = client.messages.create(**kwargs)
+        except anthropic.BadRequestError as exc:
+            # Newer models (e.g. Opus 4.8) deprecate the temperature knob — retry without it.
+            if "temperature" in str(exc).lower() and "temperature" in kwargs:
+                kwargs.pop("temperature", None)
+                resp = client.messages.create(**kwargs)
+            else:
+                raise
         return resp.content[0].text or ""
     except Exception as exc:
         raise RuntimeError(f"Anthropic API call failed: {exc}")

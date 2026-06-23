@@ -98,3 +98,27 @@ def calculate_rr(stock_data: Dict) -> str:
     plan = calculate_trade_plan(stock_data)
     rr   = plan.get('rr_ratio', 0)
     return f"1:{rr}" if rr else "N/A"
+
+
+def position_risk(entry, sl, qty=0):
+    """
+    Per-position risk, persisted once at first scan and then LOCKED (never
+    recomputed on a re-scan). Mirrors the dashboard sizer:
+      risk_per_share = max(0, entry - sl)   (swing_agent_app.html)
+      rupee_risk     = risk_per_share * qty (actual capital at risk)
+
+    Returns (risk_per_share, rupee_risk) as rounded floats. Either value is 0.0
+    when its inputs are missing/blank (entry<=sl, or qty unset).
+    """
+    def _f(v):
+        try:
+            if v is None or v == "":
+                return 0.0
+            return float(v)
+        except (TypeError, ValueError):
+            return 0.0
+
+    entry_f, sl_f, qty_f = _f(entry), _f(sl), _f(qty)
+    risk_per_share = round(max(0.0, entry_f - sl_f), 2) if (entry_f > 0 and sl_f > 0) else 0.0
+    rupee_risk     = round(risk_per_share * qty_f, 2)
+    return risk_per_share, rupee_risk

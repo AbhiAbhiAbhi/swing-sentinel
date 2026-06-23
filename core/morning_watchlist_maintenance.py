@@ -18,7 +18,7 @@ if _ROOT not in sys.path:
 try:
     from core.data_fetcher import fetch_stock_technicals
     from core.trade_plan import calculate_trade_plan
-    from core.risk_filters import apply_structural_safety_gates, apply_risk_filters
+    from core.risk_filters import apply_structural_safety_gates, apply_risk_filters, filter_fundamental_strength
     from core.sectors import fetch_sector_pulse
     from core.expiry_grading import grade_setup, expiry_context
     from core.prune_logic import evaluate_prune
@@ -27,7 +27,7 @@ except ImportError:
     try:
         from core_data_fetcher import fetch_stock_technicals
         from core_trade_plan import calculate_trade_plan
-        from core_risk_filters import apply_structural_safety_gates, apply_risk_filters
+        from core_risk_filters import apply_structural_safety_gates, apply_risk_filters, filter_fundamental_strength
         from core_sectors import fetch_sector_pulse
         from expiry_grading import grade_setup, expiry_context
         from core_prune_logic import evaluate_prune
@@ -35,7 +35,7 @@ except ImportError:
         # Fallback to local files if path is configured otherwise
         from data_fetcher import fetch_stock_technicals
         from trade_plan import calculate_trade_plan
-        from risk_filters import apply_structural_safety_gates, apply_risk_filters
+        from risk_filters import apply_structural_safety_gates, apply_risk_filters, filter_fundamental_strength
         from sectors import fetch_sector_pulse
         from expiry_grading import grade_setup, expiry_context
         from prune_logic import evaluate_prune
@@ -84,11 +84,10 @@ def get_index_membership_local(symbol: str) -> list:
 
 
 def refresh_trade_levels(df_positions, idx, tech, gate=None):
+    # Plan levels (Entry/SL/T1/T2) are LOCKED at first scan — the refresh scan must
+    # NOT recompute them. `plan` is still computed here only to feed setup grading
+    # against today's technicals (monitoring), not to overwrite the trade plan.
     plan = calculate_trade_plan(tech, is_refresh=True)
-    df_positions.at[idx, "Entry_Price"] = plan.get("entry_zone_min", df_positions.at[idx, "Entry_Price"])
-    df_positions.at[idx, "Target_1"] = plan.get("target_1", df_positions.at[idx, "Target_1"])
-    df_positions.at[idx, "Target_2"] = plan.get("target_2", df_positions.at[idx, "Target_2"])
-    df_positions.at[idx, "Current_SL"] = plan.get("stop_loss", df_positions.at[idx, "Current_SL"])
 
     # Persist freshly-recomputed gate/score inputs so the Analysis-tab matrix
     # (driven by the OPEN watchlist) re-evaluates the 9 safety gates + quality
@@ -131,6 +130,14 @@ def refresh_trade_levels(df_positions, idx, tech, gate=None):
     df_positions.at[idx, "Setup_Score"] = setup_score
     df_positions.at[idx, "Absent_Cycles"] = 0
 
+    # Auto-update Fundamental_Status based on the strength filter
+    try:
+        symbol_str = str(df_positions.at[idx, "Symbol"])
+        passed_fund, _ = filter_fundamental_strength(symbol_str)
+        df_positions.at[idx, "Fundamental_Status"] = "APPROVED" if passed_fund else "ON_HOLD"
+    except Exception as fund_err:
+        logger.warning("Failed to auto-update Fundamental_Status for %s: %s", df_positions.at[idx, "Symbol"], fund_err)
+
 
 def send_telegram_alert(msg: str):
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
@@ -150,14 +157,21 @@ def send_telegram_alert(msg: str):
         logger.warning("Telegram send failed: %s", exc)
 
 
-def send_summary_notification(kept, deleted, absent, manual=False):
+def send_summary_notification(kept, deleted, absent, manual=False, database_updated=False):
     ist = pytz.timezone("Asia/Kolkata")
     now_str = datetime.now(ist).strftime("%Y-%m-%d %H:%M")
     source = "Manual Trigger" if manual else "Daily Scheduler"
+    persistence_line = (
+        "Database refreshed successfully."
+        if database_updated
+        else "Database checked; no changes required."
+    )
     
     lines = [
         f"🌅 <b>Keep & refresh Scan ({source})</b>",
         f"<i>Time: {now_str} IST</i>",
+        f"<b>{persistence_line}</b>",
+        "Fresh Analysis data is available when the dashboard reloads.",
         ""
     ]
     
@@ -209,6 +223,7 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
         
     if df_positions.empty or "Status" not in df_positions.columns:
         logger.info("No positions to maintain.")
+        send_summary_notification([], [], [], manual_trigger, database_updated=False)
         return {"status": "success", "message": "No positions found", "kept": [], "deleted": []}
         
     # Ensure Absent_Cycles, Prune_Reason, and Prune_Date columns exist
@@ -222,6 +237,9 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
         "Cur_ATR_Pct", "Cur_Base_Status", "Cur_Base_Days", "Cur_Vol_Ratio",
         "Cur_False_Breakout_Risk", "Cur_Scan_Date", "Cur_Verdict", "Cur_Reasons",
         "Cur_Regime_Mult",
+        # Locked at first scan; ensured here (object dtype) so reads/backfill never
+        # hit the float-into-str-col error that silently mass-prunes the watchlist.
+        "Risk_Per_Share", "Rupee_Risk",
     ]
     # Force object dtype so per-cell writes accept both floats (return_20d, adx,
     # EMAs, regime mult) and strings (verdict, reasons JSON) — pandas 3.0 raises
@@ -350,7 +368,13 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
             return {"status": "error", "message": f"Failed to save positions: {e}"}
             
     # Send Telegram summary
-    send_summary_notification(kept_symbols, deleted_symbols, absent_pending_symbols, manual_trigger)
+    send_summary_notification(
+        kept_symbols,
+        deleted_symbols,
+        absent_pending_symbols,
+        manual_trigger,
+        database_updated=csv_updated,
+    )
     
     return {
         "status": "success",

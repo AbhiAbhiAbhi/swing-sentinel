@@ -1056,6 +1056,35 @@ body.light-theme .analytics-subtab-btn.active {
   border-radius: 4px;
   margin-top: 4px;
 }
+
+/* ── Tab Grouping (Open Setups / Stocks) ── */
+.tab-group {
+  display: flex;
+  flex: 2;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.15);
+  position: relative;
+  align-items: center;
+}
+body.light-theme .tab-group {
+  background: rgba(0, 0, 0, 0.02);
+}
+.tab-group-label {
+  position: absolute;
+  top: -8px;
+  left: 12px;
+  font-size: 8px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--bg);
+  padding: 0 4px;
+  white-space: nowrap;
+}
 </style>
 </head>
 <body class="light-theme">
@@ -1166,15 +1195,6 @@ body.light-theme .analytics-subtab-btn.active {
         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
       </svg>
     </button>
-    <button id="scanBtn" onclick="runScan()">
-      <div class="spinner"></div>
-      <span class="btn-icon" style="display:flex;align-items:center;justify-content:center">
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-        </svg>
-      </span>
-      <span class="btn-text">Scan</span>
-    </button>
   </div>
 </header>
 
@@ -1187,22 +1207,25 @@ body.light-theme .analytics-subtab-btn.active {
     </svg>
     Watchlist
   </button>
-  <button class="tab-btn tab-analysis" data-tab="analysis" onclick="switchTab('analysis')">
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <line x1="18" y1="20" x2="18" y2="10"></line>
-      <line x1="12" y1="20" x2="12" y2="4"></line>
-      <line x1="6" y1="20" x2="6" y2="14"></line>
-    </svg>
-    Analysis
-  </button>
-  <button class="tab-btn tab-trading" data-tab="trading" onclick="switchTab('trading')">
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"></circle>
-      <circle cx="12" cy="12" r="6"></circle>
-      <circle cx="12" cy="12" r="2"></circle>
-    </svg>
-    Trading Tools
-  </button>
+  <div class="tab-group">
+    <span class="tab-group-label">Open Stocks</span>
+    <button class="tab-btn tab-analysis" data-tab="analysis" onclick="switchTab('analysis')">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"></line>
+        <line x1="12" y1="20" x2="12" y2="4"></line>
+        <line x1="6" y1="20" x2="6" y2="14"></line>
+      </svg>
+      Analysis Matrix
+    </button>
+    <button class="tab-btn tab-trading" data-tab="trading" onclick="switchTab('trading')">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <circle cx="12" cy="12" r="6"></circle>
+        <circle cx="12" cy="12" r="2"></circle>
+      </svg>
+      Trading Tools
+    </button>
+  </div>
   <button class="tab-btn tab-portfolio" data-tab="portfolio" onclick="switchTab('portfolio')">
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
@@ -1391,6 +1414,15 @@ body.light-theme .analytics-subtab-btn.active {
       <div class="tab-sub">Run today's scan, review market context, and shortlist candidates. You add stocks every day — scan and filter here.</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <button id="scanBtn" onclick="runScan()">
+        <div class="spinner"></div>
+        <span class="btn-icon" style="display:flex;align-items:center;justify-content:center">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </span>
+        <span class="btn-text">Scan</span>
+      </button>
       <button id="filterToggleBtn" onclick="toggleFilterPanel()" title="Configure scan filters" style="display:flex;align-items:center;gap:6px;border-radius:7px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap">
         <span class="f-dot" id="filterDirtyDot"></span>
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px">
@@ -1495,7 +1527,6 @@ body.light-theme .analytics-subtab-btn.active {
     </span>
     <div style="display:flex;align-items:center;gap:8px">
       <button id="addAllBtn" onclick="addAllToPositions()" style="display:none;background:var(--green-bg);color:var(--green);border:1px solid var(--green);padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer" onmouseover="this.style.background='var(--green)';this.style.color='#0d1117'" onmouseout="this.style.background='var(--green-bg)';this.style.color='var(--green)'">+ Add All to Watchlist</button>
-      <button onclick="switchTab('analysis')" style="background:rgba(16,185,129,.12);color:#10B981;border:1px solid #10B981;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">→ Analysis</button>
       <span class="pill" id="stockPill">0 stocks</span>
       <button class="sec-toggle" onclick="toggleSection('sec_setups')" title="Expand / Shrink"><span class="chevron">▼</span></button>
     </div>

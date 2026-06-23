@@ -1,0 +1,21 @@
+{
+  "maintenance_time": "20:19",
+  "get_stocks_time": "10:57",
+  "scan_filters": {
+    "universe": "cash",
+    "min_price": 50,
+    "rsi_min": 40,
+    "rsi_max": 70,
+    "adx_min": 20,
+    "min_volume_lakh": 5,
+    "require_macd": true,
+    "require_ema_alignment": true,
+    "require_ema200": true,
+    "max_atr_pct": 5,
+    "max_1d_drop_pct": -8,
+    "min_ipo_days": 180,
+    "earnings_window_days": 3,
+    "block_weak_sectors": true,
+    "top_n": 30
+  }
+}

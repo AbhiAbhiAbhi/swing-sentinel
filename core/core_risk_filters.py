@@ -879,23 +879,10 @@ def apply_risk_filters(symbol: str, tech: dict,
     regime_mult = 1.0
 
     # 1. Holding status check (Gate #1)
-    _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    positions_path = os.path.join(_ROOT, "data", "positions.csv")
-    if os.path.exists(positions_path):
-        try:
-            import pandas as pd
-            df_p = pd.read_csv(positions_path)
-            if not df_p.empty and "Symbol" in df_p.columns and "Status" in df_p.columns:
-                df_p["Symbol"] = df_p["Symbol"].astype(str).str.strip().str.upper()
-                df_p["Status"] = df_p["Status"].fillna("").astype(str).str.strip().str.upper()
-                mask = (df_p["Symbol"] == symbol.upper()) & (df_p["Status"].isin(["OPEN", "BOUGHT"]))
-                if mask.any():
-                    row = df_p[mask].iloc[-1]
-                    f_status = str(row.get("Fundamental_Status", "APPROVED")).strip().upper()
-                    if f_status == "ON_HOLD":
-                        hard_skips.append("fundamental status is ON_HOLD")
-        except Exception as e:
-            logger.warning("[risk_filters] Failed to check holding status from positions.csv: %s", e)
+    passed_fund, _ = filter_fundamental_strength(symbol)
+    if not passed_fund:
+        hard_skips.append("fundamental status is ON_HOLD")
+
 
     # 2. Weekly trend check (Gate #2)
     w_trend = str(tech.get("weekly_trend", "UNKNOWN")).strip().upper()

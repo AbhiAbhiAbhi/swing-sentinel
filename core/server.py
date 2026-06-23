@@ -6,7 +6,7 @@ Open: http://localhost:5000
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 
 # Resolve paths relative to the project root (one level up from core/)
@@ -69,6 +69,24 @@ _universes_cache_mtime = 0
 
 _scheduler = None
 _maintenance_time = "08:30"
+_get_stocks_time = "16:00"
+_scan_filters = {
+    "universe": "cash",
+    "min_price": 50,
+    "rsi_min": 40,
+    "rsi_max": 70,
+    "adx_min": 20,
+    "min_volume_lakh": 5,
+    "require_macd": True,
+    "require_ema_alignment": True,
+    "require_ema200": True,
+    "max_atr_pct": 5,
+    "max_1d_drop_pct": -8,
+    "min_ipo_days": 180,
+    "earnings_window_days": 3,
+    "block_weak_sectors": True,
+    "top_n": 30,
+}
 
 try:
     from core.prune_logic import evaluate_prune
@@ -87,16 +105,35 @@ except ImportError:
         def run_morning_maintenance(manual_trigger=False):
             return {"status": "error", "message": "Import failed"}
 
-def _load_maintenance_time():
-    global _maintenance_time
+def _load_schedule_config():
+    global _maintenance_time, _get_stocks_time, _scan_filters
     config_path = os.path.join(_ROOT, "data", "schedule_config.json")
     if os.path.exists(config_path):
         try:
             with open(config_path, "r") as f:
                 data = json.load(f)
                 _maintenance_time = data.get("maintenance_time", "08:30")
+                _get_stocks_time = data.get("get_stocks_time", "16:00")
+                saved_filters = data.get("scan_filters")
+                if isinstance(saved_filters, dict):
+                    _scan_filters = {**_scan_filters, **saved_filters}
         except Exception as e:
             logger.warning("[server] Failed to load schedule_config.json: %s", e)
+
+
+def _save_schedule_config():
+    config_path = os.path.join(_ROOT, "data", "schedule_config.json")
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
+    with open(config_path, "w") as f:
+        json.dump({
+            "maintenance_time": _maintenance_time,
+            "get_stocks_time": _get_stocks_time,
+            "scan_filters": _scan_filters,
+        }, f, indent=2)
+
+
+def _load_maintenance_time():
+    _load_schedule_config()
 
 def get_index_membership(symbol: str) -> list:
     global _universes_cache_data, _universes_cache_mtime
@@ -173,7 +210,7 @@ try:
         fetch_stock_technicals,
         NSE_TICKERS,
     )
-    from core.trade_plan import calculate_rr, calculate_trade_plan
+    from core.trade_plan import calculate_rr, calculate_trade_plan, position_risk
     from core.risk_filters import fetch_earnings_date
 except ImportError:
     from core_chartink_fetcher import fetch_chartink_stocks
@@ -186,7 +223,7 @@ except ImportError:
         fetch_stock_technicals,
         NSE_TICKERS,
     )
-    from core_trade_plan import calculate_rr, calculate_trade_plan
+    from core_trade_plan import calculate_rr, calculate_trade_plan, position_risk
     from core_risk_filters import fetch_earnings_date
 
 # ── Setup grading + expiry ───────────────────────────────────────────
@@ -631,12 +668,11 @@ def process_single_stock(stock, df_sym, sector_pulse, filters):
 
 
 def refresh_trade_levels(df_positions, idx, tech):
+    # Plan levels (Entry/SL/T1/T2) are LOCKED at first scan — a re-scan must NOT
+    # recompute them. We still recompute `plan` here only to feed setup grading
+    # against today's technicals (monitoring, not the trade plan).
     plan = calculate_trade_plan(tech, is_refresh=True)
-    df_positions.at[idx, "Entry_Price"] = plan.get("entry_zone_min", df_positions.at[idx, "Entry_Price"])
-    df_positions.at[idx, "Target_1"] = plan.get("target_1", df_positions.at[idx, "Target_1"])
-    df_positions.at[idx, "Target_2"] = plan.get("target_2", df_positions.at[idx, "Target_2"])
-    df_positions.at[idx, "Current_SL"] = plan.get("stop_loss", df_positions.at[idx, "Current_SL"])
-    
+
     setup_grade = "C"
     setup_score = 0.0
     if grade_setup and expiry_context:
@@ -669,8 +705,12 @@ def api_scan():
     try:
         logger.info("[scan] Starting…")
 
+        global _scan_filters
         body    = request.get_json(force=True, silent=True) or {}
         filters = body.get("filters", {})
+        if isinstance(filters, dict) and filters:
+            _scan_filters = {**_scan_filters, **filters}
+            _save_schedule_config()
         top_n   = int(filters.get("top_n", 30))
         logger.info("[scan] filters=%s top_n=%d", filters, top_n)
 
@@ -815,11 +855,13 @@ def api_scan():
         # Pruned rows are NOT dropped — they get Status="PRUNED" + Prune_Reason +
         # Prune_Date and stay in the CSV for the separate dashboard section.
         positions_path = os.path.join(_ROOT, "data", "positions.csv")
-        if os.path.exists(positions_path):
+        # OPEN-stock re-evaluation belongs exclusively to Keep & Refresh.
+        if False and os.path.exists(positions_path):
             try:
                 df_positions = pd.read_csv(positions_path)
                 if not df_positions.empty and "Status" in df_positions.columns:
-                    _ensure_cols(df_positions, ["Prune_Reason", "Prune_Date"])
+                    _ensure_cols(df_positions, ["Prune_Reason", "Prune_Date",
+                                                "Risk_Per_Share", "Rupee_Risk"])
                     csv_updated = False
 
                     for idx, row in df_positions.iterrows():
@@ -827,6 +869,19 @@ def api_scan():
                             continue
 
                         sym = str(row["Symbol"]).strip().upper()
+
+                        # Backfill locked risk fields for rows added before this
+                        # existed (derived from the already-locked Entry/SL/qty).
+                        if _num(df_positions.at[idx, "Risk_Per_Share"]) is None:
+                            rps, rupee = position_risk(
+                                df_positions.at[idx, "Entry_Price"],
+                                df_positions.at[idx, "Current_SL"],
+                                df_positions.at[idx, "Quantity"],
+                            )
+                            if rps:
+                                df_positions.at[idx, "Risk_Per_Share"] = rps
+                                df_positions.at[idx, "Rupee_Risk"]     = rupee
+                                csv_updated = True
 
                         # Recompute this candidate's OWN Analysis-tab data points.
                         # Prefer today's scan numbers if present (cheap), else fetch.
@@ -854,13 +909,32 @@ def api_scan():
                             logger.info("[cadence] PRUNED %s — %s", sym, reason)
                             continue
 
-                        # RE-EVALUATE: candidate stays. If it also passed today's
-                        # scan, refresh its plan values so the card stays current.
+                        # RE-EVALUATE: candidate stays. Plan levels (Entry/SL/T1/T2)
+                        # are LOCKED at first scan — never recompute on a re-scan. If
+                        # it also passed today's fresh scan, OVERRIDE the scan card's
+                        # freshly-computed levels WITH the locked CSV values so the
+                        # scan card == the watchlist row. Only monitoring fields
+                        # (grade/score/expiry) are refreshed in the CSV.
                         if scan_match:
-                            df_positions.at[idx, "Entry_Price"] = scan_match.get("entry_min", df_positions.at[idx, "Entry_Price"])
-                            df_positions.at[idx, "Target_1"]    = scan_match.get("target_1", df_positions.at[idx, "Target_1"])
-                            df_positions.at[idx, "Target_2"]    = scan_match.get("target_2", df_positions.at[idx, "Target_2"])
-                            df_positions.at[idx, "Current_SL"]  = scan_match.get("sl", df_positions.at[idx, "Current_SL"])
+                            lk_entry = _num(df_positions.at[idx, "Entry_Price"])
+                            lk_sl    = _num(df_positions.at[idx, "Current_SL"])
+                            lk_t1    = _num(df_positions.at[idx, "Target_1"])
+                            lk_t2    = _num(df_positions.at[idx, "Target_2"])
+                            if lk_entry:
+                                scan_match["entry_min"] = lk_entry
+                                scan_match["entry_max"] = round(lk_entry / 0.99 * 1.005, 2)
+                            if lk_sl:
+                                scan_match["sl"] = lk_sl
+                            if lk_t1:
+                                scan_match["target_1"] = lk_t1
+                            if lk_t2:
+                                scan_match["target_2"] = lk_t2
+                            if lk_entry and lk_t2 and lk_sl:
+                                entry_mid = (scan_match["entry_min"] + scan_match["entry_max"]) / 2
+                                scan_match["rr"] = calculate_rr(
+                                    {"price": entry_mid, "target": lk_t2, "sl": lk_sl}
+                                )
+
                             df_positions.at[idx, "Setup_Grade"] = scan_match.get("setup_grade", df_positions.at[idx, "Setup_Grade"])
                             df_positions.at[idx, "Setup_Score"] = scan_match.get("setup_score", df_positions.at[idx, "Setup_Score"])
                             if scan_match.get("expiry_info"):
@@ -870,7 +944,7 @@ def api_scan():
                                 df_positions.at[idx, "Expiry_Multiplier"] = scan_match.get("expiry_multiplier", "")
                                 df_positions.at[idx, "Expiry_Reason"]     = scan_match.get("expiry_reason", "")
                             csv_updated = True
-                            logger.info("[cadence] Refreshed re-evaluate candidate %s", sym)
+                            logger.info("[cadence] Locked plan re-used for re-evaluate candidate %s", sym)
 
                     if csv_updated:
                         _save_positions_csv(df_positions, positions_path)
@@ -1041,6 +1115,13 @@ def _append_rows_to_csv(path: str, rows: list) -> tuple:
         if row.get("Symbol") in open_syms:
             skipped.append(row["Symbol"])
         else:
+            # Lock the per-position risk at first scan from this row's plan, so it
+            # stays fixed (auditable) instead of being recomputed live each day.
+            rps, rupee = position_risk(
+                row.get("Entry_Price"), row.get("Current_SL"), row.get("Quantity", 0)
+            )
+            row["Risk_Per_Share"] = rps
+            row["Rupee_Risk"]     = rupee
             added.append(row)
             open_syms.add(row["Symbol"])   # also dedupe within this single batch
 
@@ -1255,40 +1336,7 @@ def api_positions_add_all():
         if not stocks:
             return jsonify({"status": "error", "message": "no stocks provided"}), 400
 
-        path = os.path.join(_ROOT, "data", "positions.csv")
-        os.makedirs(os.path.join(_ROOT, "data"), exist_ok=True)
-
-        rows = []
-        for s in stocks:
-            if not s.get("symbol"):
-                continue
-            rows.append({
-                "Symbol":       s["symbol"],
-                "Name":         s.get("name", s["symbol"]),
-                "Entry_Price":  s.get("entry_min", s.get("price", 0)),
-                "Quantity":     1,
-                "Target_1":     s.get("target_1", 0),
-                "Target_2":     s.get("target_2", 0),
-                "Current_SL":   s.get("sl", 0),
-                "Setup":        s.get("setup", ""),
-                "Entry_Date":   _now_date(),
-                "Status":       "OPEN",
-                "Setup_Grade":  s.get("setup_grade", ""),
-                "Setup_Score":  s.get("setup_score", ""),
-                "Expiry_Multiplier": s.get("expiry_info", {}).get("multiplier", "") if s.get("expiry_info") else s.get("expiry_multiplier", ""),
-                "Expiry_Reason": s.get("expiry_info", {}).get("reason", "") if s.get("expiry_info") else s.get("expiry_reason", ""),
-            })
-        added, skipped = _append_rows_to_csv(path, rows)
-
-        # Place Kite GTTs only for newly-added rows
-        for row in added:
-            gtt_id = place_gtt(
-                symbol=row["Symbol"], qty=int(row["Quantity"]),
-                last_price=float(row["Entry_Price"]),
-                sl=float(row["Current_SL"]), target=float(row["Target_2"]),
-            )
-            if gtt_id:
-                _write_gtt_id(path, row["Symbol"], gtt_id)
+        added, skipped = _add_stocks_to_positions(stocks)
 
         logger.info("[positions] Bulk add: +%d new, %d skipped (already on watchlist)",
                     len(added), len(skipped))
@@ -1302,6 +1350,83 @@ def api_positions_add_all():
     except Exception as exc:
         logger.error("[positions/add-all] %s", exc)
         return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+def _add_stocks_to_positions(stocks):
+    """Persist passed scan candidates as OPEN Analysis positions."""
+    path = os.path.join(_ROOT, "data", "positions.csv")
+    os.makedirs(os.path.join(_ROOT, "data"), exist_ok=True)
+    rows = []
+    for s in stocks:
+        if not s.get("symbol"):
+            continue
+        rows.append({
+            "Symbol": s["symbol"],
+            "Name": s.get("name", s["symbol"]),
+            "Entry_Price": s.get("entry_min", s.get("price", 0)),
+            "Quantity": 1,
+            "Target_1": s.get("target_1", 0),
+            "Target_2": s.get("target_2", 0),
+            "Current_SL": s.get("sl", 0),
+            "Setup": s.get("setup", ""),
+            "Entry_Date": _now_date(),
+            "Status": "OPEN",
+            "Setup_Grade": s.get("setup_grade", ""),
+            "Setup_Score": s.get("setup_score", ""),
+            "Expiry_Multiplier": s.get("expiry_info", {}).get("multiplier", "") if s.get("expiry_info") else s.get("expiry_multiplier", ""),
+            "Expiry_Reason": s.get("expiry_info", {}).get("reason", "") if s.get("expiry_info") else s.get("expiry_reason", ""),
+        })
+    added, skipped = _append_rows_to_csv(path, rows)
+    for row in added:
+        gtt_id = place_gtt(
+            symbol=row["Symbol"], qty=int(row["Quantity"]),
+            last_price=float(row["Entry_Price"]),
+            sl=float(row["Current_SL"]), target=float(row["Target_2"]),
+        )
+        if gtt_id:
+            _write_gtt_id(path, row["Symbol"], gtt_id)
+    return added, skipped
+
+
+def run_get_stocks_job(filters=None):
+    """Run the canonical scan, persist it, then add every passed stock."""
+    _load_schedule_config()
+    effective_filters = filters if isinstance(filters, dict) and filters else dict(_scan_filters)
+    logger.info("[get-stocks] Starting scheduled scan")
+    logger.info("[get-stocks] Using persisted scan/risk filters: %s", effective_filters)
+    with app.test_request_context("/api/scan", method="POST", json={"filters": effective_filters}):
+        response = api_scan()
+    if isinstance(response, tuple):
+        response, status_code = response[0], response[1]
+        if status_code >= 400:
+            result = response.get_json() or {}
+            raise RuntimeError(result.get("message", "Scheduled scan failed"))
+    result = response.get_json() or {}
+    if result.get("status") != "success" or result.get("source") == "last_session":
+        logger.info("[get-stocks] No fresh passed stocks to add")
+        outcome = {"status": result.get("status", "no_results"), "added": 0, "skipped": 0}
+        _tg_send(
+            f"<b>Get Stocks completed</b>\n"
+            f"Time: {_now_date()} {_now_time()} IST\n"
+            f"No fresh passed stocks were found.\n"
+            f"Dashboard scan cache checked; database unchanged."
+        )
+        return outcome
+    added, skipped = _add_stocks_to_positions(result.get("stocks", []))
+    logger.info("[get-stocks] Completed: %d added, %d skipped", len(added), len(skipped))
+    outcome = {"status": "success", "added": len(added), "skipped": len(skipped),
+               "scan_date": result.get("date")}
+    added_symbols = ", ".join(row["Symbol"] for row in added) or "None"
+    _tg_send(
+        f"<b>Get Stocks completed</b>\n"
+        f"Time: {_now_date()} {_now_time()} IST\n"
+        f"Passed: {len(result.get('stocks', []))}\n"
+        f"Added to Analysis: {len(added)}\n"
+        f"Already OPEN: {len(skipped)}\n"
+        f"Added symbols: {added_symbols}\n"
+        f"Scan cache and positions database refreshed."
+    )
+    return outcome
 
 
 @app.route("/api/schedule/maintenance", methods=["GET", "POST"])
@@ -1325,10 +1450,7 @@ def api_schedule_maintenance():
                 
             _maintenance_time = time_str
             
-            # Save configuration
-            os.makedirs(os.path.dirname(config_path), exist_ok=True)
-            with open(config_path, "w") as f:
-                json.dump({"maintenance_time": _maintenance_time}, f)
+            _save_schedule_config()
                 
             # Reschedule in scheduler if running
             if _scheduler:
@@ -1362,6 +1484,70 @@ def api_schedule_maintenance():
     # GET
     _load_maintenance_time()
     return jsonify({"status": "ok", "time": _maintenance_time})
+
+
+@app.route("/api/schedule/get-stocks", methods=["GET", "POST"])
+def api_schedule_get_stocks():
+    global _get_stocks_time, _scan_filters, _scheduler
+    if request.method == "POST":
+        try:
+            body = request.get_json(force=True, silent=True) or {}
+            time_str = body.get("time", "").strip()
+            import re
+            if not re.match(r"^\d{2}:\d{2}$", time_str):
+                return jsonify({"status": "error", "message": "Invalid time format. Expected HH:MM"}), 400
+            h, m = time_str.split(":")
+            if not (0 <= int(h) <= 23 and 0 <= int(m) <= 59):
+                return jsonify({"status": "error", "message": "Invalid time bounds"}), 400
+            _get_stocks_time = time_str
+            supplied_filters = body.get("filters")
+            if isinstance(supplied_filters, dict) and supplied_filters:
+                _scan_filters = {**_scan_filters, **supplied_filters}
+            _save_schedule_config()
+            if _scheduler:
+                from apscheduler.triggers.cron import CronTrigger
+                import pytz
+                ist = pytz.timezone("Asia/Kolkata")
+                trigger = CronTrigger(hour=h, minute=m, timezone=ist)
+                job = _scheduler.get_job("get_stocks")
+                if job:
+                    job.reschedule(trigger=trigger)
+                else:
+                    _scheduler.add_job(run_get_stocks_job, trigger, id="get_stocks",
+                                       max_instances=1, coalesce=True)
+                    job = _scheduler.get_job("get_stocks")
+
+                # A cron trigger set after second 00 of the selected minute would
+                # otherwise wait until tomorrow. Treat that as an immediate run.
+                now = datetime.now(ist)
+                runs_immediately = now.hour == int(h) and now.minute == int(m)
+                if runs_immediately and job:
+                    job.modify(next_run_time=now + timedelta(seconds=1))
+                    logger.info(
+                        "[get-stocks] Schedule set during %s; queued immediate run",
+                        time_str,
+                    )
+            else:
+                runs_immediately = False
+            return jsonify({
+                "status": "ok",
+                "time": _get_stocks_time,
+                "runs_immediately": runs_immediately,
+            })
+        except Exception as exc:
+            logger.error("[server] Failed to update Get Stocks schedule: %s", exc)
+            return jsonify({"status": "error", "message": str(exc)}), 500
+    _load_schedule_config()
+    return jsonify({"status": "ok", "time": _get_stocks_time, "filters": _scan_filters})
+
+
+@app.route("/api/schedule/get-stocks/run", methods=["POST"])
+def api_schedule_get_stocks_run():
+    try:
+        return jsonify(run_get_stocks_job())
+    except Exception as exc:
+        logger.error("[get-stocks] Manual trigger failed: %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
 
 
 @app.route("/api/schedule/maintenance/run", methods=["POST"])
@@ -1454,7 +1640,7 @@ def api_positions_buy():
             "Buy_False_Breakout_Risk", "Buy_False_Breakout_Desc",
             "Buy_RSI", "Buy_ATR_Pct", "Buy_Vol_Ratio",
             "Setup_Grade", "Setup_Score", "Expiry_Multiplier", "Expiry_Reason",
-            "gtt_id"
+            "gtt_id", "Risk_Per_Share", "Rupee_Risk"
         ])
 
         # Live setup grading and expiry sizing at execution time
@@ -1503,6 +1689,12 @@ def api_positions_buy():
             df.at[idx, "Setup_Score"] = setup_score
             df.at[idx, "Expiry_Multiplier"] = exp_mult
             df.at[idx, "Expiry_Reason"] = exp_reason
+            # Re-lock per-position risk to the actual bought entry/SL/qty.
+            rps, rupee = position_risk(
+                df.at[idx, "Entry_Price"], df.at[idx, "Current_SL"], df.at[idx, "Quantity"]
+            )
+            df.at[idx, "Risk_Per_Share"] = rps
+            df.at[idx, "Rupee_Risk"]     = rupee
         else:
             # Create a new BOUGHT row directly (direct execution)
             new_row = {
@@ -1530,6 +1722,9 @@ def api_positions_buy():
                 "Buy_Vol_Ratio": float(tech.get("volume_ratio", 0) or tech.get("vol_ratio", 0) or 0),
                 "gtt_id": ""
             }
+            new_row["Risk_Per_Share"], new_row["Rupee_Risk"] = position_risk(
+                new_row["Entry_Price"], new_row["Current_SL"], new_row["Quantity"]
+            )
 
             # Place GTT exit orders (silently skipped if not connected)
             gtt_id = place_gtt(
@@ -1633,7 +1828,12 @@ def api_positions_update_override():
             
         symbol = symbol.strip().upper()
         notes = data.get("fundamental_notes", "").strip()
-        status = data.get("fundamental_status")
+        try:
+            from core.risk_filters import filter_fundamental_strength
+        except ImportError:
+            from core_risk_filters import filter_fundamental_strength
+        passed_fund, _ = filter_fundamental_strength(symbol)
+        status = "APPROVED" if passed_fund else "ON_HOLD"
         live_status_override = data.get("live_status")
         
         path = os.path.join(_ROOT, "data", "positions.csv")
@@ -1933,6 +2133,11 @@ def api_results():
         if df.empty:
             return jsonify(_empty_results())
 
+        try:
+            from core.risk_filters import filter_fundamental_strength
+        except ImportError:
+            from core_risk_filters import filter_fundamental_strength
+
         # Ensure columns exist (read-only — changes won't be persisted)
         _ensure_cols(df, [
             "Outcome", "Entry_Hit_Date", "T1_Hit_Date", "T2_Hit_Date",
@@ -2005,11 +2210,15 @@ def api_results():
                 live_at_entry = bool(cp and ep and cp <= ep * 1.005)
                 live_above_t1 = bool(cp and t1 and cp >= t1)
                 live_below_sl = bool(cp and sl and cp <= sl)
+                # The entry is LOCKED at first scan (never re-priced upward), so a
+                # candidate that has run >5% above its locked entry is being chased.
+                # Gate on a fresh bar so a stale last-close can't trigger it.
+                live_chasing  = bool(cp and ep and not price_stale and cp >= ep * 1.05)
 
                 # Watchlist candidates are NOT owned, so a price above T1/T2 is not a
                 # "target hit" — it means the setup already ran past entry. Flag it as
                 # EXTENDED (don't chase) rather than painting a misleading "T1 ✓".
-                if   live_above_t1: live_status = "EXTENDED"
+                if   live_above_t1 or live_chasing: live_status = "EXTENDED"
                 elif live_below_sl: live_status = "BELOW_SL"
                 elif live_at_entry: live_status = "AT_ENTRY"
                 else:               live_status = "WAITING"
@@ -2025,6 +2234,9 @@ def api_results():
                     "sl":          sl,
                     "pnl_pct":     pnl_pct,
                     "days_held":   days_held,
+                    # Per-position risk LOCKED at first scan (see position_risk()).
+                    "risk_per_share": _num(r.get("Risk_Per_Share")),
+                    "rupee_risk":     _num(r.get("Rupee_Risk")),
                     "live_status": str(r.get("Live_Status", "") or live_status),
                     # Not owned → never highlight T1/T2 cells as a "hit" (see live_status EXTENDED).
                     "above_t1":    False,
@@ -2037,7 +2249,7 @@ def api_results():
                     "entry_notified": _truthy(r.get("Entry_Notified")),
                     "entry_date":  entry_date_str,
                     "index_membership": get_index_membership(sym),
-                    "fundamental_status": str(r.get("Fundamental_Status", "") or "APPROVED"),
+                    "fundamental_status": "APPROVED" if filter_fundamental_strength(sym)[0] else "ON_HOLD",
                     "fundamental_notes": str(r.get("Fundamental_Notes", "") or ""),
                     "debate": fetch_cached_debate_verdict(sym),
                     "shareholding": fetch_screener_shareholding(sym),
@@ -2132,7 +2344,7 @@ def api_results():
                     "entry_notified": _truthy(r.get("Entry_Notified")),
                     "entry_date":  entry_date_str,
                     "index_membership": get_index_membership(sym),
-                    "fundamental_status": str(r.get("Fundamental_Status", "") or "APPROVED"),
+                    "fundamental_status": "APPROVED" if filter_fundamental_strength(sym)[0] else "ON_HOLD",
                     "fundamental_notes": str(r.get("Fundamental_Notes", "") or ""),
                     "debate": fetch_cached_debate_verdict(sym),
                     "shareholding": fetch_screener_shareholding(sym),
@@ -2301,7 +2513,7 @@ def check_positions_and_notify() -> list:
 
     # ── Bulk-fetch live prices for all OPEN and BOUGHT positions (one bulk yfinance call) ──
     active_symbols = (
-        df.loc[df["Status"].astype(str).str.upper().isin(["OPEN", "BOUGHT"]), "Symbol"]
+        df.loc[df["Status"].astype(str).str.upper().eq("BOUGHT"), "Symbol"]
           .astype(str).unique().tolist()
     )
     price_map = fetch_prices_bulk_dated(active_symbols) if active_symbols else {}
@@ -2317,7 +2529,7 @@ def check_positions_and_notify() -> list:
                 pass
         status = str(pos.get("Status", "OPEN")).upper()
 
-        if status not in ("OPEN", "BOUGHT"):
+        if status != "BOUGHT":
             pos["current_price"] = 0
             pos["pnl"]           = 0
             pos["pnl_pct"]       = 0
@@ -2688,11 +2900,11 @@ def _now_time() -> str:
 # ── Background poller ───────────────────────────────────────────────────────
 
 def _poll_job():
-    """Cron job: check open positions every minute, fire alerts on threshold crossings."""
+    """Cron job: check BOUGHT portfolio positions for target/SL crossings."""
     try:
         positions = check_positions_and_notify()
-        open_count = sum(1 for p in positions if str(p.get("Status", "OPEN")).upper() == "OPEN")
-        logger.info("[poll] checked %d open positions", open_count)
+        bought_count = sum(1 for p in positions if str(p.get("Status", "")).upper() == "BOUGHT")
+        logger.info("[poll] checked %d BOUGHT positions", bought_count)
     except Exception as exc:
         logger.error("[poll] error: %s", exc)
 
@@ -2711,15 +2923,32 @@ def _start_scheduler():
     ist = pytz.timezone("Asia/Kolkata")
     _scheduler = BackgroundScheduler(timezone=ist)
     # NSE market hours: 9:15 AM – 3:30 PM IST, Mon–Fri
-    _scheduler.add_job(
-        _poll_job,
-        CronTrigger(day_of_week="mon-fri", hour="9-15", minute="*", timezone=ist),
-        id="position_poller",
-        max_instances=1,
-        coalesce=True,
-    )
+    for job_id, hour, minute in (
+        ("position_poller_open", "9", "15-59"),
+        ("position_poller_midday", "10-14", "*"),
+        ("position_poller_close", "15", "0-30"),
+    ):
+        _scheduler.add_job(
+            _poll_job,
+            CronTrigger(day_of_week="mon-fri", hour=hour, minute=minute, timezone=ist),
+            id=job_id,
+            max_instances=1,
+            coalesce=True,
+        )
     # Keep & refresh Scan before market hours (Mon-Fri)
-    _load_maintenance_time()
+    _load_schedule_config()
+    try:
+        scan_h, scan_m = _get_stocks_time.split(":")
+        _scheduler.add_job(
+            run_get_stocks_job,
+            CronTrigger(hour=scan_h, minute=scan_m, timezone=ist),
+            id="get_stocks",
+            max_instances=1,
+            coalesce=True,
+        )
+        logger.info("[get-stocks] scheduled daily scan at %s IST", _get_stocks_time)
+    except Exception as e:
+        logger.error("[get-stocks] failed to schedule daily scan: %s", e)
     try:
         h, m = _maintenance_time.split(":")
         _scheduler.add_job(
