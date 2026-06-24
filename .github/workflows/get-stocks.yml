@@ -1,25 +1,22 @@
-name: Poll Positions
+name: Daily Scan (Get Stocks)
 
-# Runs every 5 minutes during NSE market hours
-# NSE: 9:15-15:30 IST  →  3:45-10:00 UTC, Mon-Fri
-# GitHub Actions cron only supports standard cron, so we cover 3:45-9:55 UTC
-# (= 9:15-15:25 IST — close enough; misses last 5 min of market)
+# Runs daily at 21:44 IST (16:14 UTC) to scan for new setups and add them as OPEN
 on:
   schedule:
-    - cron: '*/5 3-9 * * 1-5'
+    - cron: '14 16 * * *'
   workflow_dispatch: {}   # allow manual trigger from Actions tab
 
 permissions:
   contents: write          # required to commit positions.csv state back
 
 concurrency:
-  group: poll-positions
+  group: get-stocks
   cancel-in-progress: false
 
 jobs:
-  poll:
+  scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,11 +32,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run poll
+      - name: Run daily scan
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python core/poll_once.py
+        run: python core/get_stocks_once.py
 
       - name: Commit state changes
         run: |
@@ -49,6 +46,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No state change — nothing to commit."
           else
-            git commit -m "Auto: position state update [skip ci]"
+            git commit -m "Auto: daily scan setups added [skip ci]"
             git push
           fi
