@@ -274,6 +274,22 @@ def run_adversarial_debate(
     bear_cfg = cfg.get("bear_agent", {"provider": "gemini", "model": "gemini-1.5-flash", "temperature": 0.4})
     judge_cfg = cfg.get("judge_agent", {"provider": "gemini", "model": "gemini-1.5-pro", "temperature": 0.2})
 
+    # Fetch trade plan to evaluate at optimized future entry zone instead of CMP
+    try:
+        from core.core_trade_plan import calculate_trade_plan
+    except ImportError:
+        from core_trade_plan import calculate_trade_plan
+    
+    trade_plan = calculate_trade_plan(technicals)
+    plan_str = json.dumps({
+        "setup_type": trade_plan.get("setup_type"),
+        "optimized_entry_zone": f"₹{trade_plan.get('entry_zone_min')} to ₹{trade_plan.get('entry_zone_max')}",
+        "stop_loss_invalidation": f"₹{trade_plan.get('stop_loss')}",
+        "target_1": f"₹{trade_plan.get('target_1')}",
+        "target_2": f"₹{trade_plan.get('target_2')}",
+        "risk_reward_ratio_at_entry": f"1:{trade_plan.get('rr_ratio')}"
+    }, indent=2)
+
     # Prepare detailed context variables
     tech_str = json.dumps(technicals, indent=2)
     news_titles = [f"- {n.get('title', '')} (Sentiment: {n.get('sentiment', {}).get('label', 'neutral')})" for n in recent_news]
@@ -284,6 +300,9 @@ def run_adversarial_debate(
     bull_system = """You are a highly optimistic, momentum-focused technical analyst specializing in the Indian equity markets (NSE/BSE).
 Your ONLY job is to construct the absolute strongest BUY argument for the provided stock.
 
+IMPORTANT: We are NOT buying at the Current Market Price (CMP) today. Our system architecture places a GTT limit order in the lower, optimized future entry zone.
+You must construct your bullish thesis specifically around entering in this optimized entry zone, highlighting why this level offers a high-conviction opportunity.
+
 You must focus heavily on:
 1. Chart breakout patterns (e.g., Stage 2 continuations, VCP, flat bases, rounding bottoms), volume expansion parameters, and moving average alignments (e.g., 20 EMA, 50 DMA, 200 DMA structural support).
 2. Relative Strength (RS) comparison against Nifty 50 and its sector benchmark.
@@ -293,6 +312,12 @@ You must focus heavily on:
 Keep your response sharp and concise (under 250 words). Focus strictly on data points supporting an aggressive swing long conviction."""
 
     bull_user = f"""Construct the BUY case for the stock: {symbol} in the {sector} sector.
+
+PROPOSED TRADE PLAN (OPTIMIZED FUTURE ENTRY ZONE):
+{plan_str}
+
+CURRENT MARKET PRICE (CMP):
+₹{technicals.get('price')}
 
 TECHNICAL STATS:
 {tech_str}
@@ -320,6 +345,9 @@ MACRO MARKET CONTEXT:
     bear_system = """You are a highly skeptical, risk-averse Red-Team auditor and forensic market short-seller in the Indian markets.
 Your job is to read the provided Bullish Thesis and systematically dismantle its assumptions using the raw technical data and headlines.
 
+IMPORTANT: We are NOT buying at the Current Market Price (CMP) today. Our system architecture places a GTT limit order in the lower, optimized future entry zone.
+Systematically analyze whether entering the stock at this specific entry zone is a trap (e.g., catching a falling knife, trend breakdown, or loss of structural support) or if it remains highly risky.
+
 You must identify and highlight:
 1. Technical Traps: False breakouts on low volume, severe bearish RSI divergences on the daily frame, or overhead structural resistance columns.
 2. Regulatory & Liquidity Risks: Proximity to upper/lower circuit limits, high promoter pledging percentages, or immediate risk of being moved into ASM (Additional Surveillance Measure) / GSM stages.
@@ -329,6 +357,12 @@ You must identify and highlight:
 Expose the hidden pitfalls that long-biased swing traders ignore due to confirmation bias. Keep your counter-argument under 250 words."""
 
     bear_user = f"""Construct the bearish counter-argument for {symbol} in the {sector} sector.
+
+PROPOSED TRADE PLAN (OPTIMIZED FUTURE ENTRY ZONE):
+{plan_str}
+
+CURRENT MARKET PRICE (CMP):
+₹{technicals.get('price')}
 
 PROPOSED BULLISH THESIS TO DISMANTLE:
 {bull_output}
@@ -359,6 +393,9 @@ MACRO MARKET CONTEXT:
     judge_system = """You are the conservative, data-grounded Chief Investment Officer (CIO) for an elite Indian swing trading fund.
 Your job is to cross-examine the Bullish Thesis and the Bearish Rebuttal against the raw data points and issue an absolute go/no-go trading directive using our standard 5-key framework.
 
+IMPORTANT: We do NOT buy at CMP today. Our system architecture is designed to place GTT limit orders in the optimized future entry zone (which is typically lower/a pullback support).
+Evaluate the trade setup, technical compliance, and R:R feasibility specifically based on this optimized entry zone and its corresponding stop loss and targets (not CMP).
+
 Strict Risk Directives:
 - Evaluate "TECHNICAL COMPLIANCE" internally: If the stock violates structural rules (e.g., trades below 50 DMA, has severe RSI divergence, or lacks institutional volume), you must force the first bullet point of your 'reasons' to start with "TECHNICAL COMPLIANCE: FAIL - [Reason]". Otherwise, start it with "TECHNICAL COMPLIANCE: PASS - [Reason]".
 - If India VIX is above 18, or the general Trend Regime is Amber/Red, apply a strict 25% markdown to your conviction_score.
@@ -382,6 +419,12 @@ Your response must be in valid JSON format ONLY. Do not include markdown code wr
 }"""
 
     judge_user = f"""Deliver the final judgment for the stock: {symbol}.
+
+PROPOSED TRADE PLAN (OPTIMIZED FUTURE ENTRY ZONE):
+{plan_str}
+
+CURRENT MARKET PRICE (CMP):
+₹{technicals.get('price')}
 
 BULL CASE THESIS:
 {bull_output}

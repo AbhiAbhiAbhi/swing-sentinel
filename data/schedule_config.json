@@ -1,6 +1,6 @@
 {
-  "maintenance_time": "20:19",
-  "get_stocks_time": "10:57",
+  "maintenance_time": "16:57",
+  "get_stocks_time": "21:44",
   "scan_filters": {
     "universe": "cash",
     "min_price": 50,
