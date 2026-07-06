@@ -239,7 +239,8 @@ def run_adversarial_debate(
     sector: str,
     override_config: Optional[Dict[str, Any]] = None,
     force_refresh: bool = False,
-    check_only: bool = False
+    check_only: bool = False,
+    trade_plan: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     Executes a structured adversarial debate (Bull vs. Bear) on a stock setup
@@ -275,13 +276,22 @@ def run_adversarial_debate(
     judge_cfg = cfg.get("judge_agent", {"provider": "gemini", "model": "gemini-1.5-pro", "temperature": 0.2})
 
     # Fetch trade plan to evaluate at optimized future entry zone instead of CMP
-    try:
-        from core.core_trade_plan import calculate_trade_plan
-    except ImportError:
-        from core_trade_plan import calculate_trade_plan
+    if trade_plan is None:
+        try:
+            from core.core_trade_plan import calculate_trade_plan
+        except ImportError:
+            from core_trade_plan import calculate_trade_plan
+        trade_plan = calculate_trade_plan(technicals)
+        status_ctx = "NEW SETUP (Evaluating for initial entry)"
+    else:
+        status_val = str(trade_plan.get("status", "OPEN")).strip().upper()
+        if status_val in ("BOUGHT", "HELD"):
+            status_ctx = f"ACTIVE POSITION (Already entered at ₹{trade_plan.get('entry_zone_min')} and currently holding)"
+        else:
+            status_ctx = f"WATCHLIST CANDIDATE (Pending GTT limit order at the optimized entry zone of ₹{trade_plan.get('entry_zone_min')}–₹{trade_plan.get('entry_zone_max')})"
     
-    trade_plan = calculate_trade_plan(technicals)
     plan_str = json.dumps({
+        "status": status_ctx,
         "setup_type": trade_plan.get("setup_type"),
         "optimized_entry_zone": f"₹{trade_plan.get('entry_zone_min')} to ₹{trade_plan.get('entry_zone_max')}",
         "stop_loss_invalidation": f"₹{trade_plan.get('stop_loss')}",
@@ -297,11 +307,12 @@ def run_adversarial_debate(
     market_str = json.dumps(market_context, indent=2)
 
     # ── 3. Step 1: Bull Agent Call ─────────────────────────────────────────────
-    bull_system = """You are a highly optimistic, momentum-focused technical analyst specializing in the Indian equity markets (NSE/BSE).
-Your ONLY job is to construct the absolute strongest BUY argument for the provided stock.
+    bull_system = f"""You are a highly optimistic, momentum-focused technical analyst specializing in the Indian equity markets (NSE/BSE).
+Your ONLY job is to construct the absolute strongest bullish argument for the provided stock.
 
-IMPORTANT: We are NOT buying at the Current Market Price (CMP) today. Our system architecture places a GTT limit order in the lower, optimized future entry zone.
-You must construct your bullish thesis specifically around entering in this optimized entry zone, highlighting why this level offers a high-conviction opportunity.
+Context: The stock's trade status is: {status_ctx}.
+- If it is a NEW SETUP or WATCHLIST CANDIDATE (Pending GTT): We are NOT buying at CMP today; we place a GTT limit order in the optimized entry zone. Construct your bullish thesis around why this entry zone is a high-conviction level to enter.
+- If it is an ACTIVE POSITION: We already hold the stock from the entry zone. Construct your bullish thesis around why the trend remains strong, why we should continue to hold, and how it can reach its targets.
 
 You must focus heavily on:
 1. Chart breakout patterns (e.g., Stage 2 continuations, VCP, flat bases, rounding bottoms), volume expansion parameters, and moving average alignments (e.g., 20 EMA, 50 DMA, 200 DMA structural support).
@@ -309,7 +320,7 @@ You must focus heavily on:
 3. Institutional tracking: signs of delivery volume spikes, steady accumulation blocks, or positive DII/FII buying interest.
 4. High-velocity catalysts: massive new order inflows, defense/infra capex allocations, or positive fundamental trend changes in the news.
 
-Keep your response sharp and concise (under 250 words). Focus strictly on data points supporting an aggressive swing long conviction."""
+Keep your response sharp and concise (under 250 words)."""
 
     bull_user = f"""Construct the BUY case for the stock: {symbol} in the {sector} sector.
 
@@ -342,11 +353,12 @@ MACRO MARKET CONTEXT:
         return {"status": "error", "message": f"Bull Agent failed: {exc}"}
 
     # ── 4. Step 2: Bear Agent Call ─────────────────────────────────────────────
-    bear_system = """You are a highly skeptical, risk-averse Red-Team auditor and forensic market short-seller in the Indian markets.
+    bear_system = f"""You are a highly skeptical, risk-averse Red-Team auditor and forensic market short-seller in the Indian markets.
 Your job is to read the provided Bullish Thesis and systematically dismantle its assumptions using the raw technical data and headlines.
 
-IMPORTANT: We are NOT buying at the Current Market Price (CMP) today. Our system architecture places a GTT limit order in the lower, optimized future entry zone.
-Systematically analyze whether entering the stock at this specific entry zone is a trap (e.g., catching a falling knife, trend breakdown, or loss of structural support) or if it remains highly risky.
+Context: The stock's trade status is: {status_ctx}.
+- If it is a NEW SETUP or WATCHLIST CANDIDATE (Pending GTT): We are NOT buying at CMP today; we place a GTT limit order in the optimized entry zone. Systematically analyze whether entering the stock at this specific entry zone is a trap (e.g., catching a falling knife, trend breakdown, or loss of structural support) or if it remains highly risky.
+- If it is an ACTIVE POSITION: We already hold the stock from the entry zone. Systematically analyze the risks of holding (e.g., exhaustion, trend reversal, trailing stop loss vulnerability, or overhead supply) and whether the exit strategy is in danger.
 
 You must identify and highlight:
 1. Technical Traps: False breakouts on low volume, severe bearish RSI divergences on the daily frame, or overhead structural resistance columns.
@@ -390,11 +402,18 @@ MACRO MARKET CONTEXT:
         return {"status": "error", "message": f"Bear Agent failed: {exc}"}
 
     # ── 5. Step 3: The Judge Call ──────────────────────────────────────────────
-    judge_system = """You are the conservative, data-grounded Chief Investment Officer (CIO) for an elite Indian swing trading fund.
+    judge_system = f"""You are the conservative, data-grounded Chief Investment Officer (CIO) for an elite Indian swing trading fund.
 Your job is to cross-examine the Bullish Thesis and the Bearish Rebuttal against the raw data points and issue an absolute go/no-go trading directive using our standard 5-key framework.
 
-IMPORTANT: We do NOT buy at CMP today. Our system architecture is designed to place GTT limit orders in the optimized future entry zone (which is typically lower/a pullback support).
-Evaluate the trade setup, technical compliance, and R:R feasibility specifically based on this optimized entry zone and its corresponding stop loss and targets (not CMP).
+Context: The stock's trade status is: {status_ctx}.
+- For PENDING GTT WATCHLIST or NEW SETUP: We do NOT buy at CMP today; we place a GTT limit order in the optimized entry zone. Evaluate the trade setup, technical compliance, and R:R feasibility specifically based on this entry zone and its corresponding stop loss/targets (not CMP).
+  - Verdict 'BUY' means approve/arm the GTT limit order.
+  - Verdict 'WATCH' means keep GTT armed but monitor closely.
+  - Verdict 'SKIP' means cancel/do not trade this setup.
+- For ACTIVE POSITION: We already hold the stock from the entry zone. Evaluate whether the holding remains healthy, if the stop loss should be held/trailed, or if there is warning evidence suggesting we should exit early or prune the position.
+  - Verdict 'BUY' means high-conviction hold.
+  - Verdict 'WATCH' means hold but trail stop loss closely.
+  - Verdict 'SKIP' means execute early exit / sell / prune.
 
 Strict Risk Directives:
 - Evaluate "TECHNICAL COMPLIANCE" internally: If the stock violates structural rules (e.g., trades below 50 DMA, has severe RSI divergence, or lacks institutional volume), you must force the first bullet point of your 'reasons' to start with "TECHNICAL COMPLIANCE: FAIL - [Reason]". Otherwise, start it with "TECHNICAL COMPLIANCE: PASS - [Reason]".
@@ -403,7 +422,7 @@ Strict Risk Directives:
 - The Risk-to-Reward (R:R) layout must mathematically project better than 1:2.
 
 Your response must be in valid JSON format ONLY. Do not include markdown code wrappers (like ```json). Use our exact 5-key schema:
-{
+{{
   "verdict": "BUY" | "WATCH" | "SKIP",
   "conviction_score": 1,
   "reasons": [
@@ -416,7 +435,7 @@ Your response must be in valid JSON format ONLY. Do not include markdown code wr
     "Structural or macro risk 2"
   ],
   "rationale": "3-4 sentences outlining the executive summary of the debate, specific entry-range cautions, and how to handle position risk based on the findings."
-}"""
+}}"""
 
     judge_user = f"""Deliver the final judgment for the stock: {symbol}.
 

@@ -46,9 +46,24 @@ def calculate_trade_plan(stock_data: Dict, is_refresh: bool = False) -> Dict:
     else:
         setup = 'CONSOLIDATION'
 
-    # ── Entry zone ───────────────────────────────────────────────────────
-    entry_min = round(ema20 * 0.99, 2)  if ema20 else round(price * 0.99, 2)
-    entry_max = round(ema20 * 1.005, 2) if ema20 else round(price * 1.005, 2)
+    # ── Setup-specific Entry zone ────────────────────────────────────────
+    if setup == 'PULLBACK':
+        # Pullback: enter near the rising 20 EMA support
+        entry_min = round(ema20 * 0.99, 2)  if ema20 else round(price * 0.99, 2)
+        entry_max = round(ema20 * 1.005, 2) if ema20 else round(price * 1.005, 2)
+    elif setup == 'BREAKOUT':
+        # Breakout: enter near breakout level (resistance_1) with 2% max chase
+        entry_min = round(resistance_1 * 0.995, 2) if resistance_1 else round(price * 0.99, 2)
+        entry_max = round(resistance_1 * 1.02, 2)  if resistance_1 else round(price * 1.005, 2)
+    elif setup == 'SUPPORT_BOUNCE':
+        # Support Bounce: enter as close to support_1 as possible with 2% chase limit
+        entry_min = round(support_1 * 0.995, 2) if support_1 else round(price * 0.99, 2)
+        entry_max = round(support_1 * 1.02, 2)  if support_1 else round(price * 1.005, 2)
+    else:  # CONSOLIDATION
+        # Consolidation: buy near support_1 (consolidation floor)
+        entry_min = round(support_1 * 0.995, 2) if support_1 else (round(ema20 * 0.99, 2) if ema20 else round(price * 0.99, 2))
+        entry_max = round(support_1 * 1.02, 2)  if support_1 else (round(ema20 * 1.005, 2) if ema20 else round(price * 1.005, 2))
+        
     entry_mid = (entry_min + entry_max) / 2
 
     # ── Setup-specific SL (invalidation level) ───────────────────────────

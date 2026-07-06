@@ -515,11 +515,50 @@ def api_debate(symbol: str):
                 }
 
         # 5. Execute debate
+        # Check if the stock is an active position/watchlist row in positions.csv
+        positions_path = os.path.join(_ROOT, "data", "positions.csv")
+        trade_plan = None
+        if os.path.exists(positions_path):
+            try:
+                import pandas as pd
+                df_positions = pd.read_csv(positions_path)
+                if not df_positions.empty and "Symbol" in df_positions.columns:
+                    row_match = df_positions[df_positions["Symbol"].str.upper() == symbol.upper()]
+                    if not row_match.empty:
+                        position_row = row_match.iloc[0].to_dict()
+                        status_str = str(position_row.get("Status")).strip().upper()
+                        if status_str in ("OPEN", "BOUGHT", "HELD"):
+                            entry_price = position_row.get("Entry_Price")
+                            if entry_price and not pd.isna(entry_price):
+                                entry_min = float(entry_price)
+                                entry_max = round(entry_min / 0.99 * 1.005, 2)
+                                stop_loss = float(position_row.get("Current_SL")) if not pd.isna(position_row.get("Current_SL")) else 0
+                                target_1 = float(position_row.get("Target_1")) if not pd.isna(position_row.get("Target_1")) else 0
+                                target_2 = float(position_row.get("Target_2")) if not pd.isna(position_row.get("Target_2")) else 0
+                                
+                                risk = (entry_min + entry_max) / 2 - stop_loss
+                                reward = target_2 - (entry_min + entry_max) / 2
+                                rr_ratio = round(reward / risk, 1) if risk > 0 else 0
+                                
+                                trade_plan = {
+                                    "setup_type": position_row.get("Setup", "—"),
+                                    "entry_zone_min": entry_min,
+                                    "entry_zone_max": entry_max,
+                                    "stop_loss": stop_loss,
+                                    "target_1": target_1,
+                                    "target_2": target_2,
+                                    "rr_ratio": rr_ratio,
+                                    "status": status_str
+                                }
+                                logger.info("[server/debate] Found locked trade plan for %s: %s", symbol, trade_plan)
+            except Exception as pos_exc:
+                logger.warning("[server/debate] Failed to read positions.csv: %s", pos_exc)
+
         try:
             from core.debate_orchestrator import run_adversarial_debate
         except ImportError:
             from debate_orchestrator import run_adversarial_debate
-
+ 
         result = run_adversarial_debate(
             symbol=symbol,
             technicals=tech,
@@ -528,9 +567,10 @@ def api_debate(symbol: str):
             sector=get_sector(symbol),
             override_config=override_config,
             force_refresh=force,
-            check_only=check_only
+            check_only=check_only,
+            trade_plan=trade_plan
         )
-
+ 
         return jsonify(result)
     except Exception as exc:
         logger.error("[server/debate] Failed for %s: %s", symbol, exc)
