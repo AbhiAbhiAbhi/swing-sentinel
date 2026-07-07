@@ -1051,6 +1051,34 @@ def apply_risk_filters(symbol: str, tech: dict,
             vol_ratio = float(tech.get("volume_ratio") or tech.get("vol_ratio") or 1.0)
             if vol_ratio < 1.2:
                 hard_skips.append(f"weak breakout volume (volume ratio {vol_ratio:.2f}x is below 1.2x)")
+
+        # Check D: Un-sustained Volume Spike
+        vol_ratios_5d = tech.get("vol_ratios_5d", [])
+        if isinstance(vol_ratios_5d, list) and len(vol_ratios_5d) == 5:
+            max_spike = max(vol_ratios_5d)
+            days_above_1 = sum(1 for v in vol_ratios_5d if v >= 1.0)
+            if max_spike >= 3.0 and days_above_1 == 1 and vol_ratios_5d[-1] < 0.8:
+                hard_skips.append(f"unsustained volume spike (isolated {max_spike:.1f}x spike in 5d, today is dry at {vol_ratios_5d[-1]:.2f}x)")
+
+        # Check E: Tight Stop Loss in Low-Liquidity Stock / Liquidity Trap
+        avg_vol = float(tech.get("avg_volume_20d") or 0.0)
+        atr_val = float(tech.get("atr") or 0.0)
+        entry_base = float(plan.get("entry_price") or plan.get("entry_zone_max") or price_val)
+        if avg_vol > 0 and atr_val > 0 and entry_base > sl_val:
+            turnover = avg_vol * entry_base
+            atr_multiple = (entry_base - sl_val) / atr_val
+            if turnover < 100000000 and atr_multiple < 1.5:
+                hard_skips.append(f"liquidity trap risk (turnover {turnover/10000000:.1f} Cr < 10 Cr and stop loss is tight at {atr_multiple:.2f} ATR)")
+
+        # Check F: Negative 20-day Return (Stalling Trend)
+        ret_20d = float(tech.get("return_20d") or 0.0)
+        if ret_20d < 0.0:
+            warnings.append(f"trend stalling (negative 20-day return of {ret_20d:.1f}%)")
+
+        # Check G: Target 2 above 52-Week High
+        high_52 = float(tech.get("high_52w") or 0.0)
+        if t2_val > 0 and high_52 > 0 and t2_val > high_52:
+            warnings.append(f"target above 52w high (target_2 {t2_val:.1f} exceeds 52w high {high_52:.1f})")
     except Exception as check_err:
         logger.warning("[risk_filters/new_gates] Evaluation failed for %s: %s", symbol, check_err)
 

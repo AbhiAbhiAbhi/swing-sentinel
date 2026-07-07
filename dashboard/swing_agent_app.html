@@ -9090,25 +9090,30 @@ function evaluateGates(s) {
     return m.length ? m[0] : null;
   };
   const gates = [];
-  const add = (num, name, fail, reason, value) => gates.push({ num, name, pass: !fail, reason: fail ? reason : null, value: value != null ? String(value) : "—" });
+  const add = (num, name, fail, reason, value, tooltip) => gates.push({
+    num, name, pass: !fail, reason: fail ? reason : null, value: value != null ? String(value) : "—", tooltip
+  });
 
   // 1 · Fund status — ON_HOLD on fundamental status (value rendered as an Approved↔On Hold toggle)
   const onHoldFund = (s.fundamental_status || "").toUpperCase() === "ON_HOLD";
   add(1, "Fund status", onHoldFund,
     "Fundamental status ON_HOLD",
-    (s.fundamental_status || "APPROVED").toUpperCase());
+    (s.fundamental_status || "APPROVED").toUpperCase(),
+    "Rule: fundamental_status !== 'ON_HOLD'");
 
   // 2 · Weekly trend — bearish
   const wt = (s.weekly_trend || "BULLISH").toUpperCase();
   const wtReason = hit(["weekly trend", "bearish weekly"]);
   add(2, "Weekly trend", wt === "BEARISH" || !!wtReason,
-    wtReason || "Bearish weekly trend", wt);
+    wtReason || "Bearish weekly trend", wt,
+    "Rule: weekly_trend !== 'BEARISH'");
 
   // 3 · Fundamentals — weakness flagged
   const fundReason = hit(["fundamental", "negative eps", "negative pe", "weak roe", "ebitda", "earnings weak"]);
   const fundStatusBad = ["REJECTED", "WEAK", "FAIL"].includes((s.fundamental_status || "").toUpperCase());
   add(3, "Fundamentals", !!fundReason || fundStatusBad,
-    fundReason || "Fundamental weakness flagged", s.fundamental_status || "—");
+    fundReason || "Fundamental weakness flagged", s.fundamental_status || "—",
+    "Rule: No negative EPS, PE, ROE, or EBITDA, and fundamental_status is not REJECTED/WEAK/FAIL");
 
   // 4 · Institutional — distribution detected
   let instFail = false, instReason = null, instVal = "No data";
@@ -9120,18 +9125,21 @@ function evaluateGates(s) {
     if (cls === "DISTRIBUTION" || sc <= -3.0) { instFail = true; instReason = "Institutional distribution (" + sc + ")"; }
   }
   if (!instFail) { const r = hit(["distribution"]); if (r) { instFail = true; instReason = r; } }
-  add(4, "Institutional", instFail, instReason, instVal);
+  add(4, "Institutional", instFail, instReason, instVal,
+    "Rule: Shareholding classification !== 'DISTRIBUTION' and consensus_score > -3.0");
 
   // 5 · Liquidity — below min turnover/volume
   const liqReason = hit(["liquidity", "turnover", "illiquid", "below min", "volume too low"]);
   add(5, "Liquidity", !!liqReason, liqReason || "Below minimum liquidity",
-    liqReason ? "Below min" : "OK");
+    liqReason ? "Below min" : "OK",
+    "Rule: avg_volume_20d >= 100,000 shares and turnover >= ₹10 Crore (no liquidity trap where Entry - SL < 1.5 * ATR)");
 
   // 6 · Overextension — 20d return > 25%
   const r20 = parseFloat(s.return_20d);
   const overext = !isNaN(r20) && r20 > 25;
   add(6, "Overextension", overext, "Overextended (+" + (isNaN(r20) ? "?" : r20.toFixed(1)) + "% in 20d)",
-    isNaN(r20) ? "—" : `${r20 >= 0 ? "+" : ""}${r20.toFixed(1)}% / 20d`);
+    isNaN(r20) ? "—" : `${r20 >= 0 ? "+" : ""}${r20.toFixed(1)}% / 20d`,
+    "Rule: return_20d <= 25.0% (not overextended)");
 
   // 7 · Adversarial check — debate verdict is SKIP
   let dv = null, dvReason = "";
@@ -9145,11 +9153,13 @@ function evaluateGates(s) {
   const isSkip = dv && String(dv).toUpperCase() === "SKIP";
   add(7, "Adversarial check", isSkip,
     dvReason || "Adversarial Judge verdict is SKIP",
-    dv || "PASS");
+    dv || "PASS",
+    "Rule: debate.verdict !== 'SKIP'");
 
   // 8 · Data freshness — older than 1 trading day
   add(8, "Data freshness", isDataStale(s), "Stale data (older than 1 trading day)",
-    isDataStale(s) ? "Stale" : "Fresh");
+    isDataStale(s) ? "Stale" : "Fresh",
+    "Rule: Scan date is within 1 trading day");
 
   // 9 · Sector × Nifty regime — RED sector / rotation-trap / hard-skip cell
   const rm = s.regime_multiplier;
@@ -9157,7 +9167,8 @@ function evaluateGates(s) {
   const regReason = hit(["rotation trap", "sector rotation", "sector red", "hard skip", "regime block"]);
   add(9, "Sector × Nifty regime", hardSkip || !!regReason,
     regReason || "Sector rotation trap (Nifty / sector regime block)",
-    rm !== undefined ? `${parseFloat(rm).toFixed(2)}×` : "—");
+    rm !== undefined ? `${parseFloat(rm).toFixed(2)}×` : "—",
+    "Rule: Sector index relative to 20 EMA aligned with Nifty regime matrix (regime_multiplier > 0)");
 
   // 10 · Distance to entry — price > entry_max * 1.05
   const priceVal = parseFloat(s.price || 0);
@@ -9173,7 +9184,8 @@ function evaluateGates(s) {
       distanceReason = `Price is ${distPct.toFixed(1)}% above entry zone max (${entryMax})`;
     }
   }
-  add(10, "Distance to entry", distanceFail, distanceReason, distanceVal);
+  add(10, "Distance to entry", distanceFail, distanceReason, distanceVal,
+    "Rule: ((price - entry_zone_max) / price) * 100 <= 5.0%");
 
   // 11 · CMP Risk-Reward — target upside < 2% or R:R from CMP < 1.0
   const slVal = parseFloat(s.sl || 0);
@@ -9195,7 +9207,8 @@ function evaluateGates(s) {
       rrReason = `Poor R:R ratio at CMP (1:${cmpRr.toFixed(1)} < 1:1)`;
     }
   }
-  add(11, "CMP Risk-Reward", rrFail, rrReason, rrVal);
+  add(11, "CMP Risk-Reward", rrFail, rrReason, rrVal,
+    "Rule: ((target_2 - price) / price) * 100 >= 2.0% AND (target_2 - price) / (price - sl) >= 1.0");
 
   // 12 · Breakout Volume — if setup == BREAKOUT, vol_ratio >= 1.2
   const setupType = String(s.setup || "").toUpperCase();
@@ -9208,13 +9221,15 @@ function evaluateGates(s) {
       volReason = `Weak breakout volume (${volRatio.toFixed(2)}x < 1.2x)`;
     }
   }
-  add(12, "Breakout Volume", volFail, volReason, `${volRatio.toFixed(2)}x`);
+  add(12, "Breakout Volume", volFail, volReason, `${volRatio.toFixed(2)}x`,
+    "Rule: If setup is 'BREAKOUT', volume_ratio >= 1.2x");
 
   // 13 · Server verdict — SKIP
   const serverSkip = (s.verdict || "").toUpperCase() === "SKIP";
   add(13, "Server verdict", serverSkip,
     reasons.length ? reasons.join("; ") : "Server rejected the stock (verdict is SKIP)",
-    s.verdict || "PASS");
+    s.verdict || "PASS",
+    "Rule: Server-side apply_risk_filters() verdict is not 'SKIP' (no unsustained volume spikes or multi-flag rejections)");
 
 
   const failedGates = gates.filter(g => !g.pass);
@@ -9586,7 +9601,7 @@ function renderStockValidation() {
       `<span class="ca-gate-dot ${g.pass ? "pass" : "fail"}" title="${g.num}. ${g.name}${g.pass ? "" : " — " + (g.reason || "fail")}"></span>`
     ).join("");
     const gateItems = gr.gates.map(g =>
-      `<div class="ca-gate-item ${g.pass ? "pass" : "fail"}">
+      `<div class="ca-gate-item ${g.pass ? "pass" : "fail"}" title="${g.tooltip || ''}">
         <span class="gi-dot ${g.pass ? "pass" : "fail"}"></span>
         <span class="gi-name">${g.num}. ${g.name}</span>
         <span class="gi-value">${g.value || "—"}</span>
