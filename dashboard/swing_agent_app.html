@@ -6155,7 +6155,10 @@ function renderWatchlist(r) {
                 earnings_source: plan.earnings_source,
                 relative_strength: plan.relative_strength,
                 price: plan.price,
-                index_membership: plan.index_membership
+                index_membership: plan.index_membership,
+                verdict: plan.verdict,
+                reasons: plan.reasons,
+                regime_multiplier: plan.regime_multiplier
               };
               // Re-render to show new live hydrated data
               loadPositions();
@@ -6220,9 +6223,9 @@ function renderWatchlist(r) {
       ema20:                (p.ema20 != null ? p.ema20 : (cached ? cached.ema20 : 0)),
       ema50:                (p.ema50 != null ? p.ema50 : (cached ? cached.ema50 : 0)),
       return_20d:           (p.return_20d != null ? p.return_20d : (cached && cached.return_20d != null ? cached.return_20d : 0)),
-      verdict:              p.verdict || "",
-      reasons:              Array.isArray(p.reasons) ? p.reasons : [],
-      regime_multiplier:    (p.regime_multiplier != null ? p.regime_multiplier : undefined),
+      verdict:              p.verdict || (cached ? cached.verdict : ""),
+      reasons:              (Array.isArray(p.reasons) && p.reasons.length) ? p.reasons : (cached && Array.isArray(cached.reasons) ? cached.reasons : []),
+      regime_multiplier:    (p.regime_multiplier != null ? p.regime_multiplier : (cached ? (cached.regime_multiplier !== undefined ? cached.regime_multiplier : cached.regime_mult) : undefined)),
       scan_date:            p.scan_date || "",
       shareholding:         p.shareholding || (cached ? cached.shareholding : null),
       debate:               p.debate || null,
@@ -7485,6 +7488,24 @@ async function confirmBuy() {
     target_2:    stock.target_2,
     sl:          stock.sl,
     setup:       stock.setup,
+    setup_grade: stock.setup_grade,
+    setup_score: stock.setup_score,
+    expiry_info: stock.expiry_info,
+    expiry_multiplier: stock.expiry_multiplier,
+    expiry_reason: stock.expiry_reason,
+    weekly_trend: stock.weekly_trend,
+    return_20d: stock.return_20d,
+    adx: stock.adx,
+    ema20: stock.ema20,
+    ema50: stock.ema50,
+    atr_pct: stock.atr_pct,
+    base_status: stock.base_status,
+    base_days: stock.base_days,
+    vol_ratio: stock.vol_ratio,
+    false_breakout_risk: stock.false_breakout_risk,
+    verdict: stock.verdict,
+    reasons: stock.reasons,
+    regime_multiplier: stock.regime_multiplier || stock.regime_mult
   };
 
   const btn = document.querySelector(".btn-confirm");
@@ -9488,6 +9509,14 @@ function toggleGateStrip(id, btn) {
   const open = list.classList.toggle("open");
   const chevron = btn.querySelector(".ca-gate-chevron");
   if (chevron) chevron.classList.toggle("open", open);
+
+  // Track expanded states in a global Set to survive list re-renders
+  if (!window._expandedGateStrips) window._expandedGateStrips = new Set();
+  if (open) {
+    window._expandedGateStrips.add(id);
+  } else {
+    window._expandedGateStrips.delete(id);
+  }
 }
 
 // ⚖️ Adversarial debate (Judge) verdict badge. Independent of the 🛡 safety gates —
@@ -9593,8 +9622,14 @@ function renderStockValidation() {
       ? `<div style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:5px;font-size:10px;font-weight:800;letter-spacing:0.3px;background:${rankStyle.bg};color:${rankStyle.color};border:1px solid ${rankStyle.color};margin-bottom:5px">${rankStyle.icon} ${rankStyle.label} · ${item.score}</div>`
       : "";
 
+    const cleanSymbol = s.symbol.replace(/[^a-zA-Z0-9]/g, "_");
+
     // ── Safety gate strip (collapsed: N/9 + dots; click to expand labelled reasons) ──
-    const gateId = `gates_${s.symbol}_${i}`;
+    const gateId = `gates_${cleanSymbol}`;
+    const isGateOpen = window._expandedGateStrips && window._expandedGateStrips.has(gateId);
+    const gateListCls = isGateOpen ? "ca-gate-list open" : "ca-gate-list";
+    const gateChevronCls = isGateOpen ? "ca-gate-chevron open" : "ca-gate-chevron";
+
     const countCls = gr.passed ? "pass" : "fail";
     const countTxt = gr.passed ? `${gr.passCount}/${gr.total} PASS` : `${gr.failCount}/${gr.total} FAIL`;
     const gateDots = gr.gates.map(g =>
@@ -9611,13 +9646,13 @@ function renderStockValidation() {
     const gateStripHtml = `
       <div class="ca-gate-strip">
         <button class="ca-gate-bar" onclick="toggleGateStrip('${gateId}', this)">
-          <span class="ca-gate-title" title="🛡 Safety gates — all 13 must PASS or this stock is blocked from entry.\n1. Fund status: not ON_HOLD\n2. Weekly trend: not bearish\n3. Fundamentals: no weakness flagged\n4. Institutional: no FII/DII distribution\n5. Liquidity: meets min turnover/volume\n6. Overextension: ≤25% return over 20d\n7. Adversarial check: judge verdict not SKIP\n8. Data freshness: ≤1 trading day old\n9. Sector × Nifty regime: not a rotation-trap / hard-skip cell\n10. Distance to entry: CMP ≤ 5% above entry zone max\n11. CMP Risk-Reward: target upside ≥ 2% and R:R from CMP ≥ 1:1\n12. Breakout Volume: volume ratio ≥ 1.2x if BREAKOUT\n13. Server verdict: backend verdict is not SKIP\nDots show per-gate status — click the bar to expand reasons.">🛡 Safety gates <span class="ca-gate-chevron">▼</span></span>
+          <span class="ca-gate-title" title="🛡 Safety gates — all 13 must PASS or this stock is blocked from entry.\n1. Fund status: not ON_HOLD\n2. Weekly trend: not bearish\n3. Fundamentals: no weakness flagged\n4. Institutional: no FII/DII distribution\n5. Liquidity: meets min turnover/volume\n6. Overextension: ≤25% return over 20d\n7. Adversarial check: judge verdict not SKIP\n8. Data freshness: ≤1 trading day old\n9. Sector × Nifty regime: not a rotation-trap / hard-skip cell\n10. Distance to entry: CMP ≤ 5% above entry zone max\n11. CMP Risk-Reward: target upside ≥ 2% and R:R from CMP ≥ 1:1\n12. Breakout Volume: volume ratio ≥ 1.2x if BREAKOUT\n13. Server verdict: backend verdict is not SKIP\nDots show per-gate status — click the bar to expand reasons.">🛡 Safety gates <span class="${gateChevronCls}">▼</span></span>
           <span style="display:flex;align-items:center;gap:10px">
             <span class="ca-gate-dots">${gateDots}</span>
             <span class="ca-gate-count ${countCls}">${countTxt}</span>
           </span>
         </button>
-        <div id="${gateId}" class="ca-gate-list">${gateItems}</div>
+        <div id="${gateId}" class="${gateListCls}">${gateItems}</div>
       </div>`;
 
     // ── Body: BLOCKED → ineligible panel only · ELIGIBLE → compact score pill + collapsible quality rows ──
@@ -9631,7 +9666,11 @@ function renderStockValidation() {
       </div>`;
     } else {
       const t = item.tier;
-      const qrowsId = `qrows_${s.symbol}_${i}`;
+      const qrowsId = `qrows_${cleanSymbol}`;
+      const isQrowsOpen = window._expandedGateStrips && window._expandedGateStrips.has(qrowsId);
+      const qrowsCls = isQrowsOpen ? "ca-qrows open" : "ca-qrows";
+      const qrowsChevronCls = isQrowsOpen ? "ca-gate-chevron open" : "ca-gate-chevron";
+
       const qrows = item.quality.rows.map(r => `
         <div class="ca-qrow" title="${(r.formula || "").replace(/"/g, "&quot;")}">
           <span class="qr-label">${r.label}</span>
@@ -9642,14 +9681,14 @@ function renderStockValidation() {
       bodyHtml = `
       <div class="ca-qbreakdown">
         <button class="ca-qbar" onclick="toggleGateStrip('${qrowsId}', this)">
-          <span class="ca-qbar-title" title="Setup Quality Score: ${item.score} / 100 — click to expand the ${item.quality.rows.length}-factor breakdown.">🎯 Quality score <span class="ca-gate-chevron">▼</span></span>
+          <span class="ca-qbar-title" title="Setup Quality Score: ${item.score} / 100 — click to expand the ${item.quality.rows.length}-factor breakdown.">🎯 Quality score <span class="${qrowsChevronCls}">▼</span></span>
           <span style="display:flex;align-items:center;gap:8px">
             <span class="ca-score-pill" style="--ring-col:${t.col}">${item.score}<span class="sp-max">/100</span></span>
             <span class="ca-tier-badge ${t.cls}">${t.label}</span>
             <span class="ca-tier-mult">${t.mult} conviction</span>
           </span>
         </button>
-        <div id="${qrowsId}" class="ca-qrows">${qrows}</div>
+        <div id="${qrowsId}" class="${qrowsCls}">${qrows}</div>
       </div>`;
     }
 

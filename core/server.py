@@ -1324,6 +1324,12 @@ def api_positions_add():
         path = os.path.join(_ROOT, "data", "positions.csv")
         os.makedirs(os.path.join(_ROOT, "data"), exist_ok=True)
 
+        reasons_val = data.get("reasons", [])
+        if isinstance(reasons_val, list):
+            reasons_json = json.dumps(reasons_val)
+        else:
+            reasons_json = reasons_val
+
         row = {
             "Symbol":       data["symbol"],
             "Name":         data.get("name", data["symbol"]),
@@ -1339,6 +1345,21 @@ def api_positions_add():
             "Setup_Score":  data.get("setup_score", ""),
             "Expiry_Multiplier": data.get("expiry_info", {}).get("multiplier", "") if data.get("expiry_info") else data.get("expiry_multiplier", ""),
             "Expiry_Reason": data.get("expiry_info", {}).get("reason", "") if data.get("expiry_info") else data.get("expiry_reason", ""),
+            # Populate Cur_* tracking fields so they are immediately available to the UI
+            "Cur_Weekly_Trend": data.get("weekly_trend", ""),
+            "Cur_Return_20d": data.get("return_20d", ""),
+            "Cur_ADX": data.get("adx", ""),
+            "Cur_EMA20": data.get("ema20", ""),
+            "Cur_EMA50": data.get("ema50", ""),
+            "Cur_ATR_Pct": data.get("atr_pct", ""),
+            "Cur_Base_Status": data.get("base_status", ""),
+            "Cur_Base_Days": data.get("base_days", ""),
+            "Cur_Vol_Ratio": data.get("vol_ratio", ""),
+            "Cur_False_Breakout_Risk": data.get("false_breakout_risk", ""),
+            "Cur_Scan_Date": _now_date(),
+            "Cur_Verdict": data.get("verdict", ""),
+            "Cur_Reasons": reasons_json,
+            "Cur_Regime_Mult": data.get("regime_multiplier", ""),
         }
         added, skipped = _append_rows_to_csv(path, [row])
         if not added:
@@ -1400,6 +1421,12 @@ def _add_stocks_to_positions(stocks):
     for s in stocks:
         if not s.get("symbol"):
             continue
+        reasons_val = s.get("reasons", [])
+        if isinstance(reasons_val, list):
+            reasons_json = json.dumps(reasons_val)
+        else:
+            reasons_json = reasons_val
+
         rows.append({
             "Symbol": s["symbol"],
             "Name": s.get("name", s["symbol"]),
@@ -1415,6 +1442,21 @@ def _add_stocks_to_positions(stocks):
             "Setup_Score": s.get("setup_score", ""),
             "Expiry_Multiplier": s.get("expiry_info", {}).get("multiplier", "") if s.get("expiry_info") else s.get("expiry_multiplier", ""),
             "Expiry_Reason": s.get("expiry_info", {}).get("reason", "") if s.get("expiry_info") else s.get("expiry_reason", ""),
+            # Populate Cur_* tracking fields so they are immediately available to the UI
+            "Cur_Weekly_Trend": s.get("weekly_trend", ""),
+            "Cur_Return_20d": s.get("return_20d", ""),
+            "Cur_ADX": s.get("adx", ""),
+            "Cur_EMA20": s.get("ema20", ""),
+            "Cur_EMA50": s.get("ema50", ""),
+            "Cur_ATR_Pct": s.get("atr_pct", ""),
+            "Cur_Base_Status": s.get("base_status", ""),
+            "Cur_Base_Days": s.get("base_days", ""),
+            "Cur_Vol_Ratio": s.get("vol_ratio", ""),
+            "Cur_False_Breakout_Risk": s.get("false_breakout_risk", ""),
+            "Cur_Scan_Date": _now_date(),
+            "Cur_Verdict": s.get("verdict", ""),
+            "Cur_Reasons": reasons_json,
+            "Cur_Regime_Mult": s.get("regime_multiplier", ""),
         })
     added, skipped = _append_rows_to_csv(path, rows)
     for row in added:

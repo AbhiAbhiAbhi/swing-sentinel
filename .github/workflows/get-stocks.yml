@@ -42,7 +42,7 @@ jobs:
         run: |
           git config user.name  "Swing Sentinel Bot"
           git config user.email "bot@swingsentinel.local"
-          git add data/positions.csv
+          git add data/positions.csv data/daily_briefs/
           if git diff --staged --quiet; then
             echo "No state change — nothing to commit."
           else
