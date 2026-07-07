@@ -67,3 +67,48 @@ def place_gtt(symbol: str, qty: int, last_price: float, sl: float, target: float
     except Exception as exc:
         logger.warning("[kite] GTT failed for %s: %s", symbol, exc)
         return None
+
+
+def modify_gtt(trigger_id: int, symbol: str, qty: int, last_price: float, sl: float, target: float) -> bool:
+    """
+    Modify an existing two-leg OCO GTT on Kite (SL + T2 target).
+    Returns True on success, False on failure.
+    """
+    kite = get_kite()
+    if not kite:
+        return False
+    try:
+        kite.modify_gtt(
+            trigger_id=int(trigger_id),
+            trigger_type=kite.GTT_TYPE_OCO,
+            tradingsymbol=symbol,
+            exchange="NSE",
+            trigger_values=[round(sl, 2), round(target, 2)],
+            last_price=last_price,
+            orders=[
+                {
+                    "exchange":         "NSE",
+                    "tradingsymbol":    symbol,
+                    "transaction_type": kite.TRANSACTION_TYPE_SELL,
+                    "quantity":         int(qty),
+                    "order_type":       kite.ORDER_TYPE_LIMIT,
+                    "product":          kite.PRODUCT_CNC,
+                    "price":            round(sl, 2),
+                },
+                {
+                    "exchange":         "NSE",
+                    "tradingsymbol":    symbol,
+                    "transaction_type": kite.TRANSACTION_TYPE_SELL,
+                    "quantity":         int(qty),
+                    "order_type":       kite.ORDER_TYPE_LIMIT,
+                    "product":          kite.PRODUCT_CNC,
+                    "price":            round(target, 2),
+                },
+            ],
+        )
+        logger.info("[kite] GTT modified for %s — trigger_id %s to SL=%s, Target=%s", symbol, trigger_id, sl, target)
+        return True
+    except Exception as exc:
+        logger.warning("[kite] GTT modification failed for %s (id %s): %s", symbol, trigger_id, exc)
+        return False
+

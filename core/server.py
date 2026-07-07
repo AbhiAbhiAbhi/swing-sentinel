@@ -2541,8 +2541,16 @@ def check_positions_and_notify() -> list:
             df[col] = False
     _ensure_cols(df, [
         "Entry_Hit_Date", "T1_Hit_Date", "T2_Hit_Date", "SL_Hit_Date", "Outcome",
-        "Setup_Grade", "Setup_Score", "Expiry_Multiplier", "Expiry_Reason"
+        "Setup_Grade", "Setup_Score", "Expiry_Multiplier", "Expiry_Reason",
+        "Highest_High_Since_Entry"
     ])
+    # Force object/mixed dtype so pandas allows assigning strings to empty/NaN columns without casting errors
+    for col in (
+        "Entry_Hit_Date", "T1_Hit_Date", "T2_Hit_Date", "SL_Hit_Date", "Outcome",
+        "Setup_Grade", "Expiry_Multiplier", "Expiry_Reason", "Highest_High_Since_Entry"
+    ):
+        if col in df.columns:
+            df[col] = df[col].astype(object)
     if "Closing_Price" not in df.columns:
         df["Closing_Price"] = 0.0
 
@@ -2665,6 +2673,23 @@ def check_positions_and_notify() -> list:
             # Gated on price_fresh so an off-hours stale close can't stamp today's
             # date onto a target/SL crossing or fire a weekend alert.
             pos["entry_hit"] = True  # already bought and active
+
+            # Update highest high since entry (intraday tracking)
+            raw_hh = pos.get("Highest_High_Since_Entry")
+            try:
+                if raw_hh in (None, "", "NaN") or pd.isna(raw_hh):
+                    highest_high = max(ep, cur) if cur else ep
+                else:
+                    highest_high = float(raw_hh)
+            except (ValueError, TypeError):
+                highest_high = max(ep, cur) if cur else ep
+
+            if cur and cur > highest_high:
+                highest_high = cur
+                df.at[idx, "Highest_High_Since_Entry"] = highest_high
+                pos["Highest_High_Since_Entry"] = highest_high
+                csv_dirty = True
+
             t1_hit = bool(price_fresh and t1 and cur >= t1)
             t2_hit = bool(price_fresh and t2 and cur >= t2)
             sl_hit = bool(price_fresh and sl and cur <= sl)
@@ -2682,9 +2707,44 @@ def check_positions_and_notify() -> list:
                 )
                 df.at[idx, "T1_Notified"]  = True
                 df.at[idx, "T1_Hit_Date"]  = today_str
+                pos["T1_Notified"] = True
+                pos["T1_Hit_Date"] = today_str
                 if not str(pos.get("Outcome", "")).strip():
                     df.at[idx, "Outcome"] = "T1_HIT"
+                    pos["Outcome"] = "T1_HIT"
                 csv_dirty = True
+
+            # Cost-Basis Lock: snap SL to cost basis if Target 1 is cleared
+            t1_hit_date_val = pos.get("T1_Hit_Date")
+            has_t1_date = t1_hit_date_val not in ("", None, "NaN") and not pd.isna(t1_hit_date_val)
+            t1_cleared = t1_hit or _truthy(pos.get("T1_Notified")) or has_t1_date
+            target_sl = sl
+            if t1_cleared and ep > 0:
+                target_sl = max(target_sl, ep)
+
+            if target_sl > sl:
+                df.at[idx, "Current_SL"] = target_sl
+                pos["Current_SL"] = target_sl
+                sl = target_sl  # Update local stop loss variable for downstream checks (e.g. sl_hit)
+                sl_hit = bool(price_fresh and sl and cur <= sl)  # Recalculate sl_hit against the new snapped SL
+                pos["sl_hit"] = sl_hit
+                csv_dirty = True
+
+                # Modify GTT order on Kite if gtt_id exists
+                raw_gtt = pos.get("gtt_id") or pos.get("GTT_Id")
+                if raw_gtt not in (None, "", "NaN") and not pd.isna(raw_gtt):
+                    try:
+                        gtt_id_clean = int(float(str(raw_gtt)))
+                        try:
+                            from core_kite import modify_gtt
+                        except ImportError:
+                            from core.core_kite import modify_gtt
+                        
+                        qty = int(pos.get("Quantity", 1))
+                        modify_gtt(trigger_id=gtt_id_clean, symbol=sym, qty=qty, last_price=cur, sl=target_sl, target=t2)
+                    except Exception as gtt_err:
+                        logger.warning("[server/positions] Failed to modify GTT for %s: %s", sym, gtt_err)
+
 
             if t2_hit and not _truthy(pos.get("T2_Notified")):
                 pending_alerts.append(

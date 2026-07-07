@@ -1014,6 +1014,47 @@ def apply_risk_filters(symbol: str, tech: dict,
     if not passed:
         hard_skips.append(reason)
 
+    # 15. Distance, R:R and Volume check
+    try:
+        try:
+            from core.trade_plan import calculate_trade_plan
+        except ImportError:
+            from core_trade_plan import calculate_trade_plan
+        plan = calculate_trade_plan(tech)
+        price_val = float(tech.get("price") or 0.0)
+        
+        # Check A: Distance to Entry
+        entry_max = float(plan.get("entry_zone_max") or 0.0)
+        if price_val > 0 and entry_max > 0:
+            distance_pct = ((price_val - entry_max) / price_val) * 100
+            if distance_pct > 5.0:
+                hard_skips.append(f"excessive distance to entry (price is {distance_pct:.1f}% above entry zone max of {entry_max})")
+                
+        # Check B: CMP Risk-Reward
+        sl_val = float(plan.get("stop_loss") or 0.0)
+        t2_val = float(plan.get("target_2") or 0.0)
+        if price_val > 0 and sl_val > 0 and t2_val > 0:
+            if price_val > sl_val:
+                upside_pct = ((t2_val - price_val) / price_val) * 100
+                risk = price_val - sl_val
+                reward = t2_val - price_val
+                cmp_rr = reward / risk if risk > 0 else 0.0
+                
+                if upside_pct < 2.0:
+                    hard_skips.append(f"poor R:R at CMP (upside to target_2 is only {upside_pct:.1f}%)")
+                elif cmp_rr < 1.0:
+                    hard_skips.append(f"poor R:R at CMP (reward/risk ratio is 1:{cmp_rr:.1f} - target must be further or SL tighter)")
+                    
+        # Check C: Breakout Volume Quality
+        setup_type = plan.get("setup_type", "")
+        if setup_type == "BREAKOUT":
+            vol_ratio = float(tech.get("volume_ratio") or tech.get("vol_ratio") or 1.0)
+            if vol_ratio < 1.2:
+                hard_skips.append(f"weak breakout volume (volume ratio {vol_ratio:.2f}x is below 1.2x)")
+    except Exception as check_err:
+        logger.warning("[risk_filters/new_gates] Evaluation failed for %s: %s", symbol, check_err)
+
+
     # ── Multi-Flag Stacking ──────────────────────────────────────────────────
     total_flags = hard_skips + warnings
     if len(total_flags) >= 3:

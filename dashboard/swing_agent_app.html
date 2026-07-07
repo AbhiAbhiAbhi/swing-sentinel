@@ -9133,23 +9133,89 @@ function evaluateGates(s) {
   add(6, "Overextension", overext, "Overextended (+" + (isNaN(r20) ? "?" : r20.toFixed(1)) + "% in 20d)",
     isNaN(r20) ? "—" : `${r20 >= 0 ? "+" : ""}${r20.toFixed(1)}% / 20d`);
 
-  // 7 · Data freshness — older than 1 trading day
-  add(7, "Data freshness", isDataStale(s), "Stale data (older than 1 trading day)",
+  // 7 · Adversarial check — debate verdict is SKIP
+  let dv = null, dvReason = "";
+  if (s.debate && s.debate.verdict) { 
+    dv = s.debate.verdict; 
+    dvReason = s.debate.judge_rationale || "";
+  } else if (s.debate_verdict) { 
+    dv = s.debate_verdict; 
+    dvReason = s.debate_rationale || "";
+  }
+  const isSkip = dv && String(dv).toUpperCase() === "SKIP";
+  add(7, "Adversarial check", isSkip,
+    dvReason || "Adversarial Judge verdict is SKIP",
+    dv || "PASS");
+
+  // 8 · Data freshness — older than 1 trading day
+  add(8, "Data freshness", isDataStale(s), "Stale data (older than 1 trading day)",
     isDataStale(s) ? "Stale" : "Fresh");
 
-  // 8 · Sector × Nifty regime — RED sector / rotation-trap / hard-skip cell
+  // 9 · Sector × Nifty regime — RED sector / rotation-trap / hard-skip cell
   const rm = s.regime_multiplier;
   const hardSkip = rm !== undefined && parseFloat(rm) === 0;
   const regReason = hit(["rotation trap", "sector rotation", "sector red", "hard skip", "regime block"]);
-  add(8, "Sector × Nifty regime", hardSkip || !!regReason,
+  add(9, "Sector × Nifty regime", hardSkip || !!regReason,
     regReason || "Sector rotation trap (Nifty / sector regime block)",
     rm !== undefined ? `${parseFloat(rm).toFixed(2)}×` : "—");
 
-  // 9 · Server verdict — SKIP
+  // 10 · Distance to entry — price > entry_max * 1.05
+  const priceVal = parseFloat(s.price || 0);
+  const entryMax = parseFloat(s.entry_max || s.entry || 0);
+  let distanceFail = false;
+  let distanceReason = "";
+  let distanceVal = "—";
+  if (priceVal > 0 && entryMax > 0) {
+    const distPct = ((priceVal - entryMax) / priceVal) * 100;
+    distanceVal = `${distPct.toFixed(1)}%`;
+    if (distPct > 5.0) {
+      distanceFail = true;
+      distanceReason = `Price is ${distPct.toFixed(1)}% above entry zone max (${entryMax})`;
+    }
+  }
+  add(10, "Distance to entry", distanceFail, distanceReason, distanceVal);
+
+  // 11 · CMP Risk-Reward — target upside < 2% or R:R from CMP < 1.0
+  const slVal = parseFloat(s.sl || 0);
+  const t2Val = parseFloat(s.target_2 || 0);
+  let rrFail = false;
+  let rrReason = "";
+  let rrVal = "—";
+  if (priceVal > 0 && slVal > 0 && t2Val > 0 && priceVal > slVal) {
+    const upsidePct = ((t2Val - priceVal) / priceVal) * 100;
+    const risk = priceVal - slVal;
+    const reward = t2Val - priceVal;
+    const cmpRr = risk > 0 ? reward / risk : 0;
+    rrVal = `Upside ${upsidePct.toFixed(1)}% · R:R 1:${cmpRr.toFixed(1)}`;
+    if (upsidePct < 2.0) {
+      rrFail = true;
+      rrReason = `Negligible target upside from CMP (${upsidePct.toFixed(1)}% < 2%)`;
+    } else if (cmpRr < 1.0) {
+      rrFail = true;
+      rrReason = `Poor R:R ratio at CMP (1:${cmpRr.toFixed(1)} < 1:1)`;
+    }
+  }
+  add(11, "CMP Risk-Reward", rrFail, rrReason, rrVal);
+
+  // 12 · Breakout Volume — if setup == BREAKOUT, vol_ratio >= 1.2
+  const setupType = String(s.setup || "").toUpperCase();
+  const volRatio = parseFloat(s.vol_ratio != null ? s.vol_ratio : 1.0);
+  let volFail = false;
+  let volReason = "";
+  if (setupType === "BREAKOUT") {
+    if (volRatio < 1.2) {
+      volFail = true;
+      volReason = `Weak breakout volume (${volRatio.toFixed(2)}x < 1.2x)`;
+    }
+  }
+  add(12, "Breakout Volume", volFail, volReason, `${volRatio.toFixed(2)}x`);
+
+  // 13 · Server verdict — SKIP
   const serverSkip = (s.verdict || "").toUpperCase() === "SKIP";
-  add(9, "Server verdict", serverSkip,
+  add(13, "Server verdict", serverSkip,
     reasons.length ? reasons.join("; ") : "Server rejected the stock (verdict is SKIP)",
     s.verdict || "PASS");
+
 
   const failedGates = gates.filter(g => !g.pass);
   return {
@@ -9530,7 +9596,7 @@ function renderStockValidation() {
     const gateStripHtml = `
       <div class="ca-gate-strip">
         <button class="ca-gate-bar" onclick="toggleGateStrip('${gateId}', this)">
-          <span class="ca-gate-title" title="🛡 Safety gates — all 9 must PASS or this stock is blocked from entry.\n1. Fund status: not ON_HOLD\n2. Weekly trend: not bearish\n3. Fundamentals: no weakness flagged\n4. Institutional: no FII/DII distribution\n5. Liquidity: meets min turnover/volume\n6. Overextension: ≤25% return over 20d\n7. Data freshness: ≤1 trading day old\n8. Sector × Nifty regime: not a rotation-trap / hard-skip cell\n9. Server verdict: backend verdict is not SKIP\nThe adversarial debate verdict is shown separately (⚖️ JUDGE badge) and does NOT block entry.\nDots show per-gate status — click the bar to expand reasons.">🛡 Safety gates <span class="ca-gate-chevron">▼</span></span>
+          <span class="ca-gate-title" title="🛡 Safety gates — all 13 must PASS or this stock is blocked from entry.\n1. Fund status: not ON_HOLD\n2. Weekly trend: not bearish\n3. Fundamentals: no weakness flagged\n4. Institutional: no FII/DII distribution\n5. Liquidity: meets min turnover/volume\n6. Overextension: ≤25% return over 20d\n7. Adversarial check: judge verdict not SKIP\n8. Data freshness: ≤1 trading day old\n9. Sector × Nifty regime: not a rotation-trap / hard-skip cell\n10. Distance to entry: CMP ≤ 5% above entry zone max\n11. CMP Risk-Reward: target upside ≥ 2% and R:R from CMP ≥ 1:1\n12. Breakout Volume: volume ratio ≥ 1.2x if BREAKOUT\n13. Server verdict: backend verdict is not SKIP\nDots show per-gate status — click the bar to expand reasons.">🛡 Safety gates <span class="ca-gate-chevron">▼</span></span>
           <span style="display:flex;align-items:center;gap:10px">
             <span class="ca-gate-dots">${gateDots}</span>
             <span class="ca-gate-count ${countCls}">${countTxt}</span>
