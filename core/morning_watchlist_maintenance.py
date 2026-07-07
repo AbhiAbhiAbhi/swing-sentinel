@@ -292,9 +292,24 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
         if status == "OPEN":
             logger.info("Evaluating watchlist candidate: %s", sym)
             try:
+                # 1. Run time-based checks first (which don't require technicals)
+                state, reason = evaluate_prune({}, row.to_dict())
+                if state == "PRUNE":
+                    df_positions.at[idx, "Status"] = "PRUNED"
+                    df_positions.at[idx, "Prune_Reason"] = reason
+                    df_positions.at[idx, "Prune_Date"] = datetime.now(pytz.timezone("Asia/Kolkata")).strftime("%Y-%m-%d")
+                    csv_updated = True
+                    deleted_symbols.append({
+                        "symbol": sym,
+                        "reason": reason
+                    })
+                    logger.info("Pruned (Time-based): %s (%s)", sym, reason)
+                    continue
+
+                # 2. Fetch technicals for technical prune rules
                 tech = fetch_stock_technicals(sym)
                 if tech:
-                    # Run the canonical evaluate_prune logic
+                    # Run the canonical evaluate_prune logic for technical rules
                     state, reason = evaluate_prune(tech, row.to_dict())
                     if state == "RE-EVALUATE":
                         # Re-run the canonical stacked gates (verdict/reasons + Gate #9

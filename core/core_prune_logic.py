@@ -30,6 +30,8 @@ so it is safe to call on every row during the daily cadence pass.
 """
 
 from typing import Tuple, Optional
+from datetime import datetime
+import pytz
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -52,6 +54,19 @@ def _s(v, default: str = "") -> str:
         return str(v).strip().upper()
     except Exception:
         return default
+
+
+def _get_days_elapsed(date_str: str) -> Optional[int]:
+    """Calculate the number of calendar days elapsed since date_str (YYYY-MM-DD) in Asia/Kolkata timezone."""
+    if not date_str or date_str.lower() in ("nan", "none", ""):
+        return None
+    try:
+        tz = pytz.timezone("Asia/Kolkata")
+        today = datetime.now(tz).date()
+        entry_date = datetime.strptime(date_str.strip(), "%Y-%m-%d").date()
+        return (today - entry_date).days
+    except Exception:
+        return None
 
 
 # ── individual terminal checks ───────────────────────────────────────────────
@@ -120,6 +135,31 @@ def _false_breakout_fired(tech: dict) -> Tuple[bool, str]:
     return False, ""
 
 
+def _age_limit_reached(row: Optional[dict]) -> Tuple[bool, str]:
+    """
+    Time-based prune rule:
+    Prune from Analysis tab (status OPEN) if it has been 7 or more days since Entry_Date
+    and it has not been bought (still in OPEN status), OR if the stock never hit the entry zone.
+    """
+    if not row:
+        return False, ""
+
+    entry_date_str = _s(row.get("Entry_Date"))
+    if not entry_date_str or entry_date_str in ("NAN", "NONE", ""):
+        return False, ""
+
+    days = _get_days_elapsed(entry_date_str)
+    if days is not None and days >= 7:
+        hit_date_str = _s(row.get("Entry_Hit_Date"))
+        has_hit = hit_date_str and hit_date_str not in ("NAN", "NONE", "")
+        if not has_hit:
+            return True, f"Stock did not hit entry zone within 7 days (elapsed: {days} days since entry on {entry_date_str})."
+        else:
+            return True, f"Stock remained in Analysis tab for 7+ days without being bought (elapsed: {days} days since entry on {entry_date_str})."
+
+    return False, ""
+
+
 # ── public API ───────────────────────────────────────────────────────────────
 
 def evaluate_prune(tech: dict, row: Optional[dict] = None) -> Tuple[str, str]:
@@ -130,11 +170,10 @@ def evaluate_prune(tech: dict, row: Optional[dict] = None) -> Tuple[str, str]:
     ----------
     tech : dict
         Freshly recomputed Analysis-tab data points for the symbol
-        (output of fetch_stock_technicals). If empty/None, we cannot judge,
-        so we keep the candidate in RE-EVALUATE rather than prune on no data.
+        (output of fetch_stock_technicals). If empty/None, we cannot judge technical rules,
+        but we can still judge time-based rules if row context is provided.
     row : dict, optional
-        The positions.csv row (unused today, but accepted so callers can pass
-        buy-time context for future rules without changing the signature).
+        The positions.csv row dictionary containing metadata like Entry_Date and Entry_Hit_Date.
 
     Returns
     -------
@@ -142,8 +181,14 @@ def evaluate_prune(tech: dict, row: Optional[dict] = None) -> Tuple[str, str]:
         state  : "PRUNE" | "RE-EVALUATE"
         reason : human-readable reason when PRUNE, else "".
     """
-    # No data this cycle (scan miss, fetch timeout, yfinance error) is NOT a
-    # reason to prune — we simply cannot judge, so hold in re-evaluate.
+    # 1. Check time-based rules first if row context is provided
+    if row:
+        hit, reason = _age_limit_reached(row)
+        if hit:
+            return "PRUNE", reason
+
+    # 2. No data this cycle (scan miss, fetch timeout, yfinance error) is NOT a
+    # reason to prune for technical rules — we simply cannot judge, so hold in re-evaluate.
     if not tech:
         return "RE-EVALUATE", ""
 
