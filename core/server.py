@@ -1118,16 +1118,21 @@ def api_telegram_test():
 
 @app.route("/api/brief/latest")
 def api_brief_latest():
-    """Return today's saved scan result (fast, no external calls)."""
+    """Return today's saved scan result, or fall back to the most recent brief."""
     today = _now_date()
     path  = os.path.join(_ROOT, "data", "daily_briefs", f"{today}.json")
     if os.path.exists(path):
         with open(path) as f:
             data = json.load(f)
-        # Refresh sector + hydrate any fields the brief was written before (e.g.
-        # earnings_*) so the dashboard doesn't BLOCK on Unresolved earnings.
         _hydrate_brief_missing_fields(data)
         return jsonify({"found": True, "data": data})
+    
+    # Fallback to the latest available daily brief (e.g. yesterday's or last session's)
+    data = _load_latest_brief()
+    if data:
+        _hydrate_brief_missing_fields(data)
+        return jsonify({"found": True, "data": data})
+        
     return jsonify({"found": False})
 
 
