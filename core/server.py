@@ -1369,18 +1369,69 @@ def api_positions_add():
         if not data or not data.get("symbol"):
             return jsonify({"status": "error", "message": "symbol required"}), 400
 
-        # Block SKIP-verdict stocks — the risk filters already rejected them.
+        path = os.path.join(_ROOT, "data", "positions.csv")
+        os.makedirs(os.path.join(_ROOT, "data"), exist_ok=True)
+
+        # Block / Prune SKIP-verdict stocks — the risk filters already rejected them.
         if str(data.get("verdict", "")).upper() == "SKIP":
             skip_reasons = data.get("reasons", [])
             reason_str = "; ".join(skip_reasons) if skip_reasons else "safety-gate rejection"
-            logger.info("[positions/add] Blocked %s — verdict SKIP (%s)", data["symbol"], reason_str)
-            return jsonify({
-                "status": "rejected",
-                "message": f"{data['symbol']} was rejected by safety gates and cannot be added to the watchlist.",
-                "reasons": skip_reasons,
-            }), 200
+            logger.info("[positions/add] Pruning %s — verdict SKIP (%s)", data["symbol"], reason_str)
+            
+            reasons_val = data.get("reasons", [])
+            if isinstance(reasons_val, list):
+                reasons_json = json.dumps(reasons_val)
+            else:
+                reasons_json = reasons_val
 
-        path = os.path.join(_ROOT, "data", "positions.csv")
+            row = {
+                "Symbol":       data["symbol"],
+                "Name":         data.get("name", data["symbol"]),
+                "Entry_Price":  data.get("entry_price", 0),
+                "Quantity":     data.get("quantity", 1),
+                "Target_1":     data.get("target_1", 0),
+                "Target_2":     data.get("target_2", 0),
+                "Current_SL":   data.get("sl", 0),
+                "Setup":        data.get("setup", ""),
+                "Entry_Date":   _now_date(),
+                "Status":       "PRUNED",
+                "Prune_Reason": f"Safety gates failed: {reason_str}",
+                "Prune_Date":   _now_date(),
+                "Setup_Grade":  data.get("setup_grade", ""),
+                "Setup_Score":  data.get("setup_score", ""),
+                "Expiry_Multiplier": data.get("expiry_info", {}).get("multiplier", "") if data.get("expiry_info") else data.get("expiry_multiplier", ""),
+                "Expiry_Reason": data.get("expiry_info", {}).get("reason", "") if data.get("expiry_info") else data.get("expiry_reason", ""),
+                "Cur_Weekly_Trend": data.get("weekly_trend", ""),
+                "Cur_Return_20d": data.get("return_20d", ""),
+                "Cur_ADX": data.get("adx", ""),
+                "Cur_EMA20": data.get("ema20", ""),
+                "Cur_EMA50": data.get("ema50", ""),
+                "Cur_ATR_Pct": data.get("atr_pct", ""),
+                "Cur_Base_Status": data.get("base_status", ""),
+                "Cur_Base_Days": data.get("base_days", ""),
+                "Cur_Vol_Ratio": data.get("vol_ratio", ""),
+                "Cur_False_Breakout_Risk": data.get("false_breakout_risk", ""),
+                "Cur_Scan_Date": _now_date(),
+                "Cur_Verdict": "SKIP",
+                "Cur_Reasons": reasons_json,
+                "Cur_Regime_Mult": data.get("regime_multiplier", ""),
+            }
+            added, skipped = _append_rows_to_csv(path, [row])
+            if not added:
+                logger.info("[positions] %s already on watchlist — skipped", row["Symbol"])
+                return jsonify({
+                    "status":   "duplicate",
+                    "message":  f"{row['Symbol']} is already on your watchlist",
+                    "skipped":  skipped,
+                }), 200
+
+            logger.info("[positions] Added pruned stock %s @ %s", row["Symbol"], row["Entry_Price"])
+            return jsonify({
+                "status": "pruned",
+                "message": f"{data['symbol']} failed safety gates and was added to the pruned list.",
+                "reasons": skip_reasons,
+                "position": row
+            }), 200
         os.makedirs(os.path.join(_ROOT, "data"), exist_ok=True)
 
         reasons_val = data.get("reasons", [])
@@ -1484,19 +1535,56 @@ def _add_stocks_to_positions(stocks):
     for s in stocks:
         if not s.get("symbol"):
             continue
-        # Guard: skip stocks that failed the risk-filter stack.
-        if str(s.get("verdict", "")).upper() == "SKIP":
-            logger.info(
-                "[get-stocks] Skipping %s — verdict SKIP (%s)",
-                s["symbol"],
-                "; ".join(s.get("reasons", [])),
-            )
-            continue
+        
         reasons_val = s.get("reasons", [])
         if isinstance(reasons_val, list):
             reasons_json = json.dumps(reasons_val)
         else:
             reasons_json = reasons_val
+
+        # Guard: prune stocks that failed the risk-filter stack.
+        if str(s.get("verdict", "")).upper() == "SKIP":
+            skip_reasons = s.get("reasons", [])
+            reason_str = "; ".join(skip_reasons) if skip_reasons else "safety-gate rejection"
+            logger.info(
+                "[get-stocks] Adding %s as PRUNED — verdict SKIP (%s)",
+                s["symbol"],
+                reason_str,
+            )
+            rows.append({
+                "Symbol": s["symbol"],
+                "Name": s.get("name", s["symbol"]),
+                "Entry_Price": s.get("entry_min", s.get("price", 0)),
+                "Quantity": 1,
+                "Target_1": s.get("target_1", 0),
+                "Target_2": s.get("target_2", 0),
+                "Current_SL": s.get("sl", 0),
+                "Setup": s.get("setup", ""),
+                "Entry_Date": _now_date(),
+                "Status": "PRUNED",
+                "Prune_Reason": f"Safety gates failed: {reason_str}",
+                "Prune_Date":   _now_date(),
+                "Setup_Grade": s.get("setup_grade", ""),
+                "Setup_Score": s.get("setup_score", ""),
+                "Expiry_Multiplier": s.get("expiry_info", {}).get("multiplier", "") if s.get("expiry_info") else s.get("expiry_multiplier", ""),
+                "Expiry_Reason": s.get("expiry_info", {}).get("reason", "") if s.get("expiry_info") else s.get("expiry_reason", ""),
+                # Populate Cur_* tracking fields so they are immediately available to the UI
+                "Cur_Weekly_Trend": s.get("weekly_trend", ""),
+                "Cur_Return_20d": s.get("return_20d", ""),
+                "Cur_ADX": s.get("adx", ""),
+                "Cur_EMA20": s.get("ema20", ""),
+                "Cur_EMA50": s.get("ema50", ""),
+                "Cur_ATR_Pct": s.get("atr_pct", ""),
+                "Cur_Base_Status": s.get("base_status", ""),
+                "Cur_Base_Days": s.get("base_days", ""),
+                "Cur_Vol_Ratio": s.get("vol_ratio", ""),
+                "Cur_False_Breakout_Risk": s.get("false_breakout_risk", ""),
+                "Cur_Scan_Date": _now_date(),
+                "Cur_Verdict": "SKIP",
+                "Cur_Reasons": reasons_json,
+                "Cur_Regime_Mult": s.get("regime_multiplier", ""),
+            })
+            continue
 
         rows.append({
             "Symbol": s["symbol"],

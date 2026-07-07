@@ -6514,6 +6514,10 @@ async function checkAndLoadCachedDebate(symbol) {
     });
     if (res.status === "success" && res.cached) {
       renderDebateBody(symbol, res);
+      if (res.auto_pruned) {
+        toast(`⚖️ ${symbol} auto-pruned: Debate Chamber SKIP verdict`, "info", 5000);
+        loadPositions();
+      }
     }
   } catch (e) {
     // Silently ignore background failures
@@ -6971,6 +6975,14 @@ async function confirmBuy() {
       toast(`⛔ ${symbol} blocked by safety gates: ${reasons}`, "error", 8000);
       btn.disabled = false;
       btn.textContent = "Add to Watchlist";
+      return;
+    }
+
+    if (resp.status === "pruned") {
+      const reasons = (resp.reasons || []).join("; ") || "safety gates failed";
+      toast(`⚠️ ${symbol} failed safety gates and was added directly as PRUNED: ${reasons}`, "warning", 8000);
+      closeBuyModal();
+      await loadPositions();
       return;
     }
 

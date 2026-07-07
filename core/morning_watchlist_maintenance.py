@@ -317,11 +317,29 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
                         # eligibility, then overwrite levels (adapt to progression of
                         # trend-anchor moving averages).
                         gate = None
+                        passed = True
+                        reasons = []
+                        verdict = "PASS"
+                        regime_mult = 1.0
                         try:
                             passed, reasons, verdict, regime_mult = apply_risk_filters(sym, tech, sector_pulse)
                             gate = {"verdict": verdict, "reasons": reasons, "regime_mult": regime_mult}
                         except Exception as gate_err:
                             logger.warning("apply_risk_filters failed for %s: %s", sym, gate_err)
+                        
+                        if not passed or verdict == "SKIP":
+                            reason_str = "; ".join(reasons) if reasons else "failed safety gates"
+                            df_positions.at[idx, "Status"] = "PRUNED"
+                            df_positions.at[idx, "Prune_Reason"] = f"Safety gates failed: {reason_str}"
+                            df_positions.at[idx, "Prune_Date"] = datetime.now(pytz.timezone("Asia/Kolkata")).strftime("%Y-%m-%d")
+                            csv_updated = True
+                            deleted_symbols.append({
+                                "symbol": sym,
+                                "reason": f"Safety gates failed: {reason_str}"
+                            })
+                            logger.info("Pruned (Safety Gates): %s (%s)", sym, reason_str)
+                            continue
+
                         refresh_trade_levels(df_positions, idx, tech, gate)
                         csv_updated = True
                         
