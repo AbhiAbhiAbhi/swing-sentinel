@@ -570,7 +570,26 @@ def api_debate(symbol: str):
             check_only=check_only,
             trade_plan=trade_plan
         )
- 
+
+        # ── Auto-prune OPEN stocks on Debate SKIP verdict ──────────
+        verdict = (result.get("verdict") or "").upper()
+        if verdict == "SKIP" and trade_plan and trade_plan.get("status") == "OPEN":
+            try:
+                import pandas as pd
+                from datetime import date
+                df = pd.read_csv(positions_path)
+                mask = df["Symbol"].str.upper() == symbol.upper()
+                df.loc[mask, "Status"] = "PRUNED"
+                df.loc[mask, "Prune_Reason"] = "Debate Chamber SKIP verdict"
+                df.loc[mask, "Prune_Date"] = date.today().isoformat()
+                df.to_csv(positions_path, index=False)
+                result["auto_pruned"] = True
+                result["prune_reason"] = "Debate Chamber SKIP verdict"
+                logger.info("[server/debate] Auto-pruned %s — Debate SKIP verdict", symbol)
+            except Exception as prune_exc:
+                logger.error("[server/debate] Auto-prune failed for %s: %s", symbol, prune_exc)
+                result["auto_pruned"] = False
+
         return jsonify(result)
     except Exception as exc:
         logger.error("[server/debate] Failed for %s: %s", symbol, exc)
@@ -1139,26 +1158,50 @@ def api_brief_latest():
 def _append_rows_to_csv(path: str, rows: list) -> tuple:
     """
     Append rows to positions.csv preserving column alignment + skipping symbols
-    that already have an OPEN position. Pandas auto-fills missing columns with
-    NaN so the existing schema stays intact.
+    that already have an OPEN/BOUGHT position OR were PRUNED within the last 7
+    days (cooldown). Pandas auto-fills missing columns with NaN so the existing
+    schema stays intact.
 
     Returns (added_rows, skipped_symbols) tuple.
     """
     if not rows:
         return [], []
 
-    existing  = pd.read_csv(path) if os.path.exists(path) else pd.DataFrame()
-    open_syms = set()
+    existing = pd.read_csv(path) if os.path.exists(path) else pd.DataFrame()
+
+    # Symbols with an active (OPEN or BOUGHT) position — never add duplicates.
+    blocked_syms = set()
     if not existing.empty and "Status" in existing.columns:
-        open_syms = set(
-            existing.loc[existing["Status"].astype(str).str.upper() == "OPEN", "Symbol"]
-                    .astype(str).tolist()
-        )
+        active_mask = existing["Status"].astype(str).str.upper().isin(["OPEN", "BOUGHT"])
+        blocked_syms = set(existing.loc[active_mask, "Symbol"].astype(str).tolist())
+
+    # Symbols pruned within the last 7 days — enforce a re-entry cooldown so a
+    # stock rejected by the morning-maintenance pass can't immediately sneak back
+    # in via the evening get-stocks scan.
+    PRUNE_COOLDOWN_DAYS = 7
+    if not existing.empty and "Status" in existing.columns and "Prune_Date" in existing.columns:
+        from datetime import date
+        today = date.today()
+        pruned_rows = existing[existing["Status"].astype(str).str.upper() == "PRUNED"]
+        for _, pr in pruned_rows.iterrows():
+            pd_str = str(pr.get("Prune_Date", "") or "").strip()
+            if pd_str and pd_str.lower() not in ("nan", "none", ""):
+                try:
+                    days_since = (today - date.fromisoformat(pd_str)).days
+                    if days_since < PRUNE_COOLDOWN_DAYS:
+                        blocked_syms.add(str(pr["Symbol"]))
+                except ValueError:
+                    pass
 
     added, skipped = [], []
     for row in rows:
-        if row.get("Symbol") in open_syms:
-            skipped.append(row["Symbol"])
+        sym = row.get("Symbol", "")
+        if sym in blocked_syms:
+            logger.info(
+                "[positions] Skipping %s — active position or pruned within %d days",
+                sym, PRUNE_COOLDOWN_DAYS,
+            )
+            skipped.append(sym)
         else:
             # Lock the per-position risk at first scan from this row's plan, so it
             # stays fixed (auditable) instead of being recomputed live each day.
@@ -1168,7 +1211,7 @@ def _append_rows_to_csv(path: str, rows: list) -> tuple:
             row["Risk_Per_Share"] = rps
             row["Rupee_Risk"]     = rupee
             added.append(row)
-            open_syms.add(row["Symbol"])   # also dedupe within this single batch
+            blocked_syms.add(sym)   # also dedupe within this single batch
 
     if added:
         new_df   = pd.DataFrame(added)
@@ -1326,6 +1369,17 @@ def api_positions_add():
         if not data or not data.get("symbol"):
             return jsonify({"status": "error", "message": "symbol required"}), 400
 
+        # Block SKIP-verdict stocks — the risk filters already rejected them.
+        if str(data.get("verdict", "")).upper() == "SKIP":
+            skip_reasons = data.get("reasons", [])
+            reason_str = "; ".join(skip_reasons) if skip_reasons else "safety-gate rejection"
+            logger.info("[positions/add] Blocked %s — verdict SKIP (%s)", data["symbol"], reason_str)
+            return jsonify({
+                "status": "rejected",
+                "message": f"{data['symbol']} was rejected by safety gates and cannot be added to the watchlist.",
+                "reasons": skip_reasons,
+            }), 200
+
         path = os.path.join(_ROOT, "data", "positions.csv")
         os.makedirs(os.path.join(_ROOT, "data"), exist_ok=True)
 
@@ -1419,12 +1473,24 @@ def api_positions_add_all():
 
 
 def _add_stocks_to_positions(stocks):
-    """Persist passed scan candidates as OPEN Analysis positions."""
+    """Persist passed scan candidates as OPEN Analysis positions.
+
+    Stocks whose `verdict` field is "SKIP" are silently discarded — they failed
+    the safety-gate stack and must not appear in the Analysis tab.
+    """
     path = os.path.join(_ROOT, "data", "positions.csv")
     os.makedirs(os.path.join(_ROOT, "data"), exist_ok=True)
     rows = []
     for s in stocks:
         if not s.get("symbol"):
+            continue
+        # Guard: skip stocks that failed the risk-filter stack.
+        if str(s.get("verdict", "")).upper() == "SKIP":
+            logger.info(
+                "[get-stocks] Skipping %s — verdict SKIP (%s)",
+                s["symbol"],
+                "; ".join(s.get("reasons", [])),
+            )
             continue
         reasons_val = s.get("reasons", [])
         if isinstance(reasons_val, list):

@@ -6582,6 +6582,10 @@ async function loadDebateData(symbol, force = false) {
       window._renderedDebates[symbol] = body.innerHTML;
     } else {
       renderDebateBody(symbol, res);
+      if (res.auto_pruned) {
+        toast(`⚖️ ${symbol} auto-pruned: Debate Chamber SKIP verdict`, "info", 5000);
+        loadPositions();
+      }
     }
   } catch (e) {
     clearInterval(statusInterval);
@@ -6961,6 +6965,15 @@ async function confirmBuy() {
       method: "POST",
       body: JSON.stringify(payload),
     });
+
+    if (resp.status === "rejected") {
+      const reasons = (resp.reasons || []).join("; ") || resp.message || "safety-gate rejection";
+      toast(`⛔ ${symbol} blocked by safety gates: ${reasons}`, "error", 8000);
+      btn.disabled = false;
+      btn.textContent = "Add to Watchlist";
+      return;
+    }
+
     closeBuyModal();
     if (resp.status === "duplicate") {
       toast(`${symbol} is already on your watchlist`, "info");
