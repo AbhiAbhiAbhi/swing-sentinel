@@ -147,8 +147,9 @@ def fetch_stock_technicals(symbol: str, df: Optional[pd.DataFrame] = None) -> Di
         obv     = _obv(close, volume)
         adx     = _adx(df)
 
-        # Golden crossover check: macd crossed above signal in last 4 days
+        # Golden & Bearish crossover check: macd crossover in last 4 days
         macd_crossover_days_ago = -1
+        macd_bearish_crossover_days_ago = -1
         ema_f = close.ewm(span=12).mean()
         ema_s = close.ewm(span=26).mean()
         macd_line = ema_f - ema_s
@@ -160,8 +161,11 @@ def fetch_stock_technicals(symbol: str, df: Optional[pd.DataFrame] = None) -> Di
                 break
             o_m, o_s = float(macd_line.iloc[older]), float(signal_line.iloc[older])
             n_m, n_s = float(macd_line.iloc[newer]), float(signal_line.iloc[newer])
-            if o_m <= o_s and n_m > n_s:
+            if o_m <= o_s and n_m > n_s and macd_crossover_days_ago == -1:
                 macd_crossover_days_ago = d
+            if o_m >= o_s and n_m < n_s and macd_bearish_crossover_days_ago == -1:
+                macd_bearish_crossover_days_ago = d
+            if macd_crossover_days_ago != -1 and macd_bearish_crossover_days_ago != -1:
                 break
 
         high_52w     = float(close.tail(252).max())
@@ -274,6 +278,7 @@ def fetch_stock_technicals(symbol: str, df: Optional[pd.DataFrame] = None) -> Di
             'rsi': round(rsi, 2), 'macd': round(macd_d['macd'], 2),
             'macd_signal': round(macd_d['signal'], 2), 'macd_histogram': round(macd_d['histogram'], 2),
             'macd_crossover_days_ago': macd_crossover_days_ago,
+            'macd_bearish_crossover_days_ago': macd_bearish_crossover_days_ago,
             'atr': round(atr, 2), 'atr_pct': round(atr / price * 100, 2) if price else 0, 'obv': round(obv, 0),
             'adx': round(adx, 2),
             'volume': int(volume.iloc[-1]), 'avg_volume_20d': int(avg_vol_20),

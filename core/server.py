@@ -1210,6 +1210,8 @@ def _append_rows_to_csv(path: str, rows: list) -> tuple:
             )
             row["Risk_Per_Share"] = rps
             row["Rupee_Risk"]     = rupee
+            row["Cur_Entry_Min"]  = row.get("entry_min") or row.get("entry_zone_min") or row.get("Entry_Price")
+            row["Cur_Entry_Max"]  = row.get("entry_max") or row.get("entry_zone_max") or row.get("Entry_Price")
             added.append(row)
             blocked_syms.add(sym)   # also dedupe within this single batch
 
@@ -2393,7 +2395,7 @@ def api_results():
             "Cur_Weekly_Trend", "Cur_Return_20d", "Cur_ADX", "Cur_EMA20", "Cur_EMA50",
             "Cur_ATR_Pct", "Cur_Base_Status", "Cur_Base_Days", "Cur_Vol_Ratio",
             "Cur_False_Breakout_Risk", "Cur_Scan_Date", "Cur_Verdict", "Cur_Reasons",
-            "Cur_Regime_Mult",
+            "Cur_Regime_Mult", "Cur_Entry_Min", "Cur_Entry_Max",
         ])
 
         total = len(df)
@@ -2506,6 +2508,8 @@ def api_results():
                     "ema20":               _num(r.get("Cur_EMA20")),
                     "ema50":               _num(r.get("Cur_EMA50")),
                     "atr_pct":             _num(r.get("Cur_ATR_Pct")),
+                    "entry_min":           _num(r.get("Cur_Entry_Min")) or ep,
+                    "entry_max":           _num(r.get("Cur_Entry_Max")) or ep,
                     "base_status":         str(r.get("Cur_Base_Status", "") or ""),
                     "base_days":           _num(r.get("Cur_Base_Days")),
                     "vol_ratio":           _num(r.get("Cur_Vol_Ratio")),

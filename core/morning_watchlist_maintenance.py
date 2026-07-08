@@ -111,6 +111,8 @@ def refresh_trade_levels(df_positions, idx, tech, gate=None):
     df_positions.at[idx, "Cur_Base_Days"]          = tech.get("base_days", "")
     df_positions.at[idx, "Cur_Vol_Ratio"]          = tech.get("volume_ratio", "")
     df_positions.at[idx, "Cur_False_Breakout_Risk"] = tech.get("false_breakout_risk", "")
+    df_positions.at[idx, "Cur_Entry_Min"]          = plan.get("entry_zone_min", "")
+    df_positions.at[idx, "Cur_Entry_Max"]          = plan.get("entry_zone_max", "")
     df_positions.at[idx, "Cur_Scan_Date"]          = today_str
     if gate is not None:
         df_positions.at[idx, "Cur_Verdict"]     = gate.get("verdict", "")

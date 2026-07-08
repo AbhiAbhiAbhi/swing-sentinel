@@ -912,10 +912,27 @@ def apply_risk_filters(symbol: str, tech: dict,
         if not passed:
             hard_skips.append(reason)
 
-    # 7. Adversarial debate — DECOUPLED from safety gates.
-    #    The LLM debate verdict is a judgment call, not a structural-safety block, so it no
-    #    longer contributes a hard-skip here. It is surfaced independently in the dashboard
-    #    (⚖️ JUDGE badge / Bull-vs-Bear Debate Chamber) via server.py's fetch_cached_debate_verdict.
+    # 7. Adversarial debate check (Gate #7)
+    #    If a manual run was performed (cached debate exists) and the judge verdict is SKIP,
+    #    it fails the safety gate. If it hasn't been run, it is allowed to pass.
+    try:
+        _ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        CACHE_DIR = os.path.join(_ROOT_DIR, "data", "due_diligence")
+        if os.path.exists(CACHE_DIR):
+            sym_upper = symbol.strip().upper()
+            files = os.listdir(CACHE_DIR)
+            matches = [f for f in files if f.startswith(f"{sym_upper}_") and f.endswith(".json")]
+            if matches:
+                matches.sort()
+                latest_file = matches[-1]
+                path = os.path.join(CACHE_DIR, latest_file)
+                with open(path, "r", encoding="utf-8") as file:
+                    data = json.load(file)
+                    dv = (data.get("verdict") or "").strip().upper()
+                    if dv == "SKIP":
+                        hard_skips.append(f"debate chamber skip verdict ({data.get('judge_rationale') or 'Adversarial Judge verdict is SKIP'})")
+    except Exception as e:
+        logger.warning("[risk_filters] Failed to evaluate cached debate for %s: %s", symbol, e)
 
     # 8. IPO check
     passed, reason = filter_ipo_age(tech, min_ipo)
@@ -1079,6 +1096,38 @@ def apply_risk_filters(symbol: str, tech: dict,
         high_52 = float(tech.get("high_52w") or 0.0)
         if t2_val > 0 and high_52 > 0 and t2_val > high_52:
             warnings.append(f"target above 52w high (target_2 {t2_val:.1f} exceeds 52w high {high_52:.1f})")
+
+        # Check H: Volume Vacuum at Highs
+        setup_type = plan.get("setup_type", "")
+        vol_ratio = float(tech.get("volume_ratio") or tech.get("vol_ratio") or 1.0)
+        if high_52 > 0 and price_val >= high_52 * 0.95 and setup_type in ("PULLBACK", "CONSOLIDATION"):
+            if vol_ratio < 0.25:
+                hard_skips.append(f"volume vacuum (critical low volume ratio {vol_ratio:.2f}x near 52w high)")
+            elif vol_ratio < 0.50:
+                warnings.append(f"low volume ratio {vol_ratio:.2f}x near 52w high (exhaustion risk)")
+
+        # Check I: Fresh Bearish MACD Crossover
+        macd_bearish_days = tech.get("macd_bearish_crossover_days_ago", -1)
+        if 0 <= macd_bearish_days <= 3:
+            warnings.append(f"fresh bearish MACD crossover ({macd_bearish_days}d ago)")
+
+        # Check J: Momentum Divergence Proxy at 52w High
+        rsi_val = float(tech.get("rsi") or 0.0)
+        macd_hist = float(tech.get("macd_histogram") or 0.0)
+        if high_52 > 0 and price_val >= high_52 * 0.95:
+            if rsi_val < 50.0 or macd_hist < 0.0:
+                warnings.append(f"momentum divergence at highs (price near 52w high but RSI {rsi_val:.1f} < 50 or MACD hist {macd_hist:.2f} < 0)")
+
+        # Check K: Supply Wall Congestion
+        if setup_type in ("BREAKOUT", "PULLBACK", "CONSOLIDATION"):
+            res1 = float(tech.get("resistance_1") or 0.0)
+            res2 = float(tech.get("resistance_2") or 0.0)
+            if res1 > 0 and res2 > 0 and high_52 > 0:
+                max_res = max(res1, res2, high_52)
+                min_res = min(res1, res2, high_52)
+                if (max_res - min_res) / min_res <= 0.03:
+                    if price_val >= min_res * 0.97 and price_val <= max_res:
+                        warnings.append(f"supply wall congestion (price is near clustered resistance levels {min_res:.1f}-{max_res:.1f})")
     except Exception as check_err:
         logger.warning("[risk_filters/new_gates] Evaluation failed for %s: %s", symbol, check_err)
 

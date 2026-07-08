@@ -1156,6 +1156,81 @@ body.light-theme .analytics-subtab-btn.active {
 .pruned-card .pc-restore:hover{filter:brightness(1.1)}
 .pruned-empty{font-size:12px;color:var(--muted,#9aa);padding:8px 2px}
 
+/* Pruned Candidates custom filter dropdown */
+.custom-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+.custom-dropdown-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card, #1a1e24);
+  color: var(--muted, #9aa);
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.custom-dropdown-btn:hover {
+  border-color: var(--border-hi, rgba(255,255,255,0.25));
+  color: var(--text, #fff);
+  background: var(--card-hover, #20262e);
+}
+.custom-dropdown-btn.active {
+  border-color: var(--blue, #3b82f6);
+  color: var(--blue, #3b82f6);
+  background: rgba(59, 130, 246, 0.1);
+}
+.custom-dropdown-arrow {
+  font-size: 8px;
+  transition: transform 0.2s ease;
+}
+.custom-dropdown-container.open .custom-dropdown-arrow {
+  transform: rotate(180deg);
+}
+.custom-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  width: 190px;
+  background: var(--card, #1a1e24);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+}
+.custom-dropdown-item {
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--muted, #9aa);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  font-weight: 500;
+}
+.custom-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text, #fff);
+}
+.custom-dropdown-item.active {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--blue, #3b82f6);
+  font-weight: 600;
+}
+
+
 /* ── Stock Validation Matrix – Light Mode Fixes ─────────────────────────────
    The base card styles use rgba(255,255,255,…) borders/backgrounds and
    #e5e7eb fallback text values that are near-invisible on the cream light
@@ -1946,6 +2021,21 @@ body.light-theme .tab-group {
       Pruned from Analysis <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">Thesis terminally invalidated — kept for the record</small>
     </span>
     <div style="display:flex;align-items:center;gap:8px">
+      <!-- Custom Pruned Filter Dropdown -->
+      <div class="custom-dropdown-container" id="prunedFilterDropdown">
+        <button class="custom-dropdown-btn" id="prunedFilterBtn" onclick="togglePrunedFilterDropdown(event)">
+          <span class="custom-dropdown-label">Filter: All</span>
+          <span class="custom-dropdown-arrow">▼</span>
+        </button>
+        <div class="custom-dropdown-menu" id="prunedFilterMenu" style="display:none">
+          <div class="custom-dropdown-item active" data-value="all" onclick="selectPrunedFilter('all', 'All')">All</div>
+          <div class="custom-dropdown-item" data-value="safety" onclick="selectPrunedFilter('safety', 'Failed by Safety Gates')">Failed by Safety Gates</div>
+          <div class="custom-dropdown-item" data-value="seven_days" onclick="selectPrunedFilter('seven_days', '7 Days Extended')">7 Days Extended</div>
+          <div class="custom-dropdown-item" data-value="trend_broke" onclick="selectPrunedFilter('trend_broke', 'Trend Broke')">Trend Broke</div>
+          <div class="custom-dropdown-item" data-value="false_breakout" onclick="selectPrunedFilter('false_breakout', 'False Breakout')">False Breakout</div>
+          <div class="custom-dropdown-item" data-value="others" onclick="selectPrunedFilter('others', 'Others')">Others</div>
+        </div>
+      </div>
       <span class="pill" id="prunedPill">0 removed</span>
       <button class="sec-toggle" onclick="toggleSection('prunedSection')" title="Expand / Shrink"><span class="chevron">▼</span></button>
     </div>
@@ -6191,8 +6281,8 @@ function renderWatchlist(r) {
       earnings_days_until: (cached && cached.earnings_days_until !== undefined) ? cached.earnings_days_until : null,
       earnings_date:     (cached && cached.earnings_date !== undefined) ? cached.earnings_date : "",
       earnings_source:   (cached && cached.earnings_source !== undefined) ? cached.earnings_source : "",
-      entry_min:         cached ? cached.entry_min : p.entry,
-      entry_max:         cached ? cached.entry_max : p.entry,
+      entry_min:         p.entry_min !== undefined ? p.entry_min : (cached ? cached.entry_min : p.entry),
+      entry_max:         p.entry_max !== undefined ? p.entry_max : (cached ? cached.entry_max : p.entry),
       sl:                p.sl,
       target_1:          p.target_1,
       target_2:          p.target_2,
@@ -6457,6 +6547,63 @@ function renderWatchlist(r) {
 /* ── Pruned-from-Analysis section ────────────────────────── */
 function _esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
 
+// Global state for filtering pruned candidates
+let currentPrunedFilter = "all";
+
+function togglePrunedFilterDropdown(event) {
+  event.stopPropagation();
+  const menu = document.getElementById("prunedFilterMenu");
+  const container = document.getElementById("prunedFilterDropdown");
+  if (!menu || !container) return;
+  const isOpen = menu.style.display === "flex" || menu.style.display === "block";
+  if (isOpen) {
+    menu.style.display = "none";
+    container.classList.remove("open");
+  } else {
+    menu.style.display = "flex";
+    container.classList.add("open");
+  }
+}
+
+function selectPrunedFilter(val, label) {
+  currentPrunedFilter = val;
+  
+  // Update button text and active state styling
+  const btn = document.getElementById("prunedFilterBtn");
+  if (btn) {
+    const labelSpan = btn.querySelector(".custom-dropdown-label");
+    if (labelSpan) {
+      labelSpan.textContent = `Filter: ${label}`;
+    }
+    if (val === "all") {
+      btn.classList.remove("active");
+    } else {
+      btn.classList.add("active");
+    }
+  }
+  
+  // Update active item styling in the dropdown menu
+  const items = document.querySelectorAll("#prunedFilterMenu .custom-dropdown-item");
+  items.forEach(item => {
+    if (item.getAttribute("data-value") === val) {
+      item.classList.add("active");
+    } else {
+      item.classList.remove("active");
+    }
+  });
+  
+  // Close menu
+  const menu = document.getElementById("prunedFilterMenu");
+  const container = document.getElementById("prunedFilterDropdown");
+  if (menu && container) {
+    menu.style.display = "none";
+    container.classList.remove("open");
+  }
+  
+  // Re-render pruned candidates list
+  renderPrunedSection();
+}
+
 async function renderPrunedSection(){
   const section = document.getElementById("prunedSection");
   const list    = document.getElementById("prunedList");
@@ -6472,12 +6619,46 @@ async function renderPrunedSection(){
     return;
   }
 
-  // Hide the whole section when there is nothing pruned.
+  // Hide the whole section when there is nothing pruned at all.
   if(!pruned.length){ section.style.display = "none"; return; }
   section.style.display = "block";
-  if(pill) pill.textContent = `${pruned.length} removed`;
 
-  list.innerHTML = pruned.map(p => {
+  // Categorize pruned candidates based on their Prune_Reason
+  const categorized = pruned.map(p => {
+    const reason = String(p.Prune_Reason || "").toLowerCase();
+    let category = "others";
+    if (reason.includes("safety gates failed") || reason.includes("debate chamber skip verdict")) {
+      category = "safety";
+    } else if (reason.includes("7 days") || reason.includes("7+ days")) {
+      category = "seven_days";
+    } else if (reason.includes("trend broke")) {
+      category = "trend_broke";
+    } else if (reason.includes("false breakout")) {
+      category = "false_breakout";
+    }
+    return { ...p, category };
+  });
+
+  // Filter based on the selected filter value
+  const filtered = categorized.filter(p => {
+    if (currentPrunedFilter === "all") return true;
+    return p.category === currentPrunedFilter;
+  });
+
+  if (pill) {
+    if (currentPrunedFilter === "all") {
+      pill.textContent = `${pruned.length} removed`;
+    } else {
+      pill.textContent = `${filtered.length} of ${pruned.length} shown`;
+    }
+  }
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="pruned-empty">No pruned stocks match this filter.</div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(p => {
     const sym    = _esc(p.Symbol || p.symbol || "?");
     const reason = _esc(p.Prune_Reason || "Thesis invalidated.");
     const date   = _esc(p.Prune_Date || "");
@@ -6989,9 +7170,20 @@ function toggleAgentSettings() {
 document.addEventListener("click", function(e) {
   const popover = document.getElementById("agentSettingsPopover");
   const btn = document.getElementById("agentSettingsBtn");
-  if (!popover || !btn) return;
-  if (!popover.contains(e.target) && !btn.contains(e.target)) {
-    popover.style.display = "none";
+  if (popover && btn) {
+    if (!popover.contains(e.target) && !btn.contains(e.target)) {
+      popover.style.display = "none";
+    }
+  }
+
+  // Click outside pruned filter dropdown to close it
+  const prunedDropdown = document.getElementById("prunedFilterDropdown");
+  if (prunedDropdown) {
+    const menu = document.getElementById("prunedFilterMenu");
+    if (menu && !prunedDropdown.contains(e.target)) {
+      menu.style.display = "none";
+      prunedDropdown.classList.remove("open");
+    }
   }
 });
 
