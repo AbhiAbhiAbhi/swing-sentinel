@@ -6,8 +6,9 @@ Setup-specific SL (invalidation-based) + hybrid ATR targets:
   SUPPORT_BOUNCE→ SL = support − 1×ATR  (support broken = setup done)
   CONSOLIDATION → SL = EMA50 − 1×ATR   (trend anchor)
 
-  T1 = 20-day resistance or entry + 1.5×ATR (whichever is above entry)
-  T2 = max(entry + 3×ATR, 60d resistance, T1 × 1.02)
+  T1 = 20-day resistance or entry_max + 1.5×ATR — always above the worst-case
+       fill (entry_zone_max), never below it
+  T2 = max(entry_max + 3×ATR, 60d resistance, T1 × 1.02)
 """
 from typing import Dict
 
@@ -86,10 +87,15 @@ def calculate_trade_plan(stock_data: Dict, is_refresh: bool = False) -> Dict:
     sl = round(min(sl_raw, sl_ceiling), 2)
 
     # ── T1: nearest resistance or ATR fallback ───────────────────────────
-    t1 = round(resistance_1, 2) if resistance_1 > entry_mid else round(entry_mid + 1.5 * atr, 2)
+    # Anchored to entry_max (worst-case fill), not entry_mid: a BREAKOUT fill
+    # may chase up to resistance_1 * 1.02, so a resistance-pinned T1 below the
+    # actual fill would be "hit" instantly and record a fake win.
+    t1 = round(resistance_1, 2) if resistance_1 > entry_max else round(entry_max + 1.5 * atr, 2)
+    if t1 <= entry_max:
+        t1 = round(entry_max + 1.5 * atr, 2)
 
     # ── T2: ATR-based, always above T1 ───────────────────────────────────
-    atr_t2 = round(entry_mid + 3.0 * atr, 2)
+    atr_t2 = round(entry_max + 3.0 * atr, 2)
     res_t2 = round(resistance_2, 2) if resistance_2 > t1 else 0
     t2     = max(atr_t2, res_t2, round(t1 * 1.02, 2))
 

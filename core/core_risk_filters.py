@@ -878,11 +878,6 @@ def apply_risk_filters(symbol: str, tech: dict,
     watch_state = "PASS"
     regime_mult = 1.0
 
-    # 1. Holding status check (Gate #1)
-    passed_fund, _ = filter_fundamental_strength(symbol)
-    if not passed_fund:
-        hard_skips.append("fundamental status is ON_HOLD")
-
 
     # 2. Weekly trend check (Gate #2)
     w_trend = str(tech.get("weekly_trend", "UNKNOWN")).strip().upper()
@@ -933,6 +928,43 @@ def apply_risk_filters(symbol: str, tech: dict,
                         hard_skips.append(f"debate chamber skip verdict ({data.get('judge_rationale') or 'Adversarial Judge verdict is SKIP'})")
     except Exception as e:
         logger.warning("[risk_filters] Failed to evaluate cached debate for %s: %s", symbol, e)
+
+    # 8. Data Freshness Check (Gate #8)
+    last_bar_date = tech.get("last_bar_date")
+    if last_bar_date:
+        try:
+            scan_date = datetime.strptime(last_bar_date, "%Y-%m-%d").date()
+            scan_day = scan_date.weekday()  # 0: Mon, ..., 4: Fri, 5: Sat, 6: Sun
+            
+            # Current Kolkata date
+            kolkata = pytz.timezone("Asia/Kolkata")
+            today = datetime.now(kolkata).date()
+            diff_days = (today - scan_date).days
+            
+            # Friday scan (4) remains valid Monday (3 days). Others valid 1 day.
+            max_diff = 3 if scan_day == 4 else 1
+            if diff_days > max_diff:
+                hard_skips.append(f"stale data (price data from {last_bar_date} is older than 1 trading day)")
+        except Exception:
+            hard_skips.append("invalid price date format")
+    else:
+        # If last_bar_date is missing, check the timestamp
+        timestamp_str = tech.get("timestamp")
+        if timestamp_str:
+            try:
+                dt = datetime.fromisoformat(timestamp_str)
+                kolkata = pytz.timezone("Asia/Kolkata")
+                scan_date = dt.astimezone(kolkata).date()
+                scan_day = scan_date.weekday()
+                today = datetime.now(kolkata).date()
+                diff_days = (today - scan_date).days
+                max_diff = 3 if scan_day == 4 else 1
+                if diff_days > max_diff:
+                    hard_skips.append("stale data (older than 1 trading day)")
+            except Exception:
+                hard_skips.append("stale data (invalid timestamp)")
+        else:
+            hard_skips.append("stale data (missing date/timestamp)")
 
     # 8. IPO check
     passed, reason = filter_ipo_age(tech, min_ipo)

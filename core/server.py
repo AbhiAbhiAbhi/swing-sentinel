@@ -1158,9 +1158,10 @@ def api_brief_latest():
 def _append_rows_to_csv(path: str, rows: list) -> tuple:
     """
     Append rows to positions.csv preserving column alignment + skipping symbols
-    that already have an OPEN/BOUGHT position OR were PRUNED within the last 7
-    days (cooldown). Pandas auto-fills missing columns with NaN so the existing
-    schema stays intact.
+    that already have an OPEN/BOUGHT position, were PRUNED within the last 7
+    days (cooldown), have any row entered today, or were CLOSED within the last
+    7 days. Pandas auto-fills missing columns with NaN so the existing schema
+    stays intact.
 
     Returns (added_rows, skipped_symbols) tuple.
     """
@@ -1193,12 +1194,39 @@ def _append_rows_to_csv(path: str, rows: list) -> tuple:
                 except ValueError:
                     pass
 
+    # Same-day + recently-CLOSED blocks: a trade that closes intraday (e.g. a
+    # bad plan closing instantly) must not be re-added by the evening scan —
+    # this is exactly how IFCI ended up with 7 duplicate rows.
+    CLOSED_COOLDOWN_DAYS = 7
+    if not existing.empty and "Status" in existing.columns:
+        from datetime import date
+        today = date.today()
+        today_iso = today.isoformat()
+        if "Entry_Date" in existing.columns:
+            entered_today = existing["Entry_Date"].astype(str).str.strip() == today_iso
+            blocked_syms |= set(existing.loc[entered_today, "Symbol"].astype(str).tolist())
+        closed_rows = existing[existing["Status"].astype(str).str.upper() == "CLOSED"]
+        for _, cr in closed_rows.iterrows():
+            exit_s = ""
+            for col in ("T2_Hit_Date", "SL_Hit_Date", "Entry_Date"):
+                v = str(cr.get(col, "") or "").strip()
+                if v and v.lower() not in ("nan", "none"):
+                    exit_s = v
+                    break
+            if exit_s:
+                try:
+                    if (today - date.fromisoformat(exit_s)).days < CLOSED_COOLDOWN_DAYS:
+                        blocked_syms.add(str(cr["Symbol"]))
+                except ValueError:
+                    pass
+
     added, skipped = [], []
     for row in rows:
         sym = row.get("Symbol", "")
         if sym in blocked_syms:
             logger.info(
-                "[positions] Skipping %s — active position or pruned within %d days",
+                "[positions] Skipping %s — active position, entered today, or "
+                "pruned/closed within %d days",
                 sym, PRUNE_COOLDOWN_DAYS,
             )
             skipped.append(sym)
@@ -1218,7 +1246,7 @@ def _append_rows_to_csv(path: str, rows: list) -> tuple:
     if added:
         new_df   = pd.DataFrame(added)
         combined = pd.concat([existing, new_df], ignore_index=True) if not existing.empty else new_df
-        combined.to_csv(path, index=False)
+        _save_positions_csv(combined, path)
 
     return added, skipped
 
@@ -1864,6 +1892,15 @@ def api_positions_buy():
             df["Symbol"] = df["Symbol"].astype(str).str.strip().str.upper()
             df["Status"] = df["Status"].fillna("").astype(str).str.strip().str.upper()
 
+        # Reject repeat buys while an active BOUGHT row exists (dup-row source)
+        if not df.empty:
+            dup_mask = (df["Symbol"] == symbol) & (df["Status"] == "BOUGHT")
+            if dup_mask.any():
+                return jsonify({
+                    "status": "error",
+                    "message": f"{symbol} already has an active BOUGHT position"
+                }), 409
+
         # Locate the OPEN position for the symbol
         idx = None
         if not df.empty:
@@ -1877,6 +1914,43 @@ def api_positions_buy():
         default_entry = float(df.at[idx, "Entry_Price"]) if (idx is not None) else float(tech.get("price", 0) or 0)
         market_price = float(tech.get("price", 0) or default_entry)
         entry_price = float(data.get("entry_price", market_price) or market_price)
+
+        # ── Fill-time validation gate ────────────────────────────────────
+        # Plan levels were computed against the entry ZONE; the actual fill can
+        # land above a resistance-pinned T1 (fake instant "win") or below a
+        # trailed SL. Repair any level that is impossible vs the real fill.
+        def _pos_num(v):
+            try:
+                f = float(v)
+            except (TypeError, ValueError):
+                return None
+            return f if (f == f and f > 0) else None  # NaN / non-positive → None
+
+        if idx is not None:
+            t1 = _pos_num(data.get("target_1")) or _pos_num(df.at[idx, "Target_1"]) or entry_price * 1.05
+            t2 = _pos_num(data.get("target_2")) or _pos_num(df.at[idx, "Target_2"]) or entry_price * 1.10
+            sl = _pos_num(data.get("sl")) or _pos_num(df.at[idx, "Current_SL"]) or entry_price * 0.95
+        else:
+            t1 = _pos_num(data.get("target_1")) or entry_price * 1.05
+            t2 = _pos_num(data.get("target_2")) or entry_price * 1.10
+            sl = _pos_num(data.get("sl")) or entry_price * 0.95
+
+        atr_val = _pos_num(tech.get("atr")) or entry_price * 0.02
+        repairs = []
+        if t1 <= entry_price:
+            old = t1
+            t1 = round(max(entry_price + 1.5 * atr_val, entry_price * 1.03), 2)
+            repairs.append(f"T1 ₹{old:.2f}→₹{t1:.2f} (was ≤ fill price)")
+        if t2 <= t1:
+            old = t2
+            t2 = round(max(entry_price + 3.0 * atr_val, t1 * 1.02), 2)
+            repairs.append(f"T2 ₹{old:.2f}→₹{t2:.2f} (was ≤ T1)")
+        if sl >= entry_price:
+            old = sl
+            sl = round(min(entry_price - atr_val, entry_price * 0.985), 2)
+            repairs.append(f"SL ₹{old:.2f}→₹{sl:.2f} (was ≥ fill price)")
+        if repairs:
+            logger.warning("[positions/buy] PLAN REPAIRED %s: %s", symbol, "; ".join(repairs))
 
         _ensure_cols(df, [
             "Buy_Weekly_Trend", "Buy_Base_Days", "Buy_Base_Status",
@@ -1910,14 +1984,22 @@ def api_positions_buy():
             df.at[idx, "Status"] = "BOUGHT"
             df.at[idx, "Entry_Price"] = entry_price
             df.at[idx, "Entry_Date"] = _now_date()
-            if data.get("sl"):
-                df.at[idx, "Current_SL"] = float(data["sl"])
-            if data.get("target_1"):
-                df.at[idx, "Target_1"] = float(data["target_1"])
-            if data.get("target_2"):
-                df.at[idx, "Target_2"] = float(data["target_2"])
+            # Always write the (possibly repaired) levels — inheriting a stale
+            # watchlist plan unchecked is how fake targets reached BOUGHT rows.
+            df.at[idx, "Current_SL"] = sl
+            df.at[idx, "Target_1"] = t1
+            df.at[idx, "Target_2"] = t2
             if data.get("quantity"):
                 df.at[idx, "Quantity"] = float(data["quantity"])
+
+            # Date-ordering guard: the poller stamps Entry_Hit_Date while the
+            # row is still OPEN; if that stamp predates today's Entry_Date,
+            # reset it so hit-date can never precede entry-date.
+            if "Entry_Hit_Date" in df.columns:
+                ehd = str(df.at[idx, "Entry_Hit_Date"] or "").strip()
+                if ehd and ehd.lower() != "nan" and ehd < str(df.at[idx, "Entry_Date"]):
+                    df["Entry_Hit_Date"] = df["Entry_Hit_Date"].astype(object)
+                    df.at[idx, "Entry_Hit_Date"] = df.at[idx, "Entry_Date"]
 
             # Populate snapshot columns
             df.at[idx, "Buy_Weekly_Trend"] = str(tech.get("weekly_trend", "UNKNOWN"))
@@ -1945,9 +2027,9 @@ def api_positions_buy():
                 "Name": data.get("name", symbol),
                 "Entry_Price": entry_price,
                 "Quantity": float(data.get("quantity", 1)),
-                "Target_1": float(data.get("target_1", entry_price * 1.05)),
-                "Target_2": float(data.get("target_2", entry_price * 1.10)),
-                "Current_SL": float(data.get("sl", entry_price * 0.95)),
+                "Target_1": t1,
+                "Target_2": t2,
+                "Current_SL": sl,
                 "Setup": data.get("setup", "SWING"),
                 "Entry_Date": _now_date(),
                 "Status": "BOUGHT",
@@ -2002,6 +2084,8 @@ def api_positions_buy():
             f"• RSI: <b>{tech.get('rsi', 0.0):.1f}</b> | ATR%: <b>{tech.get('atr_pct', 0.0):.2f}%</b>\n"
             f"Good luck! 🚀"
         )
+        if repairs:
+            msg += "\n⚠️ <b>Plan auto-repaired</b>: " + "; ".join(repairs)
         _tg_send(msg)
 
         logger.info("[positions] Executed buy for %s @ %s", symbol, entry_price)
@@ -2282,6 +2366,12 @@ def api_positions_close():
         symbol = symbol.strip().upper()
         entry_date = entry_date.strip()
         exit_price = float(exit_price)
+
+        VALID_OUTCOMES = {"T2_WIN", "T1_HIT", "SL_LOSS", "TRAILED_EXIT_PROFIT", "MANUAL_EXIT"}
+        if outcome not in VALID_OUTCOMES:
+            return jsonify({"status": "error",
+                            "message": f"outcome must be one of {sorted(VALID_OUTCOMES)}"}), 400
+
         path = os.path.join(_ROOT, "data", "positions.csv")
         if not os.path.exists(path):
             return jsonify({"status": "error", "message": "Positions database file not found"}), 404
@@ -2306,11 +2396,26 @@ def api_positions_close():
 
         today_str = datetime.now(pytz.timezone("Asia/Kolkata")).strftime("%Y-%m-%d")
 
+        # Never record a loss on a profitable exit: an SL_LOSS submitted with
+        # an exit above entry means the stop had been trailed above cost.
+        outcome_overridden = False
+        try:
+            row_entry = float(df.at[idx, "Entry_Price"])
+        except (TypeError, ValueError):
+            row_entry = 0.0
+        if outcome == "SL_LOSS" and row_entry > 0 and exit_price > row_entry:
+            outcome = "TRAILED_EXIT_PROFIT"
+            outcome_overridden = True
+            logger.info("[positions/close] %s: SL_LOSS overridden to TRAILED_EXIT_PROFIT "
+                        "(exit %.2f > entry %.2f)", symbol, exit_price, row_entry)
+
         df.at[idx, "Closing_Price"] = exit_price
         df.at[idx, "Outcome"] = outcome
         df.at[idx, "Status"] = "CLOSED"
-        
-        if "WIN" in outcome or outcome == "T2_WIN" or outcome == "T1_HIT":
+
+        # Target-style exits stamp the target date; stop/manual exits stamp the
+        # stop date (a trailed exit mechanically leaves via the stop).
+        if outcome in {"T2_WIN", "T1_HIT"}:
             df.at[idx, "T2_Hit_Date"] = today_str
             df.at[idx, "T2_Notified"] = True
         else:
@@ -2331,6 +2436,8 @@ def api_positions_close():
             f"Outcome: <b>{outcome}</b>\n"
             f"Retrospective Notes recorded. 📊"
         )
+        if outcome_overridden:
+            msg += "\n⚠️ Outcome corrected from SL_LOSS — exit was above entry (profit)."
         _tg_send(msg)
 
         logger.info("[positions] Closed position manually for %s @ %s", symbol, exit_price)
@@ -2358,6 +2465,13 @@ def api_backtest():
     if not os.path.exists(path):
         return jsonify({"error": "Run `python backtest.py` to generate."}), 404
     return send_from_directory(os.path.join(_ROOT, "data"), "backtest_results.json")
+
+
+def _date_str(v):
+    """Date cell → clean string; NaN floats are truthy, so `or`-chaining raw
+    cells yields the literal string 'nan' — route all date reads through this."""
+    s = str(v if v is not None else "").strip()
+    return "" if s.lower() in ("nan", "none", "nat") else s
 
 
 @app.route("/api/results")
@@ -2403,16 +2517,23 @@ def api_results():
         open_df   = df[df["Status"].astype(str).str.upper() == "OPEN"]
         bought_df = df[df["Status"].astype(str).str.upper() == "BOUGHT"]
 
-        wins   = len(closed_df[closed_df["Outcome"] == "T2_WIN"])
-        losses = len(closed_df[closed_df["Outcome"] == "SL_LOSS"])
+        # Money-based scoring: a win is an exit above entry, regardless of the
+        # Outcome label (labels only describe the exit mechanism).
+        ep_s = pd.to_numeric(closed_df["Entry_Price"], errors="coerce")
+        cp_s = pd.to_numeric(closed_df["Closing_Price"], errors="coerce")
+        valid_exit = (ep_s > 0) & (cp_s > 0)
+        wins   = int(((cp_s > ep_s) & valid_exit).sum())
+        losses = int(((cp_s <= ep_s) & valid_exit).sum())
         closed = len(closed_df)
-        win_rate = round(wins / closed, 3) if closed else 0
+        closed_unpriced = int(closed - valid_exit.sum())
+        win_rate = round(wins / int(valid_exit.sum()), 3) if valid_exit.sum() else 0
+        outcome_counts = closed_df["Outcome"].fillna("").astype(str).value_counts().to_dict()
 
         # Average days held for closed trades
         days_list = []
         for _, r in closed_df.iterrows():
             entry_date = str(r.get("Entry_Date", ""))
-            exit_date  = str(r.get("T2_Hit_Date") or r.get("SL_Hit_Date") or "")
+            exit_date  = _date_str(r.get("T2_Hit_Date")) or _date_str(r.get("SL_Hit_Date"))
             if entry_date and exit_date:
                 try:
                     d1 = datetime.strptime(entry_date, "%Y-%m-%d")
@@ -2613,9 +2734,13 @@ def api_results():
             grp        = df[df["Setup"] == setup]
             grp_closed = grp[grp["Status"].astype(str).str.upper() == "CLOSED"]
             grp_open   = grp[grp["Status"].astype(str).str.upper().isin(["OPEN", "BOUGHT"])]
-            grp_wins   = len(grp_closed[grp_closed["Outcome"] == "T2_WIN"])
-            grp_loss   = len(grp_closed[grp_closed["Outcome"] == "SL_LOSS"])
+            gep = pd.to_numeric(grp_closed["Entry_Price"], errors="coerce")
+            gcp = pd.to_numeric(grp_closed["Closing_Price"], errors="coerce")
+            gvalid     = (gep > 0) & (gcp > 0)
+            grp_wins   = int(((gcp > gep) & gvalid).sum())
+            grp_loss   = int(((gcp <= gep) & gvalid).sum())
             grp_total  = len(grp_closed)
+            grp_scored = int(gvalid.sum())
 
             # Realized P&L (closed)
             pnls = []
@@ -2646,7 +2771,7 @@ def api_results():
                 "closed":           int(grp_total),
                 "wins":             int(grp_wins),
                 "losses":           int(grp_loss),
-                "win_rate":         round(grp_wins / grp_total, 3) if grp_total else 0,
+                "win_rate":         round(grp_wins / grp_scored, 3) if grp_scored else 0,
                 "avg_pnl_pct":      round(sum(pnls) / len(pnls), 2) if pnls else 0,
                 "avg_unrealized":   round(sum(unr_pnls) / len(unr_pnls), 2) if unr_pnls else 0,
             }
@@ -2658,7 +2783,7 @@ def api_results():
                 ep   = float(r.get("Entry_Price", 0))
                 cp   = float(r.get("Closing_Price", 0))
                 pnl_pct = round((cp - ep) / ep * 100, 2) if ep and cp else 0
-                exit_date = str(r.get("T2_Hit_Date") or r.get("SL_Hit_Date") or "")
+                exit_date = _date_str(r.get("T2_Hit_Date")) or _date_str(r.get("SL_Hit_Date"))
                 days_held = 0
                 if str(r.get("Entry_Date", "")) and exit_date:
                     try:
@@ -2692,6 +2817,8 @@ def api_results():
             "wins":             wins,
             "losses":           losses,
             "win_rate":         win_rate,
+            "closed_unpriced":  closed_unpriced,
+            "outcome_counts":   outcome_counts,
             "avg_days_held":    avg_days_held,
             "by_setup":         by_setup,
             "closed_positions": closed_list,
@@ -2967,17 +3094,29 @@ def check_positions_and_notify() -> list:
                 csv_dirty = True
 
             if sl_hit and not _truthy(pos.get("SL_Notified")):
-                pending_alerts.append(
-                    f"🔴 <b>SL HIT — {sym}</b>\n"
-                    f"{name}\n"
-                    f"Entry ₹{ep:.2f} → Now ₹{cur:.2f} ({pct:+}%)\n"
-                    f"Stop loss was ₹{sl:.2f} ⛔\n"
-                    f"Position invalidated — exit."
-                )
+                # A stop trailed above entry that then fills above entry is a
+                # profitable exit, not a loss — classify by actual exit price.
+                trailed_profit = bool(ep and cur > ep)
+                if trailed_profit:
+                    pending_alerts.append(
+                        f"🟢 <b>TRAILED STOP EXIT — {sym}</b>\n"
+                        f"{name}\n"
+                        f"Entry ₹{ep:.2f} → Now ₹{cur:.2f} (+{pct}%)\n"
+                        f"Stop was ₹{sl:.2f} (above entry ₹{ep:.2f})\n"
+                        f"Profit locked in. ✅"
+                    )
+                else:
+                    pending_alerts.append(
+                        f"🔴 <b>SL HIT — {sym}</b>\n"
+                        f"{name}\n"
+                        f"Entry ₹{ep:.2f} → Now ₹{cur:.2f} ({pct:+}%)\n"
+                        f"Stop loss was ₹{sl:.2f} ⛔\n"
+                        f"Position invalidated — exit."
+                    )
                 df.at[idx, "SL_Notified"]   = True
                 df.at[idx, "SL_Hit_Date"]   = today_str
                 df.at[idx, "Closing_Price"] = cur
-                df.at[idx, "Outcome"]       = "SL_LOSS"
+                df.at[idx, "Outcome"]       = "TRAILED_EXIT_PROFIT" if trailed_profit else "SL_LOSS"
                 df.at[idx, "Status"]        = "CLOSED"
                 csv_dirty = True
 

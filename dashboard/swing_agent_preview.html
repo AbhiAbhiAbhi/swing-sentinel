@@ -543,6 +543,7 @@ body.light-theme .theme-toggle-btn:hover {
 .setup-card .stats{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px}
 .outcome-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:var(--radius-sm);display:inline-block}
 .outcome-T2_WIN{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
+.outcome-TRAILED_EXIT_PROFIT{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
 .outcome-SL_LOSS{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
 .outcome-T1_HIT{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
 
@@ -1774,7 +1775,7 @@ body.light-theme .tab-group {
           <circle cx="12" cy="12" r="6"></circle>
           <circle cx="12" cy="12" r="2"></circle>
         </svg>
-        Position Entry Gates
+        Trade Sizing & Risk Gates
       </h3>
       <span class="entry-score" id="entryScoreBadge" style="background:var(--card);color:var(--muted);border:1px solid var(--border)">— / 9</span>
     </div>
@@ -1825,7 +1826,7 @@ body.light-theme .tab-group {
         <line x1="12" y1="2" x2="12" y2="22"></line>
         <line x1="2" y1="12" x2="22" y2="12"></line>
       </svg>
-      Entry Gate Status <span class="tool-tag">SKIP IF RED</span><button class="sec-toggle"><span class="chevron">▼</span></button>
+      Macro Market & Regime Gates <span class="tool-tag">SKIP IF RED</span><button class="sec-toggle"><span class="chevron">▼</span></button>
     </h3>
     <div class="tool-body">
     <div id="entryGates" class="bias-builder"></div>
@@ -2238,6 +2239,7 @@ body.light-theme .tab-group {
                 <option value="T2_WIN">Target 2 Hit (T2_WIN)</option>
                 <option value="T1_HIT">Target 1 Hit (T1_HIT)</option>
                 <option value="SL_LOSS">Stop Loss Hit (SL_LOSS)</option>
+                <option value="TRAILED_EXIT_PROFIT">Trailed Stop Exit — Profit (TRAILED_EXIT_PROFIT)</option>
                 <option value="MANUAL_EXIT" selected>Manual Early Exit (MANUAL_EXIT)</option>
               </select>
             </label>
@@ -7993,31 +7995,23 @@ function recalcPosSize() {
 
   // Unadjusted quantity calculation (for reference/display)
   let qty = baseQty;
-  let isCapped = false;
-  if (entry > 0) {
-    const maxQtyByAlloc = Math.floor(maxAlloc / entry);
-    if (qty > maxQtyByAlloc) {
-      qty = maxQtyByAlloc;
-      isCapped = true;
-    }
-  }
   const deployed = qty * entry;
 
-  const rr       = riskPerShr > 0 ? (tgt - entry) / riskPerShr : 0;
-  const chasePct = sl > 0 ? ((entry - sl) / entry * 100) : 0;
-
-  // Blended Targets and returns
-  const t1 = entry > 0 && tgt > entry ? entry + (tgt - entry) / 2 : 0;
-  const qtyT1 = Math.floor(qtyAdj / 2);
-  const qtyT2 = qtyAdj - qtyT1;
-  const t1Profit = t1 > entry ? (t1 - entry) * qtyT1 : 0;
-  const t2Profit = tgt > entry ? (tgt - entry) * qtyT2 : 0;
-  const totalBlendedProfit = t1Profit + t2Profit;
-  const blendedRisk = riskPerShr * qtyAdj;
-  const blendedRR = blendedRisk > 0 ? totalBlendedProfit / blendedRisk : 0;
-
-  const rrCls    = rr >= 2 ? "up" : rr >= 1.5 ? "neutral" : "down";
-  const chaseCls = chasePct <= 3 ? "up" : "down";
+  const rr        = riskPerShr > 0 ? (tgt - entry) / riskPerShr : 0;
+  const slRiskPct = sl > 0 ? ((entry - sl) / entry * 100) : 0;
+ 
+   // Blended Targets and returns
+   const t1 = entry > 0 && tgt > entry ? entry + (tgt - entry) / 2 : 0;
+   const qtyT1 = Math.floor(qtyAdj / 2);
+   const qtyT2 = qtyAdj - qtyT1;
+   const t1Profit = t1 > entry ? (t1 - entry) * qtyT1 : 0;
+   const t2Profit = tgt > entry ? (tgt - entry) * qtyT2 : 0;
+   const totalBlendedProfit = t1Profit + t2Profit;
+   const blendedRisk = riskPerShr * qtyAdj;
+   const blendedRR = blendedRisk > 0 ? totalBlendedProfit / blendedRisk : 0;
+ 
+   const rrCls     = rr >= 2 ? "up" : rr >= 1.5 ? "neutral" : "down";
+   const slRiskCls = slRiskPct <= 3 ? "up" : "down";
   const blendedRrCls = blendedRR >= 2 ? "up" : blendedRR >= 1.5 ? "neutral" : "down";
 
   document.getElementById("ps_out_risk").textContent      = `₹${fmt(risk,0)}`;
@@ -8036,8 +8030,8 @@ function recalcPosSize() {
   rrEl.className   = `val ${rrCls}`;
   
   const chEl    = document.getElementById("ps_out_chase");
-  chEl.textContent = chasePct ? `${chasePct.toFixed(1)}%` : "—";
-  chEl.className   = `val ${chaseCls}`;
+  chEl.textContent = slRiskPct ? `${slRiskPct.toFixed(1)}%` : "—";
+  chEl.className   = `val ${slRiskCls}`;
 
   // Update T1, Blended Profit, Blended R:R in UI
   document.getElementById("ps_out_t1_price").textContent = t1 > 0 ? `₹${fmt(t1,2)}` : "—";
@@ -8175,6 +8169,10 @@ function renderEntryGates() {
   const niftyInfo = window._marketState?.nifty || {};
   const vix       = parseFloat(niftyInfo.vix) || 0;
 
+  // Get live active positions count
+  const activePosTDs = document.querySelectorAll(".pos-table tbody tr");
+  const activeCount  = activePosTDs.length || 0;
+
   const gates = [
     { lbl: "Nifty Regime", val: regime || "—",
       ok: regime === "GREEN", warn: regime === "AMBER",
@@ -8188,9 +8186,9 @@ function renderEntryGates() {
     { lbl: "Day of Week", val: dayName,
       ok: !isExpiry, warn: false,
       detail: isExpiry ? "Thursday — F&O expiry, avoid entries" : "Safe entry day" },
-    { lbl: "Open positions", val: `≤ 5 (cap)`,
-      ok: true, warn: false,
-      detail: "Check Trade Mgmt tab for current count" },
+    { lbl: "Open Positions", val: `${activeCount} active`,
+      ok: activeCount <= 5, warn: activeCount > 3 && activeCount <= 5,
+      detail: activeCount > 5 ? "⚠️ Over limit (Cap: 5)" : "Within limit (Cap: 5)" },
   ];
 
   wrap.innerHTML = gates.map(g => {
@@ -9047,7 +9045,7 @@ function renderStockValidation() {
         <div style="display:flex; justify-content:space-between; align-items:center; width:100%">
           ${item.eligible
             ? `<span class="ca-score ${item.scoreClass}" title="Quality Score is eligible (>= 50/100). Passes all safety gates.">${item.scoreLabel} — ${v.passCount}/${v.total} · Quality Score ${item.score}/100</span>`
-            : `<span class="ca-score weak" style="border:1px solid var(--red); background:rgba(239,68,68,0.12); color:#ef4444; font-weight:bold" title="Safety gates: ${item.reasons.join('; ')}\n\nSafety Gate Rules:\n1. Status: ON_HOLD = Blocked\n2. Weekly Trend: BEARISH = Blocked\n3. Fundamentals: Negative EPS/PE/ROE/EBITDA = Blocked\n4. Institutional: DISTRIBUTION = Blocked\n5. Liquidity: Volume < 100k shares = Blocked\n6. Overextended: 20d return > 25% = Blocked\n7. Debate: SKIP = Blocked\n8. Data freshness: Stale (>1 trading day) = Blocked\n9. Sector x Nifty alignment: Misaligned = Blocked">⚠️ BLOCKED: ${item.reasons[0]}</span>`
+            : `<span class="ca-score weak" style="border:1px solid var(--red); background:rgba(239,68,68,0.12); color:#ef4444; font-weight:bold" title="Safety gates: ${item.reasons.join('; ')}\n\nSafety Gate Rules:\n1. Weekly Trend: BEARISH = Blocked\n2. Fundamentals: Negative EPS/PE/ROE/EBITDA = Blocked\n3. Institutional: DISTRIBUTION = Blocked\n4. Liquidity: Volume < 100k shares = Blocked\n5. Overextended: 20d return > 25% = Blocked\n6. Debate: SKIP = Blocked\n7. Data freshness: Stale (>1 trading day) = Blocked\n8. Sector x Nifty alignment: Misaligned = Blocked">⚠️ BLOCKED: ${item.reasons[0]}</span>`
           }
         </div>
         <button class="ca-btn" onclick="sendToSizer('${s.symbol}')" style="font-size:11.5px; padding:8px 12px; background:var(--blue-bg); color:var(--blue); border-color:var(--blue); font-weight:700; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; width:100%; border-radius:8px; transition:all 0.15s; box-shadow:0 2px 8px rgba(59,130,246,0.12)" onmouseover="this.style.background='var(--blue)';this.style.color='#ffffff'" onmouseout="this.style.background='var(--blue-bg)';this.style.color='var(--blue)'">
@@ -9110,7 +9108,6 @@ function renderEntryChecklist() {
   const deployed     = qty * entry;
   
   const rr           = riskPerShare > 0 ? (target - entry) / riskPerShare : 0;
-  const chasePct     = entry > 0 && sl > 0 ? ((entry - sl) / entry * 100) : 0;
 
   // Read market state
   const regime   = window._marketState?.regime || "";
@@ -9194,17 +9191,97 @@ function renderEntryChecklist() {
       val: rr > 0 ? `1:${rr.toFixed(2)}` : "—",
       valCls: rr >= 2 ? "var(--green)" : rr >= 1.5 ? "var(--yellow)" : "var(--red)" },
 
-    { num: "05", label: "Entry within 3% of breakout level",
-      sub: `Chase: ${chasePct.toFixed(1)}%`,
-      ok: chasePct > 0 && chasePct <= 3, warn: chasePct > 3 && chasePct <= 5,
-      val: chasePct > 0 ? `${chasePct.toFixed(1)}%` : "—",
-      valCls: chasePct <= 3 ? "var(--green)" : "var(--red)" },
-
-    { num: "06", label: "Max 3-5 open positions — within limit",
-      sub: `Currently ~${activeCount} active (estimated from portfolio)`,
-      ok: activeCount <= 5, warn: activeCount > 3 && activeCount <= 5,
-      val: `${activeCount} open`,
-      valCls: activeCount <= 5 ? "var(--green)" : "var(--red)" }
+    { num: "05", label: (() => {
+        if (!ss.symbol) return "Entry within 3% of breakout/support level";
+        const setupType = ss.setup || "";
+        if (setupType === "BREAKOUT") return "Entry within 3% of breakout level";
+        if (setupType === "PULLBACK") return "Entry within 3% of pullback EMA20";
+        return "Entry within 3% of support level";
+      })(),
+      sub: (() => {
+        if (!ss.symbol) return "Select a stock to check";
+        const setupType = ss.setup || "";
+        if (setupType === "BREAKOUT") {
+          const breakoutLvl = parseFloat(ss.resistance_1) || parseFloat(ss.entry_min) || 0;
+          const chase = breakoutLvl > 0 ? ((entry - breakoutLvl) / breakoutLvl * 100) : 0;
+          return `Chase: ${chase.toFixed(1)}% above breakout level (₹${fmt(breakoutLvl, 2)})`;
+        }
+        if (setupType === "PULLBACK") {
+          const pullbackLvl = parseFloat(ss.ema20) || parseFloat(ss.entry_min) || 0;
+          const chase = pullbackLvl > 0 ? ((entry - pullbackLvl) / pullbackLvl * 100) : 0;
+          return `Chase: ${chase.toFixed(1)}% above EMA20 (₹${fmt(pullbackLvl, 2)})`;
+        }
+        const supportLvl = parseFloat(ss.entry_min) || 0;
+        const chase = supportLvl > 0 ? ((entry - supportLvl) / supportLvl * 100) : 0;
+        return `Chase: ${chase.toFixed(1)}% above support (₹${fmt(supportLvl, 2)})`;
+      })(),
+      ok: (() => {
+        if (!ss.symbol || entry <= 0) return false;
+        const setupType = ss.setup || "";
+        if (setupType === "BREAKOUT") {
+          const breakoutLvl = parseFloat(ss.resistance_1) || parseFloat(ss.entry_min) || 0;
+          const chase = breakoutLvl > 0 ? ((entry - breakoutLvl) / breakoutLvl * 100) : 0;
+          return chase <= 3;
+        }
+        if (setupType === "PULLBACK") {
+          const pullbackLvl = parseFloat(ss.ema20) || parseFloat(ss.entry_min) || 0;
+          const chase = pullbackLvl > 0 ? ((entry - pullbackLvl) / pullbackLvl * 100) : 0;
+          return Math.abs(chase) <= 3;
+        }
+        const supportLvl = parseFloat(ss.entry_min) || 0;
+        const chase = supportLvl > 0 ? ((entry - supportLvl) / supportLvl * 100) : 0;
+        return chase <= 3;
+      })(),
+      warn: (() => {
+        if (!ss.symbol || entry <= 0) return false;
+        const setupType = ss.setup || "";
+        if (setupType === "BREAKOUT") {
+          const breakoutLvl = parseFloat(ss.resistance_1) || parseFloat(ss.entry_min) || 0;
+          const chase = breakoutLvl > 0 ? ((entry - breakoutLvl) / breakoutLvl * 100) : 0;
+          return chase > 3 && chase <= 5;
+        }
+        if (setupType === "PULLBACK") {
+          const pullbackLvl = parseFloat(ss.ema20) || parseFloat(ss.entry_min) || 0;
+          const chase = pullbackLvl > 0 ? ((entry - pullbackLvl) / pullbackLvl * 100) : 0;
+          return Math.abs(chase) > 3 && Math.abs(chase) <= 5;
+        }
+        const supportLvl = parseFloat(ss.entry_min) || 0;
+        const chase = supportLvl > 0 ? ((entry - supportLvl) / supportLvl * 100) : 0;
+        return chase > 3 && chase <= 5;
+      })(),
+      val: (() => {
+        if (!ss.symbol || entry <= 0) return "—";
+        const setupType = ss.setup || "";
+        let chase = 0;
+        if (setupType === "BREAKOUT") {
+          const breakoutLvl = parseFloat(ss.resistance_1) || parseFloat(ss.entry_min) || 0;
+          chase = breakoutLvl > 0 ? ((entry - breakoutLvl) / breakoutLvl * 100) : 0;
+        } else if (setupType === "PULLBACK") {
+          const pullbackLvl = parseFloat(ss.ema20) || parseFloat(ss.entry_min) || 0;
+          chase = pullbackLvl > 0 ? ((entry - pullbackLvl) / pullbackLvl * 100) : 0;
+        } else {
+          const supportLvl = parseFloat(ss.entry_min) || 0;
+          chase = supportLvl > 0 ? ((entry - supportLvl) / supportLvl * 100) : 0;
+        }
+        return `${chase.toFixed(1)}%`;
+      })(),
+      valCls: (() => {
+        if (!ss.symbol || entry <= 0) return "var(--muted)";
+        const setupType = ss.setup || "";
+        let chase = 0;
+        if (setupType === "BREAKOUT") {
+          const breakoutLvl = parseFloat(ss.resistance_1) || parseFloat(ss.entry_min) || 0;
+          chase = breakoutLvl > 0 ? ((entry - breakoutLvl) / breakoutLvl * 100) : 0;
+        } else if (setupType === "PULLBACK") {
+          const pullbackLvl = parseFloat(ss.ema20) || parseFloat(ss.entry_min) || 0;
+          chase = pullbackLvl > 0 ? ((entry - pullbackLvl) / pullbackLvl * 100) : 0;
+        } else {
+          const supportLvl = parseFloat(ss.entry_min) || 0;
+          chase = supportLvl > 0 ? ((entry - supportLvl) / supportLvl * 100) : 0;
+        }
+        return Math.abs(chase) <= 3 ? "var(--green)" : "var(--red)";
+      })()
+    }
   ];
 
   const passCount = checks.filter(c => c.ok).length;
@@ -9921,8 +9998,8 @@ function renderAnalytics(r) {
     // 5. Render Closed Trades list
     const closedRows = closedTrades.map(p => {
       const pnlCls = p.pnl_pct >= 0 ? "up" : "down";
-      const statusBg = p.outcome === "T2_WIN" ? "var(--green-bg)" : "var(--red-bg)";
-      const statusClr = p.outcome === "T2_WIN" ? "var(--green)" : "var(--red)";
+      const statusBg = p.pnl_pct > 0 ? "var(--green-bg)" : "var(--red-bg)";
+      const statusClr = p.pnl_pct > 0 ? "var(--green)" : "var(--red)";
       const isSel = (_selectedPMTrade && _selectedPMTrade.symbol === p.symbol && _selectedPMTrade.entry_date === p.entry_date && !_selectedPMTrade.isActive);
       const activePM = isSel ? "border:1px solid var(--purple); background:rgba(139, 92, 246, 0.1);" : "";
         
@@ -10298,9 +10375,9 @@ function loadPostMortemCard(p) {
     
     const outEl = document.getElementById("an_pm_outcome");
     outEl.textContent = p.outcome;
-    outEl.style.background = p.outcome === "T2_WIN" ? "var(--green-bg)" : "var(--red-bg)";
-    outEl.style.color = p.outcome === "T2_WIN" ? "var(--green)" : "var(--red)";
-    outEl.style.borderColor = p.outcome === "T2_WIN" ? "var(--green)" : "var(--red)";
+    outEl.style.background = p.pnl_pct > 0 ? "var(--green-bg)" : "var(--red-bg)";
+    outEl.style.color = p.pnl_pct > 0 ? "var(--green)" : "var(--red)";
+    outEl.style.borderColor = p.pnl_pct > 0 ? "var(--green)" : "var(--red)";
     
     // Populate textareas for retrospective
     document.getElementById("an_pm_why").value = p.post_mortem_why || "";

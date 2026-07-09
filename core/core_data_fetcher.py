@@ -301,6 +301,7 @@ def fetch_stock_technicals(symbol: str, df: Optional[pd.DataFrame] = None) -> Di
             'base_status': base_status,
             'false_breakout_risk': false_breakout_risk,
             'false_breakout_desc': fb_desc,
+            'last_bar_date': df.index[-1].strftime("%Y-%m-%d") if len(df) else "",
             'timestamp': datetime.now().isoformat(),
         }
     except Exception as e:

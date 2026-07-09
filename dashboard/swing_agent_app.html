@@ -543,6 +543,7 @@ body.light-theme .theme-toggle-btn:hover {
 .setup-card .stats{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px}
 .outcome-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:var(--radius-sm);display:inline-block}
 .outcome-T2_WIN{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
+.outcome-TRAILED_EXIT_PROFIT{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
 .outcome-SL_LOSS{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
 .outcome-T1_HIT{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow)}
 
@@ -2114,7 +2115,7 @@ body.light-theme .tab-group {
           <circle cx="12" cy="12" r="6"></circle>
           <circle cx="12" cy="12" r="2"></circle>
         </svg>
-        Position Entry Gates
+        Trade Sizing & Risk Gates
       </h3>
       <span class="entry-score" id="entryScoreBadge" style="background:var(--card);color:var(--muted);border:1px solid var(--border)">— / 9</span>
     </div>
@@ -2165,7 +2166,7 @@ body.light-theme .tab-group {
         <line x1="12" y1="2" x2="12" y2="22"></line>
         <line x1="2" y1="12" x2="22" y2="12"></line>
       </svg>
-      Entry Gate Status <span class="tool-tag">SKIP IF RED</span><button class="sec-toggle"><span class="chevron">▼</span></button>
+      Macro Market & Regime Gates <span class="tool-tag">SKIP IF RED</span><button class="sec-toggle"><span class="chevron">▼</span></button>
     </h3>
     <div class="tool-body">
     <div id="entryGates" class="bias-builder"></div>
@@ -2578,6 +2579,7 @@ body.light-theme .tab-group {
                 <option value="T2_WIN">Target 2 Hit (T2_WIN)</option>
                 <option value="T1_HIT">Target 1 Hit (T1_HIT)</option>
                 <option value="SL_LOSS">Stop Loss Hit (SL_LOSS)</option>
+                <option value="TRAILED_EXIT_PROFIT">Trailed Stop Exit — Profit (TRAILED_EXIT_PROFIT)</option>
                 <option value="MANUAL_EXIT" selected>Manual Early Exit (MANUAL_EXIT)</option>
               </select>
             </label>
@@ -7021,25 +7023,7 @@ async function saveManualOverrides(symbol, btn) {
   }
 }
 
-/* Toggle a candidate's Fundamental_Status (Approved ↔ On Hold) from the Safety Gate #1 pill.
-   Reuses the existing /api/positions/update-override endpoint. */
-async function toggleFundStatus(symbol, current) {
-  const next = (current || "APPROVED").toUpperCase() === "ON_HOLD" ? "APPROVED" : "ON_HOLD";
-  try {
-    const res = await apiFetch("/api/positions/update-override", {
-      method: "POST",
-      body: JSON.stringify({ symbol, fundamental_status: next })
-    });
-    if (res.error || res.status === "error") {
-      toast("Failed to update Fund status: " + (res.message || res.error || ""), "error");
-      return;
-    }
-    toast(`${symbol} Fund status → ${next}`, "success");
-    await loadPositions();   // re-renders the Analysis-tab matrix + gates
-  } catch (err) {
-    toast("Error updating Fund status: " + err, "error");
-  }
-}
+
 
 /* ── ⚔️ Bull vs. Bear Adversarial Debate Panel Logic ────────────────── */
 
@@ -8811,31 +8795,23 @@ function recalcPosSize() {
 
   // Unadjusted quantity calculation (for reference/display)
   let qty = baseQty;
-  let isCapped = false;
-  if (entry > 0) {
-    const maxQtyByAlloc = Math.floor(maxAlloc / entry);
-    if (qty > maxQtyByAlloc) {
-      qty = maxQtyByAlloc;
-      isCapped = true;
-    }
-  }
   const deployed = qty * entry;
 
-  const rr       = riskPerShr > 0 ? (tgt - entry) / riskPerShr : 0;
-  const chasePct = sl > 0 ? ((entry - sl) / entry * 100) : 0;
-
-  // Blended Targets and returns
-  const t1 = entry > 0 && tgt > entry ? entry + (tgt - entry) / 2 : 0;
-  const qtyT1 = Math.floor(qtyAdj / 2);
-  const qtyT2 = qtyAdj - qtyT1;
-  const t1Profit = t1 > entry ? (t1 - entry) * qtyT1 : 0;
-  const t2Profit = tgt > entry ? (tgt - entry) * qtyT2 : 0;
-  const totalBlendedProfit = t1Profit + t2Profit;
-  const blendedRisk = riskPerShr * qtyAdj;
-  const blendedRR = blendedRisk > 0 ? totalBlendedProfit / blendedRisk : 0;
-
-  const rrCls    = rr >= 2 ? "up" : rr >= 1.5 ? "neutral" : "down";
-  const chaseCls = chasePct <= 3 ? "up" : "down";
+  const rr        = riskPerShr > 0 ? (tgt - entry) / riskPerShr : 0;
+  const slRiskPct = sl > 0 ? ((entry - sl) / entry * 100) : 0;
+ 
+   // Blended Targets and returns
+   const t1 = entry > 0 && tgt > entry ? entry + (tgt - entry) / 2 : 0;
+   const qtyT1 = Math.floor(qtyAdj / 2);
+   const qtyT2 = qtyAdj - qtyT1;
+   const t1Profit = t1 > entry ? (t1 - entry) * qtyT1 : 0;
+   const t2Profit = tgt > entry ? (tgt - entry) * qtyT2 : 0;
+   const totalBlendedProfit = t1Profit + t2Profit;
+   const blendedRisk = riskPerShr * qtyAdj;
+   const blendedRR = blendedRisk > 0 ? totalBlendedProfit / blendedRisk : 0;
+ 
+   const rrCls     = rr >= 2 ? "up" : rr >= 1.5 ? "neutral" : "down";
+   const slRiskCls = slRiskPct <= 3 ? "up" : "down";
   const blendedRrCls = blendedRR >= 2 ? "up" : blendedRR >= 1.5 ? "neutral" : "down";
 
   document.getElementById("ps_out_risk").textContent      = `₹${fmt(risk,0)}`;
@@ -8854,8 +8830,8 @@ function recalcPosSize() {
   rrEl.className   = `val ${rrCls}`;
   
   const chEl    = document.getElementById("ps_out_chase");
-  chEl.textContent = chasePct ? `${chasePct.toFixed(1)}%` : "—";
-  chEl.className   = `val ${chaseCls}`;
+  chEl.textContent = slRiskPct ? `${slRiskPct.toFixed(1)}%` : "—";
+  chEl.className   = `val ${slRiskCls}`;
 
   // Update T1, Blended Profit, Blended R:R in UI
   document.getElementById("ps_out_t1_price").textContent = t1 > 0 ? `₹${fmt(t1,2)}` : "—";
@@ -8993,6 +8969,10 @@ function renderEntryGates() {
   const niftyInfo = window._marketState?.nifty || {};
   const vix       = parseFloat(niftyInfo.vix) || 0;
 
+  // Get live active positions count
+  const activePosTDs = document.querySelectorAll(".pos-table tbody tr");
+  const activeCount  = activePosTDs.length || 0;
+
   const gates = [
     { lbl: "Nifty Regime", val: regime || "—",
       ok: regime === "GREEN", warn: regime === "AMBER",
@@ -9006,9 +8986,9 @@ function renderEntryGates() {
     { lbl: "Day of Week", val: dayName,
       ok: !isExpiry, warn: false,
       detail: isExpiry ? "Thursday — F&O expiry, avoid entries" : "Safe entry day" },
-    { lbl: "Open positions", val: `≤ 5 (cap)`,
-      ok: true, warn: false,
-      detail: "Check Trade Mgmt tab for current count" },
+    { lbl: "Open Positions", val: `${activeCount} active`,
+      ok: activeCount <= 5, warn: activeCount > 3 && activeCount <= 5,
+      detail: activeCount > 5 ? "⚠️ Over limit (Cap: 5)" : "Within limit (Cap: 5)" },
   ];
 
   wrap.innerHTML = gates.map(g => {
@@ -9333,28 +9313,21 @@ function evaluateGates(s) {
     num, name, pass: !fail, reason: fail ? reason : null, value: value != null ? String(value) : "—", tooltip
   });
 
-  // 1 · Fund status — ON_HOLD on fundamental status (value rendered as an Approved↔On Hold toggle)
-  const onHoldFund = (s.fundamental_status || "").toUpperCase() === "ON_HOLD";
-  add(1, "Fund status", onHoldFund,
-    "Fundamental status ON_HOLD",
-    (s.fundamental_status || "APPROVED").toUpperCase(),
-    "Rule: fundamental_status !== 'ON_HOLD'");
-
-  // 2 · Weekly trend — bearish
+  // 1 · Weekly trend — bearish
   const wt = (s.weekly_trend || "BULLISH").toUpperCase();
   const wtReason = hit(["weekly trend", "bearish weekly"]);
-  add(2, "Weekly trend", wt === "BEARISH" || !!wtReason,
+  add(1, "Weekly trend", wt === "BEARISH" || !!wtReason,
     wtReason || "Bearish weekly trend", wt,
     "Rule: weekly_trend !== 'BEARISH'");
 
-  // 3 · Fundamentals — weakness flagged
+  // 2 · Fundamentals — weakness flagged
   const fundReason = hit(["fundamental", "negative eps", "negative pe", "weak roe", "ebitda", "earnings weak"]);
   const fundStatusBad = ["REJECTED", "WEAK", "FAIL"].includes((s.fundamental_status || "").toUpperCase());
-  add(3, "Fundamentals", !!fundReason || fundStatusBad,
+  add(2, "Fundamentals", !!fundReason || fundStatusBad,
     fundReason || "Fundamental weakness flagged", s.fundamental_status || "—",
     "Rule: No negative EPS, PE, ROE, or EBITDA, and fundamental_status is not REJECTED/WEAK/FAIL");
 
-  // 4 · Institutional — distribution detected
+  // 3 · Institutional — distribution detected
   let instFail = false, instReason = null, instVal = "No data";
   if (s.shareholding && s.shareholding.status === "success") {
     const sh = s.shareholding;
@@ -9364,23 +9337,23 @@ function evaluateGates(s) {
     if (cls === "DISTRIBUTION" || sc <= -3.0) { instFail = true; instReason = "Institutional distribution (" + sc + ")"; }
   }
   if (!instFail) { const r = hit(["distribution"]); if (r) { instFail = true; instReason = r; } }
-  add(4, "Institutional", instFail, instReason, instVal,
+  add(3, "Institutional", instFail, instReason, instVal,
     "Rule: Shareholding classification !== 'DISTRIBUTION' and consensus_score > -3.0");
 
-  // 5 · Liquidity — below min turnover/volume
+  // 4 · Liquidity — below min turnover/volume
   const liqReason = hit(["liquidity", "turnover", "illiquid", "below min", "volume too low"]);
-  add(5, "Liquidity", !!liqReason, liqReason || "Below minimum liquidity",
+  add(4, "Liquidity", !!liqReason, liqReason || "Below minimum liquidity",
     liqReason ? "Below min" : "OK",
     "Rule: avg_volume_20d >= 100,000 shares and turnover >= ₹10 Crore (no liquidity trap where Entry - SL < 1.5 * ATR)");
 
-  // 6 · Overextension — 20d return > 25%
+  // 5 · Overextension — 20d return > 25%
   const r20 = parseFloat(s.return_20d);
   const overext = !isNaN(r20) && r20 > 25;
-  add(6, "Overextension", overext, "Overextended (+" + (isNaN(r20) ? "?" : r20.toFixed(1)) + "% in 20d)",
+  add(5, "Overextension", overext, "Overextended (+" + (isNaN(r20) ? "?" : r20.toFixed(1)) + "% in 20d)",
     isNaN(r20) ? "—" : `${r20 >= 0 ? "+" : ""}${r20.toFixed(1)}% / 20d`,
     "Rule: return_20d <= 25.0% (not overextended)");
 
-  // 7 · Adversarial check — debate verdict is SKIP
+  // 6 · Adversarial check — debate verdict is SKIP
   let dv = null, dvReason = "";
   if (s.debate && s.debate.verdict) { 
     dv = s.debate.verdict; 
@@ -9390,26 +9363,26 @@ function evaluateGates(s) {
     dvReason = s.debate_rationale || "";
   }
   const isSkip = dv && String(dv).toUpperCase() === "SKIP";
-  add(7, "Adversarial check", isSkip,
+  add(6, "Adversarial check", isSkip,
     dvReason || "Adversarial Judge verdict is SKIP",
     dv || "PASS",
     "Rule: debate.verdict !== 'SKIP'");
 
-  // 8 · Data freshness — older than 1 trading day
-  add(8, "Data freshness", isDataStale(s), "Stale data (older than 1 trading day)",
+  // 7 · Data freshness — older than 1 trading day
+  add(7, "Data freshness", isDataStale(s), "Stale data (older than 1 trading day)",
     isDataStale(s) ? "Stale" : "Fresh",
     "Rule: Scan date is within 1 trading day");
 
-  // 9 · Sector × Nifty regime — RED sector / rotation-trap / hard-skip cell
+  // 8 · Sector × Nifty regime — RED sector / rotation-trap / hard-skip cell
   const rm = s.regime_multiplier;
   const hardSkip = rm !== undefined && parseFloat(rm) === 0;
   const regReason = hit(["rotation trap", "sector rotation", "sector red", "hard skip", "regime block"]);
-  add(9, "Sector × Nifty regime", hardSkip || !!regReason,
+  add(8, "Sector × Nifty regime", hardSkip || !!regReason,
     regReason || "Sector rotation trap (Nifty / sector regime block)",
     rm !== undefined ? `${parseFloat(rm).toFixed(2)}×` : "—",
     "Rule: Sector index relative to 20 EMA aligned with Nifty regime matrix (regime_multiplier > 0)");
 
-  // 10 · Distance to entry — price > entry_max * 1.05
+  // 9 · Distance to entry — price > entry_max * 1.05
   const priceVal = parseFloat(s.price || 0);
   const entryMax = parseFloat(s.entry_max || s.entry || 0);
   let distanceFail = false;
@@ -9423,10 +9396,10 @@ function evaluateGates(s) {
       distanceReason = `Price is ${distPct.toFixed(1)}% above entry zone max (${entryMax})`;
     }
   }
-  add(10, "Distance to entry", distanceFail, distanceReason, distanceVal,
+  add(9, "Distance to entry", distanceFail, distanceReason, distanceVal,
     "Rule: ((price - entry_zone_max) / price) * 100 <= 5.0%");
 
-  // 11 · CMP Risk-Reward — target upside < 2% or R:R from CMP < 1.0
+  // 10 · CMP Risk-Reward — target upside < 2% or R:R from CMP < 1.0
   const slVal = parseFloat(s.sl || 0);
   const t2Val = parseFloat(s.target_2 || 0);
   let rrFail = false;
@@ -9446,10 +9419,10 @@ function evaluateGates(s) {
       rrReason = `Poor R:R ratio at CMP (1:${cmpRr.toFixed(1)} < 1:1)`;
     }
   }
-  add(11, "CMP Risk-Reward", rrFail, rrReason, rrVal,
+  add(10, "CMP Risk-Reward", rrFail, rrReason, rrVal,
     "Rule: ((target_2 - price) / price) * 100 >= 2.0% AND (target_2 - price) / (price - sl) >= 1.0");
 
-  // 12 · Breakout Volume — if setup == BREAKOUT, vol_ratio >= 1.2
+  // 11 · Breakout Volume — if setup == BREAKOUT, vol_ratio >= 1.2
   const setupType = String(s.setup || "").toUpperCase();
   const volRatio = parseFloat(s.vol_ratio != null ? s.vol_ratio : 1.0);
   let volFail = false;
@@ -9460,12 +9433,12 @@ function evaluateGates(s) {
       volReason = `Weak breakout volume (${volRatio.toFixed(2)}x < 1.2x)`;
     }
   }
-  add(12, "Breakout Volume", volFail, volReason, `${volRatio.toFixed(2)}x`,
+  add(11, "Breakout Volume", volFail, volReason, `${volRatio.toFixed(2)}x`,
     "Rule: If setup is 'BREAKOUT', volume_ratio >= 1.2x");
 
-  // 13 · Server verdict — SKIP
+  // 12 · Server verdict — SKIP
   const serverSkip = (s.verdict || "").toUpperCase() === "SKIP";
-  add(13, "Server verdict", serverSkip,
+  add(12, "Server verdict", serverSkip,
     reasons.length ? reasons.join("; ") : "Server rejected the stock (verdict is SKIP)",
     s.verdict || "PASS",
     "Rule: Server-side apply_risk_filters() verdict is not 'SKIP' (no unsustained volume spikes or multi-flag rejections)");
@@ -9753,18 +9726,7 @@ function debateVerdictBadge(s) {
   return `<span class="tag" style="${dvStyle}; font-weight:800;" title="Adversarial Judge Verdict: ${dv} (${conv}/10) — independent of the 🛡 safety gates">⚖️ JUDGE: ${dv}</span>`;
 }
 
-// Always-visible Fund status ON/OFF toggle (Gate #1). Approved = ON (green), On Hold = OFF (red).
-// Click writes Fundamental_Status via toggleFundStatus() → /api/positions/update-override.
-function fundStatusToggle(s) {
-  const fs = (s.fundamental_status || "APPROVED").toUpperCase();
-  const onHold = fs === "ON_HOLD";
-  return `<button class="fund-toggle ${onHold ? "hold" : "ok"}"
-    onclick="event.stopPropagation(); toggleFundStatus('${s.symbol}', '${fs}')"
-    title="Fund status (Safety Gate #1) — click to toggle Approved ↔ On Hold">
-    <span class="ft-track"><span class="ft-knob"></span></span>
-    <span class="ft-text">Fund: ${onHold ? "On Hold" : "Approved"}</span>
-  </button>`;
-}
+
 
 // Small badge for the structural safety-gate verdict (s.verdict from apply_risk_filters).
 // Distinct from the ⚖️ adversarial debate (Judge) verdict — same color scheme as the scan grid's vBadge.
@@ -9864,7 +9826,7 @@ function renderStockValidation() {
     const gateStripHtml = `
       <div class="ca-gate-strip">
         <button class="ca-gate-bar" onclick="toggleGateStrip('${gateId}', this)">
-          <span class="ca-gate-title" title="🛡 Safety gates — all 13 must PASS or this stock is blocked from entry.\n1. Fund status: not ON_HOLD\n2. Weekly trend: not bearish\n3. Fundamentals: no weakness flagged\n4. Institutional: no FII/DII distribution\n5. Liquidity: meets min turnover/volume\n6. Overextension: ≤25% return over 20d\n7. Adversarial check: judge verdict not SKIP\n8. Data freshness: ≤1 trading day old\n9. Sector × Nifty regime: not a rotation-trap / hard-skip cell\n10. Distance to entry: CMP ≤ 5% above entry zone max\n11. CMP Risk-Reward: target upside ≥ 2% and R:R from CMP ≥ 1:1\n12. Breakout Volume: volume ratio ≥ 1.2x if BREAKOUT\n13. Server verdict: backend verdict is not SKIP\nDots show per-gate status — click the bar to expand reasons.">🛡 Safety gates <span class="${gateChevronCls}">▼</span></span>
+          <span class="ca-gate-title" title="🛡 Safety gates — all 12 must PASS or this stock is blocked from entry.\n1. Weekly trend: not bearish\n2. Fundamentals: no weakness flagged\n3. Institutional: no FII/DII distribution\n4. Liquidity: meets min turnover/volume\n5. Overextension: ≤25% return over 20d\n6. Adversarial check: judge verdict not SKIP\n7. Data freshness: ≤1 trading day old\n8. Sector × Nifty regime: not a rotation-trap / hard-skip cell\n9. Distance to entry: CMP ≤ 5% above entry zone max\n10. CMP Risk-Reward: target upside ≥ 2% and R:R from CMP ≥ 1:1\n11. Breakout Volume: volume ratio ≥ 1.2x if BREAKOUT\n12. Server verdict: backend verdict is not SKIP\nDots show per-gate status — click the bar to expand reasons.">🛡 Safety gates <span class="${gateChevronCls}">▼</span></span>
           <span style="display:flex;align-items:center;gap:10px">
             <span class="ca-gate-dots">${gateDots}</span>
             <span class="ca-gate-count ${countCls}">${countTxt}</span>
@@ -10039,7 +10001,6 @@ function renderEntryChecklist() {
   const deployed     = qty * entry;
   
   const rr           = riskPerShare > 0 ? (target - entry) / riskPerShare : 0;
-  const chasePct     = entry > 0 && sl > 0 ? ((entry - sl) / entry * 100) : 0;
 
   // Read market state
   const regime   = window._marketState?.regime || "";
@@ -10123,17 +10084,97 @@ function renderEntryChecklist() {
       val: rr > 0 ? `1:${rr.toFixed(2)}` : "—",
       valCls: rr >= 2 ? "var(--green)" : rr >= 1.5 ? "var(--yellow)" : "var(--red)" },
 
-    { num: "05", label: "Entry within 3% of breakout level",
-      sub: `Chase: ${chasePct.toFixed(1)}%`,
-      ok: chasePct > 0 && chasePct <= 3, warn: chasePct > 3 && chasePct <= 5,
-      val: chasePct > 0 ? `${chasePct.toFixed(1)}%` : "—",
-      valCls: chasePct <= 3 ? "var(--green)" : "var(--red)" },
-
-    { num: "06", label: "Max 3-5 open positions — within limit",
-      sub: `Currently ~${activeCount} active (estimated from portfolio)`,
-      ok: activeCount <= 5, warn: activeCount > 3 && activeCount <= 5,
-      val: `${activeCount} open`,
-      valCls: activeCount <= 5 ? "var(--green)" : "var(--red)" }
+    { num: "05", label: (() => {
+        if (!ss.symbol) return "Entry within 3% of breakout/support level";
+        const setupType = ss.setup || "";
+        if (setupType === "BREAKOUT") return "Entry within 3% of breakout level";
+        if (setupType === "PULLBACK") return "Entry within 3% of pullback EMA20";
+        return "Entry within 3% of support level";
+      })(),
+      sub: (() => {
+        if (!ss.symbol) return "Select a stock to check";
+        const setupType = ss.setup || "";
+        if (setupType === "BREAKOUT") {
+          const breakoutLvl = parseFloat(ss.resistance_1) || parseFloat(ss.entry_min) || 0;
+          const chase = breakoutLvl > 0 ? ((entry - breakoutLvl) / breakoutLvl * 100) : 0;
+          return `Chase: ${chase.toFixed(1)}% above breakout level (₹${fmt(breakoutLvl, 2)})`;
+        }
+        if (setupType === "PULLBACK") {
+          const pullbackLvl = parseFloat(ss.ema20) || parseFloat(ss.entry_min) || 0;
+          const chase = pullbackLvl > 0 ? ((entry - pullbackLvl) / pullbackLvl * 100) : 0;
+          return `Chase: ${chase.toFixed(1)}% above EMA20 (₹${fmt(pullbackLvl, 2)})`;
+        }
+        const supportLvl = parseFloat(ss.entry_min) || 0;
+        const chase = supportLvl > 0 ? ((entry - supportLvl) / supportLvl * 100) : 0;
+        return `Chase: ${chase.toFixed(1)}% above support (₹${fmt(supportLvl, 2)})`;
+      })(),
+      ok: (() => {
+        if (!ss.symbol || entry <= 0) return false;
+        const setupType = ss.setup || "";
+        if (setupType === "BREAKOUT") {
+          const breakoutLvl = parseFloat(ss.resistance_1) || parseFloat(ss.entry_min) || 0;
+          const chase = breakoutLvl > 0 ? ((entry - breakoutLvl) / breakoutLvl * 100) : 0;
+          return chase <= 3;
+        }
+        if (setupType === "PULLBACK") {
+          const pullbackLvl = parseFloat(ss.ema20) || parseFloat(ss.entry_min) || 0;
+          const chase = pullbackLvl > 0 ? ((entry - pullbackLvl) / pullbackLvl * 100) : 0;
+          return Math.abs(chase) <= 3;
+        }
+        const supportLvl = parseFloat(ss.entry_min) || 0;
+        const chase = supportLvl > 0 ? ((entry - supportLvl) / supportLvl * 100) : 0;
+        return chase <= 3;
+      })(),
+      warn: (() => {
+        if (!ss.symbol || entry <= 0) return false;
+        const setupType = ss.setup || "";
+        if (setupType === "BREAKOUT") {
+          const breakoutLvl = parseFloat(ss.resistance_1) || parseFloat(ss.entry_min) || 0;
+          const chase = breakoutLvl > 0 ? ((entry - breakoutLvl) / breakoutLvl * 100) : 0;
+          return chase > 3 && chase <= 5;
+        }
+        if (setupType === "PULLBACK") {
+          const pullbackLvl = parseFloat(ss.ema20) || parseFloat(ss.entry_min) || 0;
+          const chase = pullbackLvl > 0 ? ((entry - pullbackLvl) / pullbackLvl * 100) : 0;
+          return Math.abs(chase) > 3 && Math.abs(chase) <= 5;
+        }
+        const supportLvl = parseFloat(ss.entry_min) || 0;
+        const chase = supportLvl > 0 ? ((entry - supportLvl) / supportLvl * 100) : 0;
+        return chase > 3 && chase <= 5;
+      })(),
+      val: (() => {
+        if (!ss.symbol || entry <= 0) return "—";
+        const setupType = ss.setup || "";
+        let chase = 0;
+        if (setupType === "BREAKOUT") {
+          const breakoutLvl = parseFloat(ss.resistance_1) || parseFloat(ss.entry_min) || 0;
+          chase = breakoutLvl > 0 ? ((entry - breakoutLvl) / breakoutLvl * 100) : 0;
+        } else if (setupType === "PULLBACK") {
+          const pullbackLvl = parseFloat(ss.ema20) || parseFloat(ss.entry_min) || 0;
+          chase = pullbackLvl > 0 ? ((entry - pullbackLvl) / pullbackLvl * 100) : 0;
+        } else {
+          const supportLvl = parseFloat(ss.entry_min) || 0;
+          chase = supportLvl > 0 ? ((entry - supportLvl) / supportLvl * 100) : 0;
+        }
+        return `${chase.toFixed(1)}%`;
+      })(),
+      valCls: (() => {
+        if (!ss.symbol || entry <= 0) return "var(--muted)";
+        const setupType = ss.setup || "";
+        let chase = 0;
+        if (setupType === "BREAKOUT") {
+          const breakoutLvl = parseFloat(ss.resistance_1) || parseFloat(ss.entry_min) || 0;
+          chase = breakoutLvl > 0 ? ((entry - breakoutLvl) / breakoutLvl * 100) : 0;
+        } else if (setupType === "PULLBACK") {
+          const pullbackLvl = parseFloat(ss.ema20) || parseFloat(ss.entry_min) || 0;
+          chase = pullbackLvl > 0 ? ((entry - pullbackLvl) / pullbackLvl * 100) : 0;
+        } else {
+          const supportLvl = parseFloat(ss.entry_min) || 0;
+          chase = supportLvl > 0 ? ((entry - supportLvl) / supportLvl * 100) : 0;
+        }
+        return Math.abs(chase) <= 3 ? "var(--green)" : "var(--red)";
+      })()
+    }
   ];
 
   const passCount = checks.filter(c => c.ok).length;
@@ -10864,8 +10905,8 @@ function renderAnalytics(r) {
     // 5. Render Closed Trades list
     const closedRows = closedTrades.map(p => {
       const pnlCls = p.pnl_pct >= 0 ? "up" : "down";
-      const statusBg = p.outcome === "T2_WIN" ? "var(--green-bg)" : "var(--red-bg)";
-      const statusClr = p.outcome === "T2_WIN" ? "var(--green)" : "var(--red)";
+      const statusBg = p.pnl_pct > 0 ? "var(--green-bg)" : "var(--red-bg)";
+      const statusClr = p.pnl_pct > 0 ? "var(--green)" : "var(--red)";
       const isSel = (_selectedPMTrade && _selectedPMTrade.symbol === p.symbol && _selectedPMTrade.entry_date === p.entry_date && !_selectedPMTrade.isActive);
       const activePM = isSel ? "border:1px solid var(--purple); background:rgba(139, 92, 246, 0.1);" : "";
         
@@ -11241,9 +11282,9 @@ function loadPostMortemCard(p) {
     
     const outEl = document.getElementById("an_pm_outcome");
     outEl.textContent = p.outcome;
-    outEl.style.background = p.outcome === "T2_WIN" ? "var(--green-bg)" : "var(--red-bg)";
-    outEl.style.color = p.outcome === "T2_WIN" ? "var(--green)" : "var(--red)";
-    outEl.style.borderColor = p.outcome === "T2_WIN" ? "var(--green)" : "var(--red)";
+    outEl.style.background = p.pnl_pct > 0 ? "var(--green-bg)" : "var(--red-bg)";
+    outEl.style.color = p.pnl_pct > 0 ? "var(--green)" : "var(--red)";
+    outEl.style.borderColor = p.pnl_pct > 0 ? "var(--green)" : "var(--red)";
     
     // Populate textareas for retrospective
     document.getElementById("an_pm_why").value = p.post_mortem_why || "";
