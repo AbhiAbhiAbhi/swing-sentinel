@@ -852,14 +852,26 @@ def filter_overextended_1m(tech: dict, max_runup_pct: float = 25.0) -> Tuple[boo
 
 def apply_risk_filters(symbol: str, tech: dict,
                        sector_pulse: Optional[dict] = None,
-                       thresholds: Optional[dict] = None) -> Tuple[bool, list, str, float]:
+                       thresholds: Optional[dict] = None,
+                       detail: Optional[list] = None) -> Tuple[bool, list, str, float]:
     """
     Run the complete, stacked filter stack and classify the stock into
     one of the four states: PASS, WATCH, WARNING, or SKIP.
     Also calculates the regime multiplier based on Sector × Nifty alignment (Gate #9).
 
     `thresholds` is an optional dict from the UI with parameters.
+    `detail`, if a list is passed in, gets one dict appended per filter
+    evaluated (filter/gate/verdict/measured/threshold/margin) — used to build
+    the entry decision snapshot (issue #4). No-op when `detail` is None, so
+    existing callers are unaffected.
     """
+    def _rec(filter_name, gate, verdict, measured=None, threshold=None, margin=None):
+        if detail is not None:
+            detail.append({
+                "filter": filter_name, "gate": gate, "verdict": verdict,
+                "measured": measured, "threshold": threshold, "margin": margin,
+            })
+
     t = thresholds or {}
     max_atr  = t.get("max_atr_pct",          MAX_ATR_PCT * 100) / 100
     worst_60 = t.get("max_1d_drop_pct",       WORST_60D_DROP_PCT * 100) / 100
@@ -883,33 +895,48 @@ def apply_risk_filters(symbol: str, tech: dict,
     w_trend = str(tech.get("weekly_trend", "UNKNOWN")).strip().upper()
     if w_trend == "BEARISH":
         hard_skips.append("bearish weekly trend")
+    _rec("weekly_trend", "Gate#2", "SKIP" if w_trend == "BEARISH" else "PASS",
+         measured=w_trend, threshold="not BEARISH")
 
     # 3. Fundamental strength (Gate #3)
     if block_unprofitable:
         passed, reason = filter_fundamental_strength(symbol)
         if not passed:
             hard_skips.append(reason)
+        _rec("fundamental_strength", "Gate#3", "PASS" if passed else "SKIP",
+             measured=reason or "OK")
 
     # 4. Institutional dealings sanity (FII / DII exit - Gate #4)
     passed, reason = filter_institutional_dealings(symbol)
     if not passed:
         hard_skips.append(reason)
+    _rec("institutional_dealings", "Gate#4", "PASS" if passed else "SKIP",
+         measured=reason or "OK")
 
     # 5. Liquidity check (Gate #5)
     if block_low_liquidity:
         passed, reason = filter_low_liquidity(tech)
         if not passed:
             hard_skips.append(reason)
+        avg_vol = tech.get("avg_volume_20d")
+        _rec("low_liquidity", "Gate#5", "PASS" if passed else "SKIP",
+             measured=avg_vol, threshold=100000,
+             margin=(avg_vol - 100000) if avg_vol is not None else None)
 
     # 6. Overextended (Gate #6)
     if block_overextended:
         passed, reason = filter_overextended_1m(tech)
         if not passed:
             hard_skips.append(reason)
+        runup = tech.get("return_20d")
+        _rec("overextended_1m", "Gate#6", "PASS" if passed else "SKIP",
+             measured=runup, threshold=25.0,
+             margin=(25.0 - runup) if runup is not None else None)
 
     # 7. Adversarial debate check (Gate #7)
     #    If a manual run was performed (cached debate exists) and the judge verdict is SKIP,
     #    it fails the safety gate. If it hasn't been run, it is allowed to pass.
+    dv = None
     try:
         _ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         CACHE_DIR = os.path.join(_ROOT_DIR, "data", "due_diligence")
@@ -928,8 +955,11 @@ def apply_risk_filters(symbol: str, tech: dict,
                         hard_skips.append(f"debate chamber skip verdict ({data.get('judge_rationale') or 'Adversarial Judge verdict is SKIP'})")
     except Exception as e:
         logger.warning("[risk_filters] Failed to evaluate cached debate for %s: %s", symbol, e)
+    _rec("debate_skip_check", "Gate#7", "SKIP" if dv == "SKIP" else "PASS",
+         measured=dv or "no cached debate", threshold="not SKIP")
 
     # 8. Data Freshness Check (Gate #8)
+    _freshness_pre_len = len(hard_skips)
     last_bar_date = tech.get("last_bar_date")
     if last_bar_date:
         try:
@@ -965,20 +995,32 @@ def apply_risk_filters(symbol: str, tech: dict,
                 hard_skips.append("stale data (invalid timestamp)")
         else:
             hard_skips.append("stale data (missing date/timestamp)")
+    _rec("data_freshness", "Gate#8",
+         "SKIP" if len(hard_skips) > _freshness_pre_len else "PASS",
+         measured=last_bar_date or tech.get("timestamp") or "missing",
+         threshold="<=1 trading day old (3 on Friday scan)")
 
     # 8. IPO check
     passed, reason = filter_ipo_age(tech, min_ipo)
     if not passed:
         hard_skips.append(reason)
+    bars = tech.get("bars_count")
+    _rec("ipo_age", "unlabeled", "PASS" if passed else "SKIP",
+         measured=bars, threshold=min_ipo,
+         margin=(bars - min_ipo) if bars is not None else None)
 
     # 9. Earnings proximity
     passed, reason = filter_earnings_soon(symbol, earn_win)
     if not passed:
         hard_skips.append(reason)
-    
+    _rec("earnings_soon", "unlabeled", "PASS" if passed else "SKIP",
+         measured=reason or "OK", threshold=f"{earn_win}d window")
+
     passed, reason = filter_post_earnings_cooling(symbol, earn_cool)
     if not passed:
         hard_skips.append(reason)
+    _rec("post_earnings_cooling", "unlabeled", "PASS" if passed else "SKIP",
+         measured=reason or "OK", threshold=f"{earn_cool}d cooling")
 
     # 10. Sector × Nifty regime alignment (Gate #9)
     if block_sec:
@@ -1033,16 +1075,27 @@ def apply_risk_filters(symbol: str, tech: dict,
                 else: # AMBER
                     regime_mult = 0.5
 
+        _rec("sector_nifty_regime", "Gate#9",
+             "SKIP" if sector_status == "RED" else "PASS",
+             measured={"sector": sector, "pct_from_ema20": pct, "sector_status": sector_status,
+                       "nifty_regime": nifty_regime, "regime_mult": regime_mult},
+             threshold=-2.0,
+             margin=(pct - (-2.0)) if pct is not None else None)
+
     # 11. Trend & Distance Alignment
     if block_trend_alignment:
         passed, reason = filter_trend_distance_alignment(tech)
         if not passed:
             warnings.append(reason)
+        _rec("trend_distance_alignment", "unlabeled", "PASS" if passed else "WARN",
+             measured=reason or "OK")
 
     # 12. CRASH FILTER
     passed, reason = filter_recent_crash(tech, worst_60)
     if not passed:
         hard_skips.append(reason)
+    _rec("recent_crash", "unlabeled", "PASS" if passed else "SKIP",
+         measured=reason or "OK", threshold=f"{worst_60*100:.1f}% single-day drop")
 
     # 13. NML FILTER
     if block_no_mans_land:
@@ -1057,11 +1110,14 @@ def apply_risk_filters(symbol: str, tech: dict,
         elif nml_status == "WATCH_RESISTANCE":
             watch_state = "WATCH"
             warnings.append(nml_reason)
+        _rec("no_mans_land", "unlabeled", nml_status, measured=nml_reason or "OK")
 
     # 14. Volatility check
     passed, reason = filter_volatility(tech, max_atr)
     if not passed:
         hard_skips.append(reason)
+    _rec("volatility", "unlabeled", "PASS" if passed else "SKIP",
+         measured=reason or "OK", threshold=f"ATR <= {max_atr*100:.1f}% of price")
 
     # 15. Distance, R:R and Volume check
     try:
@@ -1074,40 +1130,53 @@ def apply_risk_filters(symbol: str, tech: dict,
         
         # Check A: Distance to Entry
         entry_max = float(plan.get("entry_zone_max") or 0.0)
+        distance_pct = None
         if price_val > 0 and entry_max > 0:
             distance_pct = ((price_val - entry_max) / price_val) * 100
             if distance_pct > 5.0:
                 hard_skips.append(f"excessive distance to entry (price is {distance_pct:.1f}% above entry zone max of {entry_max})")
-                
+        _rec("distance_to_entry", "CheckA", "SKIP" if (distance_pct is not None and distance_pct > 5.0) else "PASS",
+             measured=distance_pct, threshold=5.0,
+             margin=(5.0 - distance_pct) if distance_pct is not None else None)
+
         # Check B: CMP Risk-Reward
         sl_val = float(plan.get("stop_loss") or 0.0)
         t2_val = float(plan.get("target_2") or 0.0)
+        cmp_rr = None
         if price_val > 0 and sl_val > 0 and t2_val > 0:
             if price_val > sl_val:
                 upside_pct = ((t2_val - price_val) / price_val) * 100
                 risk = price_val - sl_val
                 reward = t2_val - price_val
                 cmp_rr = reward / risk if risk > 0 else 0.0
-                
+
                 if upside_pct < 2.0:
                     hard_skips.append(f"poor R:R at CMP (upside to target_2 is only {upside_pct:.1f}%)")
                 elif cmp_rr < 1.0:
                     hard_skips.append(f"poor R:R at CMP (reward/risk ratio is 1:{cmp_rr:.1f} - target must be further or SL tighter)")
-                    
+        _rec("cmp_risk_reward", "CheckB", "SKIP" if (cmp_rr is not None and cmp_rr < 1.0) else "PASS",
+             measured=cmp_rr, threshold=1.0,
+             margin=(cmp_rr - 1.0) if cmp_rr is not None else None)
+
         # Check C: Breakout Volume Quality
         setup_type = plan.get("setup_type", "")
         if setup_type == "BREAKOUT":
             vol_ratio = float(tech.get("volume_ratio") or tech.get("vol_ratio") or 1.0)
             if vol_ratio < 1.2:
                 hard_skips.append(f"weak breakout volume (volume ratio {vol_ratio:.2f}x is below 1.2x)")
+            _rec("breakout_volume", "CheckC", "SKIP" if vol_ratio < 1.2 else "PASS",
+                 measured=vol_ratio, threshold=1.2, margin=vol_ratio - 1.2)
 
         # Check D: Un-sustained Volume Spike
         vol_ratios_5d = tech.get("vol_ratios_5d", [])
         if isinstance(vol_ratios_5d, list) and len(vol_ratios_5d) == 5:
             max_spike = max(vol_ratios_5d)
             days_above_1 = sum(1 for v in vol_ratios_5d if v >= 1.0)
-            if max_spike >= 3.0 and days_above_1 == 1 and vol_ratios_5d[-1] < 0.8:
+            spike_fail = max_spike >= 3.0 and days_above_1 == 1 and vol_ratios_5d[-1] < 0.8
+            if spike_fail:
                 hard_skips.append(f"unsustained volume spike (isolated {max_spike:.1f}x spike in 5d, today is dry at {vol_ratios_5d[-1]:.2f}x)")
+            _rec("unsustained_volume_spike", "CheckD", "SKIP" if spike_fail else "PASS",
+                 measured=vol_ratios_5d, threshold="no isolated >=3x spike")
 
         # Check E: Tight Stop Loss in Low-Liquidity Stock / Liquidity Trap
         avg_vol = float(tech.get("avg_volume_20d") or 0.0)
@@ -1116,41 +1185,60 @@ def apply_risk_filters(symbol: str, tech: dict,
         if avg_vol > 0 and atr_val > 0 and entry_base > sl_val:
             turnover = avg_vol * entry_base
             atr_multiple = (entry_base - sl_val) / atr_val
-            if turnover < 100000000 and atr_multiple < 1.5:
+            trap = turnover < 100000000 and atr_multiple < 1.5
+            if trap:
                 hard_skips.append(f"liquidity trap risk (turnover {turnover/10000000:.1f} Cr < 10 Cr and stop loss is tight at {atr_multiple:.2f} ATR)")
+            _rec("liquidity_trap", "CheckE", "SKIP" if trap else "PASS",
+                 measured={"turnover_cr": turnover / 10000000, "atr_multiple": atr_multiple},
+                 threshold={"turnover_cr": 10.0, "atr_multiple": 1.5})
 
         # Check F: Negative 20-day Return (Stalling Trend)
         ret_20d = float(tech.get("return_20d") or 0.0)
         if ret_20d < 0.0:
             warnings.append(f"trend stalling (negative 20-day return of {ret_20d:.1f}%)")
+        _rec("trend_stalling", "CheckF", "WARN" if ret_20d < 0.0 else "PASS",
+             measured=ret_20d, threshold=0.0)
 
         # Check G: Target 2 above 52-Week High
         high_52 = float(tech.get("high_52w") or 0.0)
-        if t2_val > 0 and high_52 > 0 and t2_val > high_52:
+        t2_above_52w = t2_val > 0 and high_52 > 0 and t2_val > high_52
+        if t2_above_52w:
             warnings.append(f"target above 52w high (target_2 {t2_val:.1f} exceeds 52w high {high_52:.1f})")
+        _rec("target_above_52w_high", "CheckG", "WARN" if t2_above_52w else "PASS",
+             measured=t2_val, threshold=high_52)
 
         # Check H: Volume Vacuum at Highs
         setup_type = plan.get("setup_type", "")
         vol_ratio = float(tech.get("volume_ratio") or tech.get("vol_ratio") or 1.0)
-        if high_52 > 0 and price_val >= high_52 * 0.95 and setup_type in ("PULLBACK", "CONSOLIDATION"):
-            if vol_ratio < 0.25:
-                hard_skips.append(f"volume vacuum (critical low volume ratio {vol_ratio:.2f}x near 52w high)")
-            elif vol_ratio < 0.50:
-                warnings.append(f"low volume ratio {vol_ratio:.2f}x near 52w high (exhaustion risk)")
+        near_highs = high_52 > 0 and price_val >= high_52 * 0.95 and setup_type in ("PULLBACK", "CONSOLIDATION")
+        vacuum_verdict = "PASS"
+        if near_highs and vol_ratio < 0.25:
+            hard_skips.append(f"volume vacuum (critical low volume ratio {vol_ratio:.2f}x near 52w high)")
+            vacuum_verdict = "SKIP"
+        elif near_highs and vol_ratio < 0.50:
+            warnings.append(f"low volume ratio {vol_ratio:.2f}x near 52w high (exhaustion risk)")
+            vacuum_verdict = "WARN"
+        _rec("volume_vacuum_at_highs", "CheckH", vacuum_verdict, measured=vol_ratio, threshold=0.50)
 
         # Check I: Fresh Bearish MACD Crossover
         macd_bearish_days = tech.get("macd_bearish_crossover_days_ago", -1)
-        if 0 <= macd_bearish_days <= 3:
+        fresh_bearish = 0 <= macd_bearish_days <= 3
+        if fresh_bearish:
             warnings.append(f"fresh bearish MACD crossover ({macd_bearish_days}d ago)")
+        _rec("fresh_bearish_macd", "CheckI", "WARN" if fresh_bearish else "PASS",
+             measured=macd_bearish_days, threshold="not within 3d")
 
         # Check J: Momentum Divergence Proxy at 52w High
         rsi_val = float(tech.get("rsi") or 0.0)
         macd_hist = float(tech.get("macd_histogram") or 0.0)
-        if high_52 > 0 and price_val >= high_52 * 0.95:
-            if rsi_val < 50.0 or macd_hist < 0.0:
-                warnings.append(f"momentum divergence at highs (price near 52w high but RSI {rsi_val:.1f} < 50 or MACD hist {macd_hist:.2f} < 0)")
+        divergence = high_52 > 0 and price_val >= high_52 * 0.95 and (rsi_val < 50.0 or macd_hist < 0.0)
+        if divergence:
+            warnings.append(f"momentum divergence at highs (price near 52w high but RSI {rsi_val:.1f} < 50 or MACD hist {macd_hist:.2f} < 0)")
+        _rec("momentum_divergence", "CheckJ", "WARN" if divergence else "PASS",
+             measured={"rsi": rsi_val, "macd_histogram": macd_hist}, threshold={"rsi": 50.0, "macd_histogram": 0.0})
 
         # Check K: Supply Wall Congestion
+        congestion = False
         if setup_type in ("BREAKOUT", "PULLBACK", "CONSOLIDATION"):
             res1 = float(tech.get("resistance_1") or 0.0)
             res2 = float(tech.get("resistance_2") or 0.0)
@@ -1159,7 +1247,9 @@ def apply_risk_filters(symbol: str, tech: dict,
                 min_res = min(res1, res2, high_52)
                 if (max_res - min_res) / min_res <= 0.03:
                     if price_val >= min_res * 0.97 and price_val <= max_res:
+                        congestion = True
                         warnings.append(f"supply wall congestion (price is near clustered resistance levels {min_res:.1f}-{max_res:.1f})")
+        _rec("supply_wall_congestion", "CheckK", "WARN" if congestion else "PASS", measured=congestion)
     except Exception as check_err:
         logger.warning("[risk_filters/new_gates] Evaluation failed for %s: %s", symbol, check_err)
 

@@ -54,7 +54,7 @@ except ImportError:
         from core_risk_filters import apply_risk_filters, fetch_screener_shareholding, apply_structural_safety_gates
         from core_sectors      import get_sector, fetch_sector_pulse
     except ImportError:
-        def apply_risk_filters(sym, tech, sector_pulse=None): return True, [], "PASS", 1.0
+        def apply_risk_filters(sym, tech, sector_pulse=None, thresholds=None, detail=None): return True, [], "PASS", 1.0
         def get_sector(sym): return "OTHERS"
         def fetch_sector_pulse(): return {}
         class GateResult:
@@ -1314,10 +1314,107 @@ def fetch_cached_debate_verdict(symbol: str) -> dict:
                 "top_triggers": data.get("top_triggers", []),
                 "bull_case": data.get("bull_case"),
                 "bear_case": data.get("bear_case"),
+                "debate_date": data.get("date") or latest_file[len(symbol) + 1:-5],
             }
     except Exception as e:
         logger.warning("[debate_verdict] Failed to read cached debate for %s: %s", symbol, e)
     return {}
+
+
+def _write_entry_snapshot(symbol: str, entry_date: str, snapshot: dict) -> None:
+    """Atomically write the entry decision snapshot (issue #4) as a sidecar
+    JSON file, mirroring the due_diligence/{SYMBOL}_{date}.json convention.
+    Never raises — callers must treat this as best-effort.
+    """
+    try:
+        snap_dir = os.path.join(_ROOT, "data", "entry_snapshots")
+        os.makedirs(snap_dir, exist_ok=True)
+        path = os.path.join(snap_dir, f"{symbol}_{entry_date}.json")
+        tmp = f"{path}.tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(snapshot, f, indent=2, default=str)
+        os.replace(tmp, path)
+    except Exception as e:
+        logger.warning("[entry_snapshot] Failed to write snapshot for %s: %s", symbol, e)
+
+
+def _build_entry_snapshot(symbol: str, entry_price, tech: dict,
+                           setup_grade, setup_score, exp_mult, exp_reason) -> dict:
+    """Assemble the full decision snapshot for a BOUGHT transition (issue #4).
+    Best-effort: any sub-piece that fails to fetch is left as an empty dict
+    rather than blocking the buy.
+    """
+    snapshot = {
+        "symbol": symbol,
+        "entry_date": _now_date(),
+        "entry_price": entry_price,
+        "captured_at": datetime.now(pytz.timezone("Asia/Kolkata")).isoformat(),
+        "risk_filters": {},
+        "regime": {"nifty": {}, "sector": {}},
+        "expiry": {
+            "setup_grade": setup_grade, "setup_score": setup_score,
+            "expiry_multiplier": exp_mult, "expiry_reason": exp_reason,
+        },
+        "debate": {},
+        "news": {},
+        "structural_gates": {},
+    }
+
+    try:
+        sector_pulse = fetch_sector_pulse()
+    except Exception as e:
+        logger.warning("[entry_snapshot] fetch_sector_pulse failed for %s: %s", symbol, e)
+        sector_pulse = {}
+
+    try:
+        nifty_data = fetch_nifty_levels() or {}
+        snapshot["regime"]["nifty"] = {
+            "price": nifty_data.get("price"), "ema20": nifty_data.get("ema20"),
+            "ema50": nifty_data.get("ema50"), "ema200": nifty_data.get("ema200"),
+            "regime": nifty_data.get("regime"), "vix": nifty_data.get("vix"),
+        }
+    except Exception as e:
+        logger.warning("[entry_snapshot] fetch_nifty_levels failed for %s: %s", symbol, e)
+
+    try:
+        from core_sectors import get_sector as _get_sector
+        sector = _get_sector(symbol)
+        sec_info = sector_pulse.get(sector, {}) if sector_pulse else {}
+        snapshot["regime"]["sector"] = {
+            "name": sector, "pct_from_ema20": sec_info.get("pct_from_ema20"),
+        }
+    except Exception as e:
+        logger.warning("[entry_snapshot] sector lookup failed for %s: %s", symbol, e)
+
+    try:
+        detail = []
+        passed_all, reasons, verdict, regime_mult = apply_risk_filters(
+            symbol, tech, sector_pulse=sector_pulse, detail=detail
+        )
+        snapshot["risk_filters"] = {
+            "verdict": verdict, "passed_all": passed_all,
+            "regime_mult": regime_mult, "reasons": reasons, "detail": detail,
+        }
+        snapshot["structural_gates"] = {
+            d["filter"]: d["verdict"] for d in detail
+            if d["filter"] in ("weekly_trend", "trend_distance_alignment")
+        }
+    except Exception as e:
+        logger.warning("[entry_snapshot] apply_risk_filters failed for %s: %s", symbol, e)
+
+    try:
+        snapshot["debate"] = fetch_cached_debate_verdict(symbol)
+    except Exception as e:
+        logger.warning("[entry_snapshot] fetch_cached_debate_verdict failed for %s: %s", symbol, e)
+
+    try:
+        if _news_get is not None:
+            news_payload = _news_get(force=False)
+            snapshot["news"] = news_payload.get("stocks", {}).get(symbol, {})
+    except Exception as e:
+        logger.warning("[entry_snapshot] news lookup failed for %s: %s", symbol, e)
+
+    return snapshot
 
 
 def _extract_snapshot(r) -> dict:
@@ -1978,6 +2075,16 @@ def api_positions_buy():
                 exp_reason = exp_res.get("reason", "")
             except Exception as grading_err:
                 logger.warning("[positions/buy] Live grading failed for %s: %s", symbol, grading_err)
+
+        # Capture the full entry decision snapshot (issue #4) — best-effort,
+        # must never block the buy transition itself.
+        try:
+            entry_snapshot = _build_entry_snapshot(
+                symbol, entry_price, tech, setup_grade, setup_score, exp_mult, exp_reason
+            )
+            _write_entry_snapshot(symbol, entry_snapshot["entry_date"], entry_snapshot)
+        except Exception as snap_err:
+            logger.warning("[positions/buy] Entry snapshot failed for %s: %s", symbol, snap_err)
 
         if idx is not None:
             # Update status & capture snapshot
