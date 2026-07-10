@@ -2059,7 +2059,8 @@ def api_positions_buy():
             "Buy_False_Breakout_Risk", "Buy_False_Breakout_Desc",
             "Buy_RSI", "Buy_ATR_Pct", "Buy_Vol_Ratio",
             "Setup_Grade", "Setup_Score", "Expiry_Multiplier", "Expiry_Reason",
-            "gtt_id", "Risk_Per_Share", "Rupee_Risk"
+            "gtt_id", "Risk_Per_Share", "Rupee_Risk",
+            "Initial_SL", "Initial_SL_Source", "Nifty_Regime_Entry"
         ])
 
         # Live setup grading and expiry sizing at execution time
@@ -2083,6 +2084,7 @@ def api_positions_buy():
 
         # Capture the full entry decision snapshot (issue #4) — best-effort,
         # must never block the buy transition itself.
+        entry_snapshot = None
         try:
             entry_snapshot = _build_entry_snapshot(
                 symbol, entry_price, tech, setup_grade, setup_score, exp_mult, exp_reason
@@ -2090,6 +2092,18 @@ def api_positions_buy():
             _write_entry_snapshot(symbol, entry_snapshot["entry_date"], entry_snapshot)
         except Exception as snap_err:
             logger.warning("[positions/buy] Entry snapshot failed for %s: %s", symbol, snap_err)
+
+        # Entry-time truth for R-multiple analytics (issue #5): the original
+        # stop and Nifty regime, frozen at BOUGHT — trailing only ever mutates
+        # Current_SL, never Initial_SL.
+        nifty_regime_entry = "UNKNOWN"
+        try:
+            if entry_snapshot:
+                nifty_regime_entry = str(
+                    entry_snapshot["regime"]["nifty"].get("regime") or "UNKNOWN"
+                )
+        except Exception:
+            pass
 
         if idx is not None:
             # Update status & capture snapshot
@@ -2132,6 +2146,11 @@ def api_positions_buy():
             )
             df.at[idx, "Risk_Per_Share"] = rps
             df.at[idx, "Rupee_Risk"]     = rupee
+            # pandas 3.0: guard against float-into-str-column crashes
+            df["Initial_SL"] = df["Initial_SL"].astype(object)
+            df.at[idx, "Initial_SL"] = float(sl)
+            df.at[idx, "Initial_SL_Source"] = "exact"
+            df.at[idx, "Nifty_Regime_Entry"] = nifty_regime_entry
         else:
             # Create a new BOUGHT row directly (direct execution)
             new_row = {
@@ -2157,6 +2176,9 @@ def api_positions_buy():
                 "Buy_RSI": float(tech.get("rsi", 0) or 0),
                 "Buy_ATR_Pct": float(tech.get("atr_pct", 0) or 0),
                 "Buy_Vol_Ratio": float(tech.get("volume_ratio", 0) or tech.get("vol_ratio", 0) or 0),
+                "Initial_SL": float(sl),
+                "Initial_SL_Source": "exact",
+                "Nifty_Regime_Entry": nifty_regime_entry,
                 "gtt_id": ""
             }
             new_row["Risk_Per_Share"], new_row["Rupee_Risk"] = position_risk(
@@ -2676,6 +2698,8 @@ def api_results():
             "Cur_ATR_Pct", "Cur_Base_Status", "Cur_Base_Days", "Cur_Vol_Ratio",
             "Cur_False_Breakout_Risk", "Cur_Scan_Date", "Cur_Verdict", "Cur_Reasons",
             "Cur_Regime_Mult", "Cur_Entry_Min", "Cur_Entry_Max",
+            "Initial_SL", "Initial_SL_Source", "Nifty_Regime_Entry",
+            "Risk_Per_Share",
         ])
 
         total = len(df)
@@ -2942,6 +2966,37 @@ def api_results():
                 "avg_unrealized":   round(sum(unr_pnls) / len(unr_pnls), 2) if unr_pnls else 0,
             }
 
+        # ── R-multiple expectancy analytics (issue #5) ──────────────────────
+        # Pure computation lives in core_r_analytics; historical initial SLs
+        # are resolved at read time (positions.csv is never rewritten here).
+        try:
+            from core.core_r_analytics import (
+                compute_r_analytics, compute_trade_r, resolve_initial_sl,
+            )
+        except ImportError:
+            from core_r_analytics import (
+                compute_r_analytics, compute_trade_r, resolve_initial_sl,
+            )
+
+        # Post-mortem JSONs keyed by SYMBOL_entrydate (and SYMBOL as fallback)
+        pm_map = {}
+        try:
+            pm_dir = os.path.join(_ROOT, "data", "post_mortems")
+            if os.path.isdir(pm_dir):
+                for fn in os.listdir(pm_dir):
+                    if not fn.endswith(".json"):
+                        continue
+                    with open(os.path.join(pm_dir, fn), encoding="utf-8") as fh:
+                        pm = json.load(fh)
+                    sym = str(pm.get("symbol", "")).strip()
+                    if sym:
+                        pm_map[f"{sym}_{pm.get('entry_date', '')}"] = pm
+                        pm_map.setdefault(sym, pm)
+        except Exception as pm_exc:
+            logger.warning("[results] post-mortem load for R analytics failed: %s", pm_exc)
+
+        r_trades = []
+
         # Closed positions list (most recent first)
         closed_list = []
         for _, r in closed_df.iterrows():
@@ -2957,8 +3012,35 @@ def api_results():
                                      - datetime.strptime(str(r["Entry_Date"]), "%Y-%m-%d")).days
                     except Exception:
                         days_held = 0
+                symbol = str(r.get("Symbol", ""))
+                initial_sl, sl_source = resolve_initial_sl(r, pm_map)
+                r_multiple = compute_trade_r(ep, cp, initial_sl)
+                sector = get_sector(symbol)
+                # Entry-time regime / vol ratio: CSV column first, else the
+                # reconstructed value from the trade's post-mortem autopsy.
+                pm = pm_map.get(f"{symbol}_{r.get('Entry_Date', '')}") or pm_map.get(symbol) or {}
+                pm_cd = pm.get("condition_diff") or {}
+                nifty_regime = str(r.get("Nifty_Regime_Entry", "") or "").strip() \
+                    or str(pm_cd.get("nifty_regime_entry") or "")
+                vol_ratio = _num(r.get("Buy_Vol_Ratio"))
+                if vol_ratio is None:
+                    vol_ratio = pm_cd.get("vol_ratio_entry")
+                r_trades.append({
+                    "symbol": symbol,
+                    "entry": ep,
+                    "exit": cp,
+                    "initial_sl": initial_sl,
+                    "initial_sl_source": sl_source,
+                    "current_sl": _num(r.get("Current_SL")),
+                    "outcome": str(r.get("Outcome", "")),
+                    "setup": str(r.get("Setup", "")),
+                    "grade": str(r.get("Setup_Grade", "") or "").strip(),
+                    "sector": sector,
+                    "vol_ratio": vol_ratio,
+                    "nifty_regime": nifty_regime,
+                })
                 closed_list.append({
-                    "symbol":    str(r.get("Symbol", "")),
+                    "symbol":    symbol,
                     "name":      str(r.get("Name", "")),
                     "setup":     str(r.get("Setup", "")),
                     "entry":     ep,
@@ -2968,7 +3050,11 @@ def api_results():
                     "outcome":   str(r.get("Outcome", "")),
                     "entry_date": str(r.get("Entry_Date", "")),
                     "exit_date":  exit_date,
-                    "index_membership": get_index_membership(str(r.get("Symbol", ""))),
+                    "index_membership": get_index_membership(symbol),
+                    "r_multiple": r_multiple,
+                    "initial_sl": initial_sl,
+                    "initial_sl_source": sl_source,
+                    "sector": sector,
                     **_extract_snapshot(r),
                 })
             except Exception:
@@ -2983,8 +3069,16 @@ def api_results():
             logger.warning("[results] post-mortem aggregate failed: %s", pm_exc)
             post_mortems = {}
 
+        # R expectancy aggregate — best-effort, never fatal
+        try:
+            r_analytics = compute_r_analytics(r_trades)
+        except Exception as r_exc:
+            logger.warning("[results] r-analytics failed: %s", r_exc)
+            r_analytics = {}
+
         return jsonify({
             "post_mortems":     post_mortems,
+            "r_analytics":      r_analytics,
             "total":            total,
             "open":             len(open_df) + len(bought_df),
             "closed":           closed,
@@ -3019,7 +3113,7 @@ def _empty_results():
         "active_count": 0, "active_in_profit": 0, "active_in_loss": 0,
         "active_entry_hit": 0, "active_t1_hit": 0,
         "avg_unrealized_pct": 0, "active_positions": [],
-        "post_mortems": {},
+        "post_mortems": {}, "r_analytics": {},
     }
 
 

@@ -2363,15 +2363,41 @@ body.light-theme .tab-group {
       <div class="sub" id="an_pf_sub">> 1.5 healthy</div>
     </div>
     <div class="rsum-card">
-      <div class="lbl">Expectancy / ₹ risked</div>
+      <div class="lbl">Expectancy (R)</div>
       <div class="val" id="an_exp">—</div>
       <div class="sub" id="an_exp_sub">—</div>
+    </div>
+    <div class="rsum-card">
+      <div class="lbl">Avg Slippage</div>
+      <div class="val" id="an_slip">—</div>
+      <div class="sub" id="an_slip_sub">SL exits · vs intended stop</div>
     </div>
     <div class="rsum-card">
       <div class="lbl">Avg Hold Duration</div>
       <div class="val" id="an_hold">—</div>
       <div class="sub">days · closed trades</div>
     </div>
+  </div>
+
+  <!-- R-multiple expectancy breakdown (issue #5) -->
+  <div class="card-pane" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; margin-bottom:24px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; color:var(--muted); text-transform:uppercase; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+      <span>🎯 EXPECTANCY (R) BY DIMENSION</span>
+      <select id="an_rdim" onchange="renderRBreakdown()" style="background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:4px 8px; font-size:11px;">
+        <option value="setup" selected>Setup type</option>
+        <option value="grade">Setup grade</option>
+        <option value="sector">Sector</option>
+        <option value="vol_bucket">Volume ratio</option>
+        <option value="nifty_regime">Nifty regime</option>
+      </select>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="data-table" style="width:100%;">
+        <thead><tr><th>Bucket</th><th>Trades</th><th>Expectancy R</th><th>W / L</th></tr></thead>
+        <tbody id="an_r_rows"><tr><td colspan="4" class="empty-sub" style="text-align:center; padding:20px;">No R data yet.</td></tr></tbody>
+      </table>
+    </div>
+    <div style="font-size:10px; color:var(--muted); margin-top:8px;">R = profit ÷ initial risk per trade. Buckets with fewer than 3 trades are dimmed — too small a sample to trust.</div>
   </div>
 
   <!-- Charts Block: Equity curve & Sector win rate -->
@@ -10686,6 +10712,38 @@ async function closeActiveTradeDirectly() {
 }
 
 /* ── Main Analytics Renderer ── */
+// R-expectancy breakdown table (issue #5) — reads the dimension from the
+// an_rdim select and renders server-computed r_analytics.breakdowns.
+function renderRBreakdown() {
+  const tbody = document.getElementById("an_r_rows");
+  if (!tbody) return;
+  const ra = (_analyticsData && _analyticsData.r_analytics) || {};
+  const dim = (document.getElementById("an_rdim") || {}).value || "setup";
+  const buckets = (ra.breakdowns || {})[dim] || {};
+  const keys = Object.keys(buckets);
+  if (!keys.length) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty-sub" style="text-align:center; padding:20px;">No R data yet — trades need a known initial stop-loss.</td></tr>`;
+    return;
+  }
+  // Best expectancy first; UNKNOWN bucket last
+  keys.sort((a, b) => {
+    if (a === "UNKNOWN") return 1;
+    if (b === "UNKNOWN") return -1;
+    return buckets[b].expectancy_r - buckets[a].expectancy_r;
+  });
+  tbody.innerHTML = keys.map(k => {
+    const b = buckets[k];
+    const small = b.count < 3;
+    const cls = b.expectancy_r >= 0 ? "up" : "down";
+    return `<tr style="${small ? "opacity:0.5;" : ""}">
+      <td><b>${k}</b>${small ? ` <span style="font-size:9px; border:1px solid var(--border); border-radius:4px; padding:1px 4px; color:var(--muted);">n&lt;3</span>` : ""}</td>
+      <td>${b.count}</td>
+      <td><b class="${cls}">${b.expectancy_r >= 0 ? "+" : ""}${b.expectancy_r.toFixed(2)}R</b></td>
+      <td>${b.wins}W / ${b.losses}L</td>
+    </tr>`;
+  }).join("");
+}
+
 function renderAnalytics(r) {
   _analyticsData = r;
   
@@ -10732,6 +10790,8 @@ function renderAnalytics(r) {
     expVal.textContent = "—";
     expSub.textContent = "—";
     holdVal.textContent = "—";
+    document.getElementById("an_slip").textContent = "—";
+    document.getElementById("an_r_rows").innerHTML = `<tr><td colspan="4" class="empty-sub" style="text-align:center; padding:20px;">No R data yet.</td></tr>`;
     
     // Draw empty canvas structures
     drawEmptyCanvas("equityCanvas", "Need closed trades to draw curve");
@@ -10764,15 +10824,36 @@ function renderAnalytics(r) {
     pfVal.textContent = profitFactor >= 99 ? "∞" : profitFactor.toFixed(2);
     pfVal.className = `val ${profitFactor >= 1.5 ? "up" : (profitFactor >= 1.0 ? "yellow" : "down")}`;
     
-    // Expectancy (Win% * AvgWin% - Loss% * AvgLoss%)
-    const avgWin = wins.length ? wins.reduce((s,t) => s + t.pnl_pct, 0) / wins.length : 0;
-    const avgLoss = losses.length ? losses.reduce((s,t) => s + Math.abs(t.pnl_pct), 0) / losses.length : 0;
-    const expectancy = ((winRate / 100) * avgWin) - ((1 - winRate / 100) * avgLoss);
-    
-    expVal.textContent = `${expectancy >= 0 ? "+" : ""}${expectancy.toFixed(2)}%`;
-    expVal.className = `val ${expectancy >= 0 ? "up" : "down"}`;
-    expSub.textContent = `Avg W: +${avgWin.toFixed(1)}% · Avg L: -${avgLoss.toFixed(1)}%`;
-    
+    // Expectancy in R-multiples (issue #5): server-computed mean R per trade,
+    // measured against each trade's own initial stop distance.
+    const ra = r.r_analytics || {};
+    if (ra.expectancy_r !== null && ra.expectancy_r !== undefined) {
+      expVal.textContent = `${ra.expectancy_r >= 0 ? "+" : ""}${ra.expectancy_r.toFixed(2)}R`;
+      expVal.className = `val ${ra.expectancy_r >= 0 ? "up" : "down"}`;
+      const excl = ra.trades_excluded_no_sl || 0;
+      expSub.textContent = `over ${ra.trades_with_r} trades` + (excl ? ` (${excl} excluded: original SL unknown)` : "");
+    } else {
+      expVal.textContent = "—";
+      expSub.textContent = "No trades with a known initial SL yet";
+    }
+
+    // Slippage on SL exits (intended stop vs actual fill)
+    const slipVal = document.getElementById("an_slip");
+    const slipSub = document.getElementById("an_slip_sub");
+    const slip = ra.slippage || {};
+    if (slip.n_sl_exits && slip.avg_slippage_rupees !== null && slip.avg_slippage_rupees !== undefined) {
+      slipVal.textContent = `₹${slip.avg_slippage_rupees.toFixed(2)}`;
+      slipVal.className = `val ${slip.avg_slippage_rupees > 0 ? "down" : "up"}`;
+      const adj = slip.expectancy_r_slippage_adjusted;
+      slipSub.textContent = `${slip.n_sl_exits} SL exits` +
+        (adj !== null && adj !== undefined ? ` · ${adj >= 0 ? "+" : ""}${adj.toFixed(2)}R w/o slippage` : "");
+    } else {
+      slipVal.textContent = "—";
+      slipSub.textContent = "SL exits · vs intended stop";
+    }
+
+    renderRBreakdown();
+
     // Avg Hold duration
     const totalHoldDays = closedTrades.reduce((s,t) => s + (t.days_held || 0), 0);
     const avgHold = (totalHoldDays / closedTrades.length).toFixed(1);
