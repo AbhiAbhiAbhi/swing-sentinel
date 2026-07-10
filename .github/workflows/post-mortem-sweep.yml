@@ -1,25 +1,24 @@
-name: Poll Positions
+name: SL Post-Mortem Sweep
 
-# Runs every 5 minutes during NSE market hours
-# NSE: 9:15-15:30 IST  →  3:45-10:00 UTC, Mon-Fri
-# GitHub Actions cron only supports standard cron, so we cover 3:45-9:55 UTC
-# (= 9:15-15:25 IST — close enough; misses last 5 min of market)
+# Runs at 3:45 PM IST (10:15 UTC) on weekdays, after the last poll window —
+# catches any SL_LOSS row the live poll missed and evaluates due TIGHT_SL
+# re-checks (5 trading days after the stop-out). See core/core_post_mortem.py.
 on:
   schedule:
-    - cron: '*/5 3-9 * * 1-5'
+    - cron: '15 10 * * 1-5'
   workflow_dispatch: {}   # allow manual trigger from Actions tab
 
 permissions:
-  contents: write          # required to commit positions.csv state back
+  contents: write          # required to commit positions.csv + sidecar state back
 
 concurrency:
-  group: poll-positions
+  group: post-mortem-sweep
   cancel-in-progress: false
 
 jobs:
-  poll:
+  sweep:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,12 +34,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run poll
+      - name: Run post-mortem sweep
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
           ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
-        run: python core/poll_once.py
+        run: python core/core_post_mortem.py --sweep --with-llm
 
       - name: Commit state changes
         run: |
@@ -50,6 +49,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No state change — nothing to commit."
           else
-            git commit -m "Auto: position state update [skip ci]"
+            git commit -m "Auto: post-mortem sweep [skip ci]"
             git push
           fi

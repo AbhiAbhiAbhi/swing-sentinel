@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "symbol": "SAIL",
+  "entry_date": "2026-05-21",
+  "exit_date": "2026-06-25",
+  "generated_at": "2026-07-10T09:09:14",
+  "confidence": "partial",
+  "confidence_notes": [
+    "no entry snapshot \u2014 pre-snapshot trade, partial analysis"
+  ],
+  "price_path": {
+    "entry_price": 196.53,
+    "stop_price": 174.84,
+    "exit_price": 170.7899932861328,
+    "t1": 202.35,
+    "days_held": 35,
+    "bars": 26,
+    "descent_type": "GRIND",
+    "worst_gap_down_pct": -1.67,
+    "gap_bar_date": null,
+    "hh_since_entry": 208.4499969482422,
+    "t1_progress_pct": 204.8,
+    "almost_worked": true,
+    "exit_open_below_stop": true,
+    "closed_below_entry_within_3_bars": true
+  },
+  "condition_diff": {
+    "nifty_regime_entry": "RED",
+    "nifty_regime_exit": "AMBER",
+    "nifty_regime_source": "reconstructed",
+    "nifty_change_pct": 1.7,
+    "sector": "METAL",
+    "sector_pct_ema20_entry": 1.501521956516288,
+    "sector_pct_ema20_exit": -3.835387248788137,
+    "earnings_in_window": false,
+    "earnings_date": null,
+    "vol_ratio_entry": 0.69,
+    "atr_pct_entry": 3.84,
+    "sl_distance_pct": 11.04,
+    "sl_distance_atr": 2.88
+  },
+  "classification": {
+    "primary": "GAP_EVENT",
+    "contributing": [
+      "SECTOR_BREAK",
+      "LOW_VOLUME_ENTRY",
+      "TIGHT_SL"
+    ],
+    "evidence": {
+      "GAP_EVENT": "exit day opened below the stop \u2014 stopped on the gap itself",
+      "SECTOR_BREAK": "sector went from +1.5% to -3.8% vs its 20 DMA (broke the -2.0% line)",
+      "LOW_VOLUME_ENTRY": "entered on 0.69\u00d7 volume (below 1.0\u00d7)",
+      "TIGHT_SL": "reached 205% of the way to T1 before reversing to the stop"
+    }
+  },
+  "app_gaps": [
+    {
+      "class": "GAP_EVENT",
+      "type": "ADD",
+      "filter": "overnight_gap_risk (no filter yet)",
+      "detail": "(partial \u2014 entry snapshot unavailable) no filter covers overnight gap risk \u2014 e.g. cap position size when ATR% is high or events are pending"
+    },
+    {
+      "class": "SECTOR_BREAK",
+      "type": "ADD",
+      "filter": "sector_nifty_regime",
+      "detail": "(partial \u2014 entry snapshot unavailable) no in-trade sector monitor reacts when the sector breaks its 20 DMA"
+    },
+    {
+      "class": "LOW_VOLUME_ENTRY",
+      "type": "ADD",
+      "filter": "breakout_volume",
+      "detail": "(partial \u2014 entry snapshot unavailable) breakout volume was not evaluated at entry \u2014 make the 1.2x volume gate mandatory"
+    },
+    {
+      "class": "TIGHT_SL",
+      "type": "TIGHTEN",
+      "filter": "trade_plan_stop_sizing",
+      "detail": "(partial \u2014 entry snapshot unavailable) stop sizing allowed a stop tighter than 1x ATR \u2014 enforce a minimum stop distance in the trade plan"
+    }
+  ],
+  "llm_narrative": {
+    "text": null,
+    "provider": null,
+    "model": null,
+    "error": null
+  },
+  "tight_sl_recheck": {
+    "due_date": "2026-07-02",
+    "done": true,
+    "checked_on": "2026-07-10",
+    "recovered": false,
+    "recovery_close": null
+  }
+}

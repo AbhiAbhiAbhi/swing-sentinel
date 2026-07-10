@@ -2454,6 +2454,26 @@ body.light-theme .tab-group {
     </div>
   </div>
 
+  <!-- Failure Autopsy: automated SL post-mortem aggregates (issue #3) -->
+  <div class="card-pane" id="an_autopsy_card" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; margin-bottom:24px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; color:var(--muted); text-transform:uppercase; margin-bottom:6px;">🧾 FAILURE AUTOPSY — AUTOMATED SL POST-MORTEMS</div>
+    <div style="font-size:11px; color:var(--muted); margin-bottom:16px;" id="an_autopsy_coverage">No stop-loss trades analyzed yet.</div>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:20px;">
+      <div>
+        <div style="font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:8px; letter-spacing:0.5px;">Failure classes (why stops were hit)</div>
+        <div id="an_autopsy_bars" style="display:flex; flex-direction:column; gap:8px;">
+          <div class="empty-sub" style="font-size:12px; color:var(--muted);">Runs automatically when a stop-loss fires.</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:8px; letter-spacing:0.5px;">Why the app missed them → fixes</div>
+        <ul id="an_autopsy_recs" style="font-size:12px; color:var(--text); padding-left:16px; line-height:1.7; margin:0;">
+          <li class="empty-sub" style="color:var(--muted); list-style:none; margin-left:-16px;">Recommendations appear after losses are classified.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
   <!-- Active & Closed Trades Explorer -->
   <div style="display:grid; grid-template-columns: 1.3fr 1fr; gap: 20px; align-items: start; margin-bottom: 30px;">
     <!-- Left panel: Active / Closed Sub-Tabs Explorer -->
@@ -2542,6 +2562,16 @@ body.light-theme .tab-group {
             <span>🤖 STRUCTURAL DIAGNOSTIC CRITIQUE</span>
           </div>
           <p style="font-size:12px; color:var(--text); line-height:1.5;" id="an_pm_critique_text"></p>
+        </div>
+
+        <!-- Automated SL post-mortem (issue #3) — read-only, shown for SL_LOSS trades -->
+        <div id="an_pm_auto_block" style="display:none; margin-bottom:16px; padding:12px; border-radius:var(--radius-md); background:rgba(239, 68, 68, 0.04); border:1px solid rgba(239, 68, 68, 0.2);">
+          <div style="font-size:10px; font-weight:700; color:var(--red); text-transform:uppercase; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span>🧾 AUTO POST-MORTEM</span>
+            <span id="an_pm_auto_conf" style="font-size:9px; color:var(--muted); text-transform:none;"></span>
+          </div>
+          <div id="an_pm_auto_badges" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;"></div>
+          <div id="an_pm_auto_body" style="font-size:12px; color:var(--text); line-height:1.5;"></div>
         </div>
 
         <!-- Toggled View 1: Closed Trade Retrospective Inputs -->
@@ -10915,6 +10945,7 @@ function renderAnalytics(r) {
         <td class="${pnlCls}"><b>${p.pnl_pct >= 0 ? "+" : ""}${p.pnl_pct.toFixed(2)}%</b></td>
         <td>
           <span class="outcome-badge" style="background:${statusBg}; color:${statusClr}; border:1px solid ${statusClr}; padding:2px 6px; font-size:10px;">${p.outcome}</span>
+          ${p.failure_class ? `<br><span title="${p.pm_confidence === "partial" ? "partial — pre-snapshot trade" : "auto-classified failure"}" style="display:inline-block; margin-top:3px; padding:1px 5px; font-size:9px; font-weight:700; border-radius:3px; background:rgba(139,92,246,0.12); color:var(--purple); border:1px solid var(--purple);">${p.failure_class}${p.pm_confidence === "partial" ? "*" : ""}</span>` : ""}
         </td>
         <td style="text-align:center;">
           <button class="action-btn" style="background:var(--purple); color:#fff; border:none; border-radius:4px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer;" onclick="selectPostMortem('${p.symbol}', '${p.entry_date}')">🔍 Analyze</button>
@@ -10925,6 +10956,9 @@ function renderAnalytics(r) {
     document.getElementById("an_closed_rows").innerHTML = closedRows;
   }
   
+  // Failure Autopsy card (automated SL post-mortems, issue #3)
+  renderFailureAutopsy(r.post_mortems || {}, closedTrades);
+
   // Retain select trade state if active
   if (_selectedPMTrade) {
     if (_selectedPMTrade.isActive) {
@@ -10935,6 +10969,49 @@ function renderAnalytics(r) {
       if (match) loadPostMortemCard(match);
     }
   }
+}
+
+function renderFailureAutopsy(pm, closedTrades) {
+  const barsEl = document.getElementById("an_autopsy_bars");
+  const recsEl = document.getElementById("an_autopsy_recs");
+  const covEl  = document.getElementById("an_autopsy_coverage");
+  if (!barsEl || !recsEl || !covEl) return;
+
+  const total = pm.total || 0;
+  const slCount = closedTrades.filter(t => (t.outcome || "").toUpperCase() === "SL_LOSS").length;
+
+  if (!total) {
+    covEl.textContent = slCount
+      ? `${slCount} stop-loss trade(s) awaiting analysis — runs automatically when a stop fires, or daily at 15:45.`
+      : "No stop-loss trades analyzed yet.";
+    barsEl.innerHTML = `<div class="empty-sub" style="font-size:12px; color:var(--muted);">Runs automatically when a stop-loss fires.</div>`;
+    recsEl.innerHTML = `<li class="empty-sub" style="color:var(--muted); list-style:none; margin-left:-16px;">Recommendations appear after losses are classified.</li>`;
+    return;
+  }
+
+  const partial = pm.partial_count || 0;
+  covEl.textContent = `${total} of ${slCount || total} SL losses analyzed`
+    + (partial ? ` · ${partial} partial (pre-snapshot trades)` : "")
+    + (pm.pending_rechecks ? ` · ${pm.pending_rechecks} tight-SL re-check(s) pending` : "");
+
+  const byClass = Object.entries(pm.by_class || {}).sort((a, b) => b[1] - a[1]);
+  const maxN = byClass.length ? byClass[0][1] : 1;
+  barsEl.innerHTML = byClass.map(([cls, n]) => `
+    <div style="display:flex; align-items:center; gap:8px;">
+      <div style="width:150px; font-size:10px; font-weight:700; color:var(--text); font-family:var(--font-mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${cls}">${cls}</div>
+      <div style="flex:1; height:14px; background:rgba(255,255,255,0.04); border-radius:3px; overflow:hidden;">
+        <div style="width:${Math.max(6, Math.round(n / maxN * 100))}%; height:100%; background:linear-gradient(90deg, var(--purple), rgba(139,92,246,0.5)); border-radius:3px;"></div>
+      </div>
+      <div style="width:24px; font-size:11px; font-weight:700; color:var(--muted); text-align:right;">${n}</div>
+    </div>`).join("");
+
+  const gaps = (pm.gaps || []).slice(0, 6);
+  recsEl.innerHTML = gaps.length
+    ? gaps.map(g => `
+        <li><b style="color:${g.type === "TIGHTEN" ? "var(--yellow)" : "var(--purple)"}">${g.type}</b>
+        <span style="font-family:var(--font-mono); font-size:11px;">${g.filter}</span>
+        <span style="color:var(--muted)"> — seen in ${g.count} loss(es)</span></li>`).join("")
+    : `<li class="empty-sub" style="color:var(--muted); list-style:none; margin-left:-16px;">No filter gaps identified yet.</li>`;
 }
 
 /* ── Canvas Helper Drawing Functions ── */
@@ -11237,6 +11314,76 @@ function drawSectorPerformance(canvasId, trades) {
 
 /* ── Closed Trades Explorer and Diagnostic detail handlers ── */
 
+async function loadAutoPostMortem(symbol, entryDate) {
+  const block = document.getElementById("an_pm_auto_block");
+  const confEl = document.getElementById("an_pm_auto_conf");
+  const badgesEl = document.getElementById("an_pm_auto_badges");
+  const bodyEl = document.getElementById("an_pm_auto_body");
+  block.style.display = "block";
+  confEl.textContent = "loading…";
+  badgesEl.innerHTML = "";
+  bodyEl.innerHTML = "";
+
+  // Guard against a stale response landing after the user clicks another trade
+  const token = `${symbol}|${entryDate}`;
+  block.dataset.token = token;
+
+  try {
+    const resp = await apiFetch(`/api/post-mortems/${encodeURIComponent(symbol)}/${encodeURIComponent(entryDate)}`);
+    if (block.dataset.token !== token) return;
+    renderAutoPostMortem(resp);
+  } catch (e) {
+    if (block.dataset.token !== token) return;
+    confEl.textContent = "";
+    bodyEl.innerHTML = `
+      <div style="color:var(--muted); margin-bottom:8px;">No auto post-mortem yet.</div>
+      <button class="action-btn" style="background:var(--purple); color:#fff; border:none; border-radius:4px; padding:5px 12px; font-size:11px; font-weight:700; cursor:pointer;" onclick="runAutoPostMortem('${symbol}', '${entryDate}')">▶ Run now</button>`;
+  }
+}
+
+function renderAutoPostMortem(pm) {
+  const confEl = document.getElementById("an_pm_auto_conf");
+  const badgesEl = document.getElementById("an_pm_auto_badges");
+  const bodyEl = document.getElementById("an_pm_auto_body");
+  const cls = pm.classification || {};
+
+  confEl.textContent = pm.confidence === "partial" ? "partial (pre-snapshot trade)" : "full";
+
+  const badges = [cls.primary, ...(cls.contributing || [])].filter(Boolean);
+  badgesEl.innerHTML = badges.map((c, i) => `
+    <span style="padding:2px 7px; font-size:10px; font-weight:700; border-radius:3px; background:${i === 0 ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.05)"}; color:${i === 0 ? "var(--red)" : "var(--muted)"}; border:1px solid ${i === 0 ? "var(--red)" : "var(--border)"};">${c}</span>`).join("");
+
+  const evidence = Object.entries(cls.evidence || {}).map(([k, v]) => `<li>${v}</li>`).join("");
+  const gaps = (pm.app_gaps || []).map(g => `<li><b style="color:${g.type === "TIGHTEN" ? "var(--yellow)" : "var(--purple)"}">${g.type}</b> ${g.filter} — ${g.detail}</li>`).join("");
+  const narrative = (pm.llm_narrative && pm.llm_narrative.text)
+    ? `<p style="margin-top:8px; font-style:italic; color:var(--text);">${pm.llm_narrative.text}</p>` : "";
+
+  bodyEl.innerHTML = `
+    ${evidence ? `<ul style="padding-left:16px; margin:0 0 8px;">${evidence}</ul>` : ""}
+    ${gaps ? `<div style="font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-top:8px;">Why the app missed it</div><ul style="padding-left:16px; margin:4px 0 0;">${gaps}</ul>` : ""}
+    ${narrative}
+    <button class="action-btn" style="margin-top:8px; background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:4px; padding:4px 10px; font-size:10px; cursor:pointer;" onclick="runAutoPostMortem('${pm.symbol}', '${pm.entry_date}')">↻ Re-run</button>`;
+}
+
+async function runAutoPostMortem(symbol, entryDate) {
+  const bodyEl = document.getElementById("an_pm_auto_body");
+  bodyEl.innerHTML = `<div style="color:var(--muted);">Running…</div>`;
+  try {
+    const resp = await apiFetch("/api/post-mortems/run", {
+      method: "POST",
+      body: JSON.stringify({ symbol, entry_date: entryDate, with_llm: true }),
+    });
+    if (resp.status === "ok") {
+      renderAutoPostMortem(resp.post_mortem);
+      loadPositions();
+    } else {
+      bodyEl.innerHTML = `<div style="color:var(--red);">Failed: ${resp.message || "unknown error"}</div>`;
+    }
+  } catch (e) {
+    bodyEl.innerHTML = `<div style="color:var(--red);">Failed: ${e.message || e}</div>`;
+  }
+}
+
 function selectPostMortem(symbol, entryDate) {
   if (!_analyticsData || !_analyticsData.closed_positions) return;
   const match = _analyticsData.closed_positions.find(t => t.symbol === symbol && t.entry_date === entryDate);
@@ -11272,10 +11419,11 @@ function loadPostMortemCard(p) {
     
     // Pre-populate simulated exit price input
     document.getElementById("an_exit_price_input").value = p.current || "";
-    
+
     // Toggle active exit form and hide retrospective form
     document.getElementById("an_pm_active_exit_form").style.display = "flex";
     document.getElementById("an_pm_closed_retrospective_form").style.display = "none";
+    document.getElementById("an_pm_auto_block").style.display = "none";
   } else {
     document.getElementById("an_pm_dates").textContent = `Entry: ${p.entry_date} · Exit: ${p.exit_date}`;
     document.getElementById("an_pm_held").textContent = `held ${p.days_held || 0} days`;
@@ -11293,6 +11441,13 @@ function loadPostMortemCard(p) {
     // Toggle retrospective form and hide active exit form
     document.getElementById("an_pm_active_exit_form").style.display = "none";
     document.getElementById("an_pm_closed_retrospective_form").style.display = "flex";
+
+    // Automated SL post-mortem (issue #3) — only applies to stop-loss exits
+    if ((p.outcome || "").toUpperCase() === "SL_LOSS") {
+      loadAutoPostMortem(p.symbol, p.entry_date);
+    } else {
+      document.getElementById("an_pm_auto_block").style.display = "none";
+    }
   }
   
   const pnlPct = p.pnl_pct || 0;

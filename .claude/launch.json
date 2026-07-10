@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "swing-sentinel-server",
+      "runtimeExecutable": ".venv-1/Scripts/python.exe",
+      "runtimeArgs": ["core/server.py"],
+      "port": 5000
+    },
+    {
+      "name": "swing-sentinel-dashboard-preview",
+      "runtimeExecutable": ".venv-1/Scripts/python.exe",
+      "runtimeArgs": ["C:/Users/Abhishek/AppData/Local/Temp/claude/F--OneDrive---Abhishek-Documents-Playground/bbd3edd3-b519-43a2-a88a-b2e0bdc44df2/scratchpad/pm_dashboard_preview.py"],
+      "port": 5051
+    }
+  ]
+}

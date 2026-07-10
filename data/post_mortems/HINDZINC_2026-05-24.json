@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "symbol": "HINDZINC",
+  "entry_date": "2026-05-24",
+  "exit_date": "2026-06-05",
+  "generated_at": "2026-07-10T09:09:23",
+  "confidence": "partial",
+  "confidence_notes": [
+    "no entry snapshot \u2014 pre-snapshot trade, partial analysis"
+  ],
+  "price_path": {
+    "entry_price": 632.25,
+    "stop_price": 598.8,
+    "exit_price": 566.7999877929688,
+    "t1": 678.25,
+    "days_held": 12,
+    "bars": 10,
+    "descent_type": "GRIND",
+    "worst_gap_down_pct": -0.5,
+    "gap_bar_date": null,
+    "hh_since_entry": 659.8499755859375,
+    "t1_progress_pct": 60.0,
+    "almost_worked": false,
+    "exit_open_below_stop": false,
+    "closed_below_entry_within_3_bars": false
+  },
+  "condition_diff": {
+    "nifty_regime_entry": "RED",
+    "nifty_regime_exit": "RED",
+    "nifty_regime_source": "reconstructed",
+    "nifty_change_pct": -2.77,
+    "sector": "METAL",
+    "sector_pct_ema20_entry": 1.7590528778588095,
+    "sector_pct_ema20_exit": -0.5161703749427526,
+    "earnings_in_window": false,
+    "earnings_date": null,
+    "vol_ratio_entry": 0.55,
+    "atr_pct_entry": 3.02,
+    "sl_distance_pct": 5.29,
+    "sl_distance_atr": 1.75
+  },
+  "classification": {
+    "primary": "LOW_VOLUME_ENTRY",
+    "contributing": [],
+    "evidence": {
+      "LOW_VOLUME_ENTRY": "entered on 0.55\u00d7 volume (below 1.0\u00d7)"
+    }
+  },
+  "app_gaps": [
+    {
+      "class": "LOW_VOLUME_ENTRY",
+      "type": "ADD",
+      "filter": "breakout_volume",
+      "detail": "(partial \u2014 entry snapshot unavailable) breakout volume was not evaluated at entry \u2014 make the 1.2x volume gate mandatory"
+    }
+  ],
+  "llm_narrative": {
+    "text": null,
+    "provider": null,
+    "model": null,
+    "error": null
+  },
+  "tight_sl_recheck": {
+    "due_date": "2026-06-12",
+    "done": true,
+    "checked_on": "2026-07-10",
+    "recovered": false,
+    "recovery_close": null
+  }
+}

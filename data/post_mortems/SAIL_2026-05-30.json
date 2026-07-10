@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "symbol": "SAIL",
+  "entry_date": "2026-05-30",
+  "exit_date": "2026-06-05",
+  "generated_at": "2026-07-10T09:09:30",
+  "confidence": "partial",
+  "confidence_notes": [
+    "no entry snapshot \u2014 pre-snapshot trade, partial analysis"
+  ],
+  "price_path": {
+    "entry_price": 206.06,
+    "stop_price": 195.757,
+    "exit_price": 190.55999755859375,
+    "t1": 216.363,
+    "days_held": 6,
+    "bars": 5,
+    "descent_type": "GRIND",
+    "worst_gap_down_pct": -0.23,
+    "gap_bar_date": null,
+    "hh_since_entry": 206.89999389648438,
+    "t1_progress_pct": 8.2,
+    "almost_worked": false,
+    "exit_open_below_stop": false,
+    "closed_below_entry_within_3_bars": true
+  },
+  "condition_diff": {
+    "nifty_regime_entry": "RED",
+    "nifty_regime_exit": "RED",
+    "nifty_regime_source": "reconstructed",
+    "nifty_change_pct": -0.07,
+    "sector": "METAL",
+    "sector_pct_ema20_entry": 1.8644627663493432,
+    "sector_pct_ema20_exit": -0.5161703750765707,
+    "earnings_in_window": false,
+    "earnings_date": null,
+    "vol_ratio_entry": 1.08,
+    "atr_pct_entry": 3.92,
+    "sl_distance_pct": 5.0,
+    "sl_distance_atr": 1.28
+  },
+  "classification": {
+    "primary": "FALSE_BREAKOUT",
+    "contributing": [],
+    "evidence": {
+      "FALSE_BREAKOUT": "never reached 33% of the way to T1 and closed back below entry within 3 bars"
+    }
+  },
+  "app_gaps": [
+    {
+      "class": "FALSE_BREAKOUT",
+      "type": "ADD",
+      "filter": "false_breakout_risk_detector",
+      "detail": "(partial \u2014 entry snapshot unavailable) false-breakout detector rated the entry LOW risk \u2014 detector blind spot"
+    }
+  ],
+  "llm_narrative": {
+    "text": null,
+    "provider": null,
+    "model": null,
+    "error": null
+  },
+  "tight_sl_recheck": {
+    "due_date": "2026-06-12",
+    "done": true,
+    "checked_on": "2026-07-10",
+    "recovered": false,
+    "recovery_close": null
+  }
+}

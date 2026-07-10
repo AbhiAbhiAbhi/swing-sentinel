@@ -6,6 +6,7 @@ Open: http://localhost:5000
 import json
 import logging
 import os
+import re
 from datetime import datetime, timedelta
 import pytz
 
@@ -1439,6 +1440,10 @@ def _extract_snapshot(r) -> dict:
         "buy_vol_ratio":           _safe_float("Buy_Vol_Ratio"),
         "post_mortem_why":         _safe_str("Post_Mortem_Why"),
         "post_mortem_maximize":    _safe_str("Post_Mortem_Maximize"),
+        "failure_class":           _safe_str("Failure_Class"),
+        "failure_contributing":    _safe_str("Failure_Contributing"),
+        "pm_confidence":           _safe_str("PM_Confidence"),
+        "pm_generated_at":         _safe_str("PM_Generated_At"),
     }
 
 
@@ -2251,6 +2256,59 @@ def api_positions_post_mortem():
         return jsonify({"status": "error", "message": str(exc)}), 500
 
 
+_PM_SYMBOL_RE = re.compile(r"^[A-Z0-9&\-]{1,20}$")
+_PM_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+@app.route("/api/post-mortems/<symbol>/<entry_date>")
+def api_post_mortem_get(symbol, entry_date):
+    """Full automated post-mortem sidecar for one SL loss (issue #3)."""
+    symbol = str(symbol).strip().upper()
+    entry_date = str(entry_date).strip()
+    if not _PM_SYMBOL_RE.match(symbol) or not _PM_DATE_RE.match(entry_date):
+        return jsonify({"error": "invalid symbol or entry_date"}), 400
+    try:
+        pm = _pm_module().load_post_mortem(symbol, entry_date)
+    except Exception as exc:
+        logger.error("[post_mortem/get] %s", exc)
+        return jsonify({"error": str(exc)}), 500
+    if pm is None:
+        return jsonify({"error": f"no post-mortem for {symbol} @ {entry_date}"}), 404
+    return jsonify(pm)
+
+
+@app.route("/api/post-mortems/run", methods=["POST"])
+def api_post_mortem_run():
+    """Run (or re-run) the automated post-mortem for one closed SL_LOSS row.
+    Synchronous; also syncs the CSV columns — safe because it is a manual,
+    user-initiated call, not the market-hours poller."""
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        symbol = str(data.get("symbol", "")).strip().upper()
+        entry_date = str(data.get("entry_date", "")).strip()
+        with_llm = bool(data.get("with_llm", True))
+        if not _PM_SYMBOL_RE.match(symbol) or not _PM_DATE_RE.match(entry_date):
+            return jsonify({"status": "error", "message": "valid symbol and entry_date required"}), 400
+
+        path = os.path.join(_ROOT, "data", "positions.csv")
+        df = pd.read_csv(path, dtype=str, keep_default_na=False)
+        mask = (df["Symbol"].str.strip().str.upper() == symbol) & \
+               (df["Entry_Date"].str.strip() == entry_date)
+        if not mask.any():
+            return jsonify({"status": "error", "message": f"no position for {symbol} @ {entry_date}"}), 404
+        row = df[mask].iloc[-1].to_dict()
+        if str(row.get("Outcome", "")).strip().upper() != "SL_LOSS":
+            return jsonify({"status": "error", "message": "post-mortem only applies to SL_LOSS positions"}), 400
+
+        m = _pm_module()
+        pm = m.run_post_mortem(symbol, entry_date, row, with_llm=with_llm)
+        m.sync_csv_and_rechecks(with_llm=False)
+        return jsonify({"status": "ok", "post_mortem": pm})
+    except Exception as exc:
+        logger.error("[post_mortem/run] %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
 @app.route("/api/positions/update-override", methods=["POST"])
 def api_positions_update_override():
     """Update or insert qualitative/fundamental overrides in positions.csv."""
@@ -2611,6 +2669,7 @@ def api_results():
             "Buy_False_Breakout_Risk", "Buy_False_Breakout_Desc",
             "Buy_RSI", "Buy_ATR_Pct", "Buy_Vol_Ratio",
             "Post_Mortem_Why", "Post_Mortem_Maximize",
+            "Failure_Class", "Failure_Contributing", "PM_Confidence", "PM_Generated_At",
             "Fundamental_Status", "Fundamental_Notes", "Live_Status",
             "Setup_Grade", "Setup_Score", "Expiry_Multiplier", "Expiry_Reason",
             "Cur_Weekly_Trend", "Cur_Return_20d", "Cur_ADX", "Cur_EMA20", "Cur_EMA50",
@@ -2917,7 +2976,15 @@ def api_results():
         # Sort by exit_date desc
         closed_list.sort(key=lambda x: x.get("exit_date", ""), reverse=True)
 
+        # Aggregate SL post-mortem stats (issue #3) — best-effort, never fatal
+        try:
+            post_mortems = _pm_module().aggregate_post_mortems()
+        except Exception as pm_exc:
+            logger.warning("[results] post-mortem aggregate failed: %s", pm_exc)
+            post_mortems = {}
+
         return jsonify({
+            "post_mortems":     post_mortems,
             "total":            total,
             "open":             len(open_df) + len(bought_df),
             "closed":           closed,
@@ -2952,6 +3019,7 @@ def _empty_results():
         "active_count": 0, "active_in_profit": 0, "active_in_loss": 0,
         "active_entry_hit": 0, "active_t1_hit": 0,
         "avg_unrealized_pct": 0, "active_positions": [],
+        "post_mortems": {},
     }
 
 
@@ -2981,12 +3049,14 @@ def check_positions_and_notify() -> list:
     _ensure_cols(df, [
         "Entry_Hit_Date", "T1_Hit_Date", "T2_Hit_Date", "SL_Hit_Date", "Outcome",
         "Setup_Grade", "Setup_Score", "Expiry_Multiplier", "Expiry_Reason",
-        "Highest_High_Since_Entry"
+        "Highest_High_Since_Entry",
+        "Failure_Class", "Failure_Contributing", "PM_Confidence", "PM_Generated_At",
     ])
     # Force object/mixed dtype so pandas allows assigning strings to empty/NaN columns without casting errors
     for col in (
         "Entry_Hit_Date", "T1_Hit_Date", "T2_Hit_Date", "SL_Hit_Date", "Outcome",
-        "Setup_Grade", "Expiry_Multiplier", "Expiry_Reason", "Highest_High_Since_Entry"
+        "Setup_Grade", "Expiry_Multiplier", "Expiry_Reason", "Highest_High_Since_Entry",
+        "Failure_Class", "Failure_Contributing", "PM_Confidence", "PM_Generated_At",
     ):
         if col in df.columns:
             df[col] = df[col].astype(object)
@@ -2997,6 +3067,7 @@ def check_positions_and_notify() -> list:
     csv_dirty = False
     positions = []
     pending_alerts: list[str] = []
+    new_sl_losses: list = []  # (df_idx, symbol, entry_date, row-dict) for auto post-mortem
 
     # ── Bulk-fetch live prices for all OPEN and BOUGHT positions (one bulk yfinance call) ──
     active_symbols = (
@@ -3226,8 +3297,39 @@ def check_positions_and_notify() -> list:
                 df.at[idx, "Outcome"]       = "TRAILED_EXIT_PROFIT" if trailed_profit else "SL_LOSS"
                 df.at[idx, "Status"]        = "CLOSED"
                 csv_dirty = True
+                if not trailed_profit:
+                    row_dict = {k: df.at[idx, k] for k in df.columns}
+                    row_dict["SL_Hit_Date"] = today_str
+                    new_sl_losses.append((idx, sym, str(pos.get("Entry_Date", "")), row_dict))
 
         positions.append(pos)
+
+    # Run the post-mortem synchronously, before the CSV write, so the
+    # classification columns land in the SAME atomic write as the SL_LOSS
+    # transition. Synchronous (not a background thread) so this also works
+    # under GitHub Actions' one-shot poll_once.py, which exits immediately
+    # after this function returns — a daemon thread would never finish there.
+    pm_alerts: list[str] = []
+    if new_sl_losses:
+        try:
+            pm_module = _pm_module()
+        except Exception as e:
+            pm_module = None
+            logger.error("[post_mortem] module import failed: %s", e)
+        for idx, sym, entry_date, row_dict in new_sl_losses:
+            if pm_module is None:
+                continue
+            try:
+                pm = pm_module.run_post_mortem(sym, entry_date, row_dict, with_llm=True)
+                cls = pm.get("classification") or {}
+                df.at[idx, "Failure_Class"] = str(cls.get("primary") or "")
+                df.at[idx, "Failure_Contributing"] = ",".join(cls.get("contributing") or [])
+                df.at[idx, "PM_Confidence"] = str(pm.get("confidence") or "")
+                df.at[idx, "PM_Generated_At"] = str(pm.get("generated_at") or "")
+                csv_dirty = True
+                pm_alerts.append(_format_post_mortem_alert(sym, pm))
+            except Exception as e:
+                logger.error("[post_mortem] failed for %s/%s: %s", sym, entry_date, e)
 
     if csv_dirty:
         tmp_path = f"{path}.tmp"
@@ -3235,6 +3337,8 @@ def check_positions_and_notify() -> list:
         os.replace(tmp_path, path)
 
     for msg in pending_alerts:
+        _tg_send(msg)
+    for msg in pm_alerts:
         _tg_send(msg)
 
     return positions
@@ -3247,6 +3351,61 @@ def _truthy(val) -> bool:
     if isinstance(val, bool):
         return val
     return str(val).strip().lower() in ("true", "1", "yes")
+
+
+def _pm_module():
+    """Dual-idiom import of the post-mortem engine (flat launch ≠ package)."""
+    try:
+        import core_post_mortem as m
+    except ImportError:
+        from core import core_post_mortem as m
+    return m
+
+
+def _format_post_mortem_alert(symbol: str, pm: dict) -> str:
+    """Telegram summary for a just-computed post-mortem (called synchronously
+    from check_positions_and_notify, after the sidecar is already saved)."""
+    cls = pm.get("classification") or {}
+    lines = [
+        f"🧾 <b>AUTO POST-MORTEM — {symbol}</b>",
+        f"Failure class: <b>{cls.get('primary')}</b>",
+    ]
+    if cls.get("contributing"):
+        lines.append(f"Contributing: {', '.join(cls['contributing'])}")
+    lines.append(f"Confidence: {pm.get('confidence')}")
+    gaps = pm.get("app_gaps") or []
+    if gaps:
+        g = gaps[0]
+        lines.append(f"Fix: {g.get('type')} {g.get('filter')}")
+    narrative = (pm.get("llm_narrative") or {}).get("text")
+    if narrative:
+        lines.append("")
+        lines.append(narrative[:600])
+    return "\n".join(lines)
+
+
+def _post_mortem_sweep_job() -> None:
+    """Daily 15:45 IST job: sync sidecars into positions.csv, analyze missed
+    losses, process due TIGHT_SL re-checks. Poller is idle at this hour."""
+    try:
+        stats = _pm_module().sync_csv_and_rechecks(notify=_tg_send)
+        logger.info("[post_mortem] sweep done: %s", stats)
+    except Exception as e:
+        logger.error("[post_mortem] sweep failed: %s", e)
+
+
+def _weekly_pm_digest_job() -> None:
+    """Friday 16:00 IST job: weekly failure-class digest to Telegram."""
+    try:
+        m = _pm_module()
+        text = m.build_weekly_digest_text(m.aggregate_post_mortems(), m.collect_week_losses())
+        if text:
+            _tg_send(text)
+            logger.info("[post_mortem] weekly digest sent")
+        else:
+            logger.info("[post_mortem] weekly digest skipped — nothing to report")
+    except Exception as e:
+        logger.error("[post_mortem] weekly digest failed: %s", e)
 
 
 def _sentiment(nifty: dict, fii: dict) -> str:
@@ -3512,6 +3671,31 @@ def _start_scheduler():
         logger.info("[poll] scheduled Keep & refresh Scan at %s IST", _maintenance_time)
     except Exception as e:
         logger.error("[poll] failed to schedule Keep & refresh Scan: %s", e)
+
+    # Post-mortem sweep — after the poller's last slot (15:30) so positions.csv
+    # has a single writer (issue #3)
+    try:
+        _scheduler.add_job(
+            _post_mortem_sweep_job,
+            CronTrigger(day_of_week="mon-fri", hour=15, minute=45, timezone=ist),
+            id="post_mortem_sweep",
+            max_instances=1,
+            coalesce=True,
+        )
+        logger.info("[post_mortem] scheduled daily sweep at 15:45 IST")
+    except Exception as e:
+        logger.error("[post_mortem] failed to schedule sweep: %s", e)
+    try:
+        _scheduler.add_job(
+            _weekly_pm_digest_job,
+            CronTrigger(day_of_week="fri", hour=16, minute=0, timezone=ist),
+            id="weekly_pm_digest",
+            max_instances=1,
+            coalesce=True,
+        )
+        logger.info("[post_mortem] scheduled weekly digest Fri 16:00 IST")
+    except Exception as e:
+        logger.error("[post_mortem] failed to schedule weekly digest: %s", e)
 
     _scheduler.start()
     logger.info("[poll] background scheduler started — polling every minute, Mon-Fri 9:15-15:30 IST")

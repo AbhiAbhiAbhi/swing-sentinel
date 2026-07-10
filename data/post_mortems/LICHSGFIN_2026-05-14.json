@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "symbol": "LICHSGFIN",
+  "entry_date": "2026-05-14",
+  "exit_date": "2026-05-18",
+  "generated_at": "2026-07-10T09:09:06",
+  "confidence": "partial",
+  "confidence_notes": [
+    "no entry snapshot \u2014 pre-snapshot trade, partial analysis",
+    "no index for sector OTHERS \u2014 sector break not evaluable"
+  ],
+  "price_path": {
+    "entry_price": 556.22,
+    "stop_price": 545.66,
+    "exit_price": 545.5499877929688,
+    "t1": 598.2,
+    "days_held": 4,
+    "bars": 3,
+    "descent_type": "GRIND",
+    "worst_gap_down_pct": -0.37,
+    "gap_bar_date": null,
+    "hh_since_entry": 580.9500122070312,
+    "t1_progress_pct": 58.9,
+    "almost_worked": false,
+    "exit_open_below_stop": true,
+    "closed_below_entry_within_3_bars": true
+  },
+  "condition_diff": {
+    "nifty_regime_entry": "RED",
+    "nifty_regime_exit": "RED",
+    "nifty_regime_source": "reconstructed",
+    "nifty_change_pct": -0.17,
+    "sector": "OTHERS",
+    "sector_pct_ema20_entry": null,
+    "sector_pct_ema20_exit": null,
+    "earnings_in_window": false,
+    "earnings_date": null,
+    "vol_ratio_entry": null,
+    "atr_pct_entry": null,
+    "sl_distance_pct": 1.9,
+    "sl_distance_atr": null
+  },
+  "classification": {
+    "primary": "GAP_EVENT",
+    "contributing": [
+      "TIGHT_SL"
+    ],
+    "evidence": {
+      "GAP_EVENT": "exit day opened below the stop \u2014 stopped on the gap itself",
+      "TIGHT_SL": "price recovered to 564.00 within days of the stop-out (STRONG) \u2014 the stop was too tight"
+    }
+  },
+  "app_gaps": [
+    {
+      "class": "GAP_EVENT",
+      "type": "ADD",
+      "filter": "overnight_gap_risk (no filter yet)",
+      "detail": "(partial \u2014 entry snapshot unavailable) no filter covers overnight gap risk \u2014 e.g. cap position size when ATR% is high or events are pending"
+    }
+  ],
+  "llm_narrative": {
+    "text": null,
+    "provider": null,
+    "model": null,
+    "error": null
+  },
+  "tight_sl_recheck": {
+    "due_date": "2026-05-25",
+    "done": true,
+    "checked_on": "2026-07-10",
+    "recovered": true,
+    "recovery_close": 564.0
+  }
+}

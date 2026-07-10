@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "symbol": "JSFB",
+  "entry_date": "2026-05-22",
+  "exit_date": "2026-07-08",
+  "generated_at": "2026-07-10T09:09:09",
+  "confidence": "partial",
+  "confidence_notes": [
+    "no entry snapshot \u2014 pre-snapshot trade, partial analysis",
+    "no index for sector OTHERS \u2014 sector break not evaluable",
+    "earnings data unavailable"
+  ],
+  "price_path": {
+    "entry_price": 453.25,
+    "stop_price": 468.75,
+    "exit_price": 441.20001220703125,
+    "t1": 501.0,
+    "days_held": 47,
+    "bars": 34,
+    "descent_type": "GAP",
+    "worst_gap_down_pct": -4.49,
+    "gap_bar_date": "2026-07-01",
+    "hh_since_entry": 507.0,
+    "t1_progress_pct": 112.6,
+    "almost_worked": true,
+    "exit_open_below_stop": true,
+    "closed_below_entry_within_3_bars": true
+  },
+  "condition_diff": {
+    "nifty_regime_entry": "RED",
+    "nifty_regime_exit": "RED",
+    "nifty_regime_source": "reconstructed",
+    "nifty_change_pct": 0.69,
+    "sector": "OTHERS",
+    "sector_pct_ema20_entry": null,
+    "sector_pct_ema20_exit": null,
+    "earnings_in_window": null,
+    "earnings_date": null,
+    "vol_ratio_entry": 0.28,
+    "atr_pct_entry": 4.92,
+    "sl_distance_pct": -3.42,
+    "sl_distance_atr": -0.7
+  },
+  "classification": {
+    "primary": "GAP_EVENT",
+    "contributing": [
+      "LOW_VOLUME_ENTRY",
+      "TIGHT_SL"
+    ],
+    "evidence": {
+      "GAP_EVENT": "exit day opened below the stop \u2014 stopped on the gap itself",
+      "LOW_VOLUME_ENTRY": "entered on 0.28\u00d7 volume (below 1.0\u00d7)",
+      "TIGHT_SL": "reached 113% of the way to T1 before reversing to the stop"
+    }
+  },
+  "app_gaps": [
+    {
+      "class": "GAP_EVENT",
+      "type": "ADD",
+      "filter": "overnight_gap_risk (no filter yet)",
+      "detail": "(partial \u2014 entry snapshot unavailable) no filter covers overnight gap risk \u2014 e.g. cap position size when ATR% is high or events are pending"
+    },
+    {
+      "class": "LOW_VOLUME_ENTRY",
+      "type": "ADD",
+      "filter": "breakout_volume",
+      "detail": "(partial \u2014 entry snapshot unavailable) breakout volume was not evaluated at entry \u2014 make the 1.2x volume gate mandatory"
+    },
+    {
+      "class": "TIGHT_SL",
+      "type": "TIGHTEN",
+      "filter": "trade_plan_stop_sizing",
+      "detail": "(partial \u2014 entry snapshot unavailable) stop sizing allowed a stop tighter than 1x ATR \u2014 enforce a minimum stop distance in the trade plan"
+    }
+  ],
+  "llm_narrative": {
+    "text": null,
+    "provider": null,
+    "model": null,
+    "error": null
+  },
+  "tight_sl_recheck": {
+    "due_date": "2026-07-15",
+    "done": false,
+    "checked_on": null,
+    "recovered": null,
+    "recovery_close": null
+  }
+}

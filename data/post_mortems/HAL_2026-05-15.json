@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "symbol": "HAL",
+  "entry_date": "2026-05-15",
+  "exit_date": "2026-05-18",
+  "generated_at": "2026-07-10T09:09:17",
+  "confidence": "partial",
+  "confidence_notes": [
+    "no entry snapshot \u2014 pre-snapshot trade, partial analysis",
+    "no index for sector DEFENCE \u2014 sector break not evaluable"
+  ],
+  "price_path": {
+    "entry_price": 4418.11,
+    "stop_price": 4347.4,
+    "exit_price": 4326.5,
+    "t1": 4836.3,
+    "days_held": 3,
+    "bars": 2,
+    "descent_type": "GRIND",
+    "worst_gap_down_pct": -0.61,
+    "gap_bar_date": null,
+    "hh_since_entry": 4618.0,
+    "t1_progress_pct": 47.8,
+    "almost_worked": false,
+    "exit_open_below_stop": false,
+    "closed_below_entry_within_3_bars": true
+  },
+  "condition_diff": {
+    "nifty_regime_entry": "RED",
+    "nifty_regime_exit": "RED",
+    "nifty_regime_source": "reconstructed",
+    "nifty_change_pct": 0.03,
+    "sector": "DEFENCE",
+    "sector_pct_ema20_entry": null,
+    "sector_pct_ema20_exit": null,
+    "earnings_in_window": false,
+    "earnings_date": null,
+    "vol_ratio_entry": null,
+    "atr_pct_entry": null,
+    "sl_distance_pct": 1.6,
+    "sl_distance_atr": null
+  },
+  "classification": {
+    "primary": "TIGHT_SL",
+    "contributing": [],
+    "evidence": {
+      "TIGHT_SL": "price recovered to 4515.20 within days of the stop-out (STRONG) \u2014 the stop was too tight"
+    }
+  },
+  "app_gaps": [],
+  "llm_narrative": {
+    "text": null,
+    "provider": null,
+    "model": null,
+    "error": null
+  },
+  "tight_sl_recheck": {
+    "due_date": "2026-05-25",
+    "done": true,
+    "checked_on": "2026-07-10",
+    "recovered": true,
+    "recovery_close": 4515.2001953125
+  }
+}
