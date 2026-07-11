@@ -528,7 +528,7 @@ def api_debate(symbol: str):
                     if not row_match.empty:
                         position_row = row_match.iloc[0].to_dict()
                         status_str = str(position_row.get("Status")).strip().upper()
-                        if status_str in ("OPEN", "BOUGHT", "HELD"):
+                        if status_str in ("OPEN", "ARMED", "BOUGHT", "HELD"):
                             entry_price = position_row.get("Entry_Price")
                             if entry_price and not pd.isna(entry_price):
                                 entry_min = float(entry_price)
@@ -572,9 +572,9 @@ def api_debate(symbol: str):
             trade_plan=trade_plan
         )
 
-        # ── Auto-prune OPEN stocks on Debate SKIP verdict ──────────
+        # ── Auto-prune OPEN/ARMED stocks on Debate SKIP verdict ──────────
         verdict = (result.get("verdict") or "").upper()
-        if verdict == "SKIP" and trade_plan and trade_plan.get("status") == "OPEN":
+        if verdict == "SKIP" and trade_plan and trade_plan.get("status") in ("OPEN", "ARMED"):
             try:
                 import pandas as pd
                 from datetime import date
@@ -1171,10 +1171,10 @@ def _append_rows_to_csv(path: str, rows: list) -> tuple:
 
     existing = pd.read_csv(path) if os.path.exists(path) else pd.DataFrame()
 
-    # Symbols with an active (OPEN or BOUGHT) position — never add duplicates.
+    # Symbols with an active (OPEN, ARMED or BOUGHT) position — never add duplicates.
     blocked_syms = set()
     if not existing.empty and "Status" in existing.columns:
-        active_mask = existing["Status"].astype(str).str.upper().isin(["OPEN", "BOUGHT"])
+        active_mask = existing["Status"].astype(str).str.upper().isin(["OPEN", "ARMED", "BOUGHT"])
         blocked_syms = set(existing.loc[active_mask, "Symbol"].astype(str).tolist())
 
     # Symbols pruned within the last 7 days — enforce a re-entry cooldown so a
@@ -1951,8 +1951,8 @@ def api_positions_remove():
         if df.empty:
             return jsonify({"status": "error", "message": "watchlist is empty"}), 400
 
-        # Check if the symbol is in open positions (case-insensitive & stripped)
-        open_mask = (df["Symbol"].astype(str).str.strip().str.upper() == symbol.strip().upper()) & (df["Status"].fillna("").astype(str).str.strip().str.upper() == "OPEN")
+        # Check if the symbol is in open/armed positions (case-insensitive & stripped)
+        open_mask = (df["Symbol"].astype(str).str.strip().str.upper() == symbol.strip().upper()) & (df["Status"].fillna("").astype(str).str.strip().str.upper().isin(["OPEN", "ARMED"]))
         if not open_mask.any():
             return jsonify({"status": "error", "message": f"{symbol} not found in active watchlist"}), 404
 
@@ -2003,10 +2003,10 @@ def api_positions_buy():
                     "message": f"{symbol} already has an active BOUGHT position"
                 }), 409
 
-        # Locate the OPEN position for the symbol
+        # Locate the OPEN/ARMED position for the symbol
         idx = None
         if not df.empty:
-            mask = (df["Symbol"] == symbol) & (df["Status"] == "OPEN")
+            mask = (df["Symbol"] == symbol) & (df["Status"].isin(["OPEN", "ARMED"]))
             if mask.any():
                 idx = df[mask].index[-1]  # take the most recent open setup
 
@@ -2229,6 +2229,67 @@ def api_positions_buy():
         return jsonify({"status": "error", "message": str(exc)}), 500
 
 
+@app.route("/api/positions/arm", methods=["POST"])
+def api_positions_arm():
+    """Toggle a watchlist candidate between OPEN and ARMED.
+
+    ARMED = the user intends to buy: the poller price-watches the row and fires
+    the ENTRY READY alert when price reaches the entry zone. This is bookkeeping
+    only — no broker/GTT order is placed. Pass {"disarm": true} to revert to OPEN.
+    """
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        symbol = data.get("symbol")
+        if not symbol:
+            return jsonify({"status": "error", "message": "symbol required"}), 400
+
+        symbol = symbol.strip().upper()
+        disarm = bool(data.get("disarm"))
+        path = os.path.join(_ROOT, "data", "positions.csv")
+        if not os.path.exists(path):
+            return jsonify({"status": "error", "message": "positions.csv does not exist"}), 404
+
+        df = pd.read_csv(path)
+        if df.empty:
+            return jsonify({"status": "error", "message": "watchlist is empty"}), 404
+
+        sym_mask = df["Symbol"].astype(str).str.strip().str.upper() == symbol
+        status_col = df["Status"].fillna("").astype(str).str.strip().str.upper()
+
+        if (sym_mask & (status_col == "BOUGHT")).any():
+            return jsonify({
+                "status": "error",
+                "message": f"{symbol} is already BOUGHT — arming applies to watchlist candidates only"
+            }), 409
+
+        from_status, to_status = ("ARMED", "OPEN") if disarm else ("OPEN", "ARMED")
+        mask = sym_mask & (status_col == from_status)
+        if not mask.any():
+            if (sym_mask & (status_col == to_status)).any():
+                # Idempotent: already in the requested state
+                return jsonify({"status": "ok", "message": f"{symbol} is already {to_status}", "new_status": to_status})
+            return jsonify({
+                "status": "error",
+                "message": f"{symbol} has no {from_status} watchlist row"
+            }), 404
+
+        idx = df[mask].index[-1]  # most recent matching row
+        df.at[idx, "Status"] = to_status
+        _save_positions_csv(df, path)
+        logger.info("[positions/arm] %s %s → %s", symbol, from_status, to_status)
+        return jsonify({
+            "status": "ok",
+            "message": f"{symbol} {'disarmed' if disarm else 'armed'} — "
+                       + ("back to passive watchlist"
+                          if disarm else
+                          "price-watch on; remember to place your limit/GTT order at your broker"),
+            "new_status": to_status
+        })
+    except Exception as exc:
+        logger.error("[positions/arm] %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
 @app.route("/api/positions/post-mortem", methods=["POST"])
 def api_positions_post_mortem():
     """Save retrospective analysis for a closed or active position in the database."""
@@ -2370,7 +2431,7 @@ def api_positions_update_override():
         df["Symbol"] = df["Symbol"].astype(str).str.strip().str.upper()
         
         # Check if symbol exists in open or bought positions
-        mask = (df["Symbol"] == symbol) & (df["Status"].astype(str).str.upper().isin(["OPEN", "BOUGHT"]))
+        mask = (df["Symbol"] == symbol) & (df["Status"].astype(str).str.upper().isin(["OPEN", "ARMED", "BOUGHT"]))
         
         if mask.any():
             # Update the latest matching row
@@ -2704,7 +2765,7 @@ def api_results():
 
         total = len(df)
         closed_df = df[df["Status"].astype(str).str.upper() == "CLOSED"]
-        open_df   = df[df["Status"].astype(str).str.upper() == "OPEN"]
+        open_df   = df[df["Status"].astype(str).str.upper().isin(["OPEN", "ARMED"])]
         bought_df = df[df["Status"].astype(str).str.upper() == "BOUGHT"]
 
         # Money-based scoring: a win is an exit above entry, regardless of the
@@ -2780,6 +2841,8 @@ def api_results():
                 watchlist_list.append({
                     "symbol":      sym,
                     "name":        str(r.get("Name", sym)),
+                    # OPEN (passive watchlist) vs ARMED (price-watched, entry alerts on)
+                    "position_status": str(r.get("Status", "OPEN") or "OPEN").upper(),
                     "setup":       str(r.get("Setup", "")),
                     "entry":       ep,
                     "current":     cp,
@@ -2923,7 +2986,7 @@ def api_results():
                 continue
             grp        = df[df["Setup"] == setup]
             grp_closed = grp[grp["Status"].astype(str).str.upper() == "CLOSED"]
-            grp_open   = grp[grp["Status"].astype(str).str.upper().isin(["OPEN", "BOUGHT"])]
+            grp_open   = grp[grp["Status"].astype(str).str.upper().isin(["OPEN", "ARMED", "BOUGHT"])]
             gep = pd.to_numeric(grp_closed["Entry_Price"], errors="coerce")
             gcp = pd.to_numeric(grp_closed["Closing_Price"], errors="coerce")
             gvalid     = (gep > 0) & (gcp > 0)
@@ -3163,9 +3226,11 @@ def check_positions_and_notify() -> list:
     pending_alerts: list[str] = []
     new_sl_losses: list = []  # (df_idx, symbol, entry_date, row-dict) for auto post-mortem
 
-    # ── Bulk-fetch live prices for all OPEN and BOUGHT positions (one bulk yfinance call) ──
+    # ── Bulk-fetch live prices for all ARMED and BOUGHT positions (one bulk yfinance call) ──
+    # ARMED = user has declared intent to buy: watch its price and fire the
+    # ENTRY READY alert. Plain OPEN watchlist rows stay passive (no polling).
     active_symbols = (
-        df.loc[df["Status"].astype(str).str.upper().eq("BOUGHT"), "Symbol"]
+        df.loc[df["Status"].astype(str).str.upper().isin(["ARMED", "BOUGHT"]), "Symbol"]
           .astype(str).unique().tolist()
     )
     price_map = fetch_prices_bulk_dated(active_symbols) if active_symbols else {}
@@ -3181,7 +3246,7 @@ def check_positions_and_notify() -> list:
                 pass
         status = str(pos.get("Status", "OPEN")).upper()
 
-        if status != "BOUGHT":
+        if status not in ("ARMED", "BOUGHT"):
             pos["current_price"] = 0
             pos["pnl"]           = 0
             pos["pnl_pct"]       = 0
@@ -3212,8 +3277,11 @@ def check_positions_and_notify() -> list:
         pos["pnl_pct"]       = round(((cur - ep) / ep * 100) if ep else 0, 2)
         pct                  = round(((cur - ep) / ep * 100) if ep else 0, 1)
 
-        if status == "OPEN":
-            # Watched stock setup: monitor only for entry ready zone.
+        if status == "ARMED":
+            # Armed stock: user intends to buy — monitor only for entry ready zone.
+            # No money is deployed yet, so never report P&L for an armed row.
+            pos["pnl"]     = 0
+            pos["pnl_pct"] = 0
             # Gated on price_fresh so a stale prior close can't fire a weekend alert.
             entry_hit = bool(price_fresh and ep and cur <= ep * 1.005)
             pos["entry_hit"] = entry_hit

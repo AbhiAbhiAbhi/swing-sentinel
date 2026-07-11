@@ -946,6 +946,29 @@ body.light-theme .tab-btn.tab-analytics.active   {color:#7047A3 !important; back
 .ca-qrow .qr-icon.warn{background:var(--yellow-bg);color:var(--yellow)}
 .ca-qrow .qr-icon.fail{background:var(--red-bg);color:var(--red)}
 
+/* ── ACTION section (BUY Now / ARM LIMIT + key trade metrics) ───── */
+.ca-action-section{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:9px}
+.ca-act-head{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+.ca-act-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.ca-act-metric{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:6px 9px;transition:transform .12s ease,box-shadow .12s ease}
+.ca-act-metric:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.ca-act-metric .cam-lbl{font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
+.ca-act-metric .cam-val{font-size:12px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ca-act-btnrow{display:flex;gap:8px}
+.ca-act-btnrow .ca-btn{flex:1;font-size:11.5px;font-weight:800;padding:9px 12px;border-radius:8px;transition:all .15s ease}
+.ca-buynow-btn{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
+.ca-buynow-btn:hover:not(:disabled){background:var(--green);color:#fff;box-shadow:0 2px 10px rgba(16,185,129,.3)}
+.ca-arm-btn{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue)}
+.ca-arm-btn:hover:not(:disabled){background:var(--blue);color:#fff;box-shadow:0 2px 10px rgba(59,130,246,.3)}
+.ca-armed-btn{flex:1;background:var(--blue);color:#fff;border:1px solid var(--blue);opacity:.9;cursor:default}
+.ca-disarm-btn{flex:0 0 auto;background:transparent;color:var(--muted);border:1px solid var(--border)}
+.ca-disarm-btn:hover{color:var(--red);border-color:var(--red)}
+.ca-act-btnrow .ca-btn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.4)}
+.ca-act-note{font-size:10px;color:var(--muted);line-height:1.45;font-style:italic}
+.ca-rule-note{font-size:10px;color:var(--muted);line-height:1.45;font-style:italic;padding:2px 0 4px;border-bottom:1px dashed var(--border);margin-bottom:4px}
+body.light-theme .ca-act-metric{background:rgba(255,255,255,0.65);box-shadow:0 1px 2px rgba(28,34,31,.05)}
+body.light-theme .ca-act-metric:hover{box-shadow:0 3px 10px rgba(28,34,31,.1)}
+
 /* BLOCKED ineligible panel */
 .ca-blocked-panel{padding:14px 16px;display:flex;flex-direction:column;gap:8px}
 .ca-blocked-head{font-size:12px;font-weight:800;color:var(--red);display:flex;align-items:center;gap:7px}
@@ -6326,6 +6349,11 @@ function renderWatchlist(r) {
       // Fresh when today's Keep & Refresh stamped scan_date; else fall back to scan cache.
       is_default:        fresh ? false : !cached,
       name:              p.name || p.symbol,
+      // OPEN = passive watchlist · ARMED = price-watched with ENTRY READY alerts
+      position_status:   (p.position_status || "OPEN").toUpperCase(),
+      entry:             p.entry,
+      rupee_risk:        p.rupee_risk,
+      risk_per_share:    p.risk_per_share,
       price:             p.current || p.entry,
       change_pct:        cached ? cached.change_pct : (p.pnl_pct || 0),
       rsi:               cached ? cached.rsi : 50,
@@ -6489,6 +6517,7 @@ function renderWatchlist(r) {
     return `<tr>
       <td>
         <b>${p.symbol}</b>
+        ${(p.position_status || "") === "ARMED" ? `<span class="tag" style="background:var(--blue-bg);color:var(--blue);border:1px solid rgba(59,130,246,0.4);font-weight:800;font-size:8.5px;padding:1px 5px;border-radius:4px;margin-left:4px" title="ARMED — price-watched, ENTRY READY alert on. No broker order placed.">⚔️ ARMED</span>` : ""}
         ${p.index_membership && p.index_membership.length ? `
           <div style="display:flex;gap:3px;margin-top:4px;flex-wrap:wrap">
             ${p.index_membership.map(idx => `<span class="tag t-index" style="font-size:8px;padding:1px 4px;line-height:1">${idx}</span>`).join("")}
@@ -7603,6 +7632,36 @@ async function saveQualitativeNotes(symbol, btn) {
       btn.disabled = false;
       btn.textContent = originalLabel;
     }, 1500);
+  }
+}
+
+/* ARM LIMIT: flips the watchlist row OPEN → ARMED (or back with disarm=true).
+   ARMED = the poller price-watches the stock and fires the ENTRY READY alert.
+   Bookkeeping only — NO broker/GTT order is placed. */
+async function armStock(symbol, disarm) {
+  try {
+    const resp = await apiFetch("/api/positions/arm", {
+      method: "POST",
+      body: JSON.stringify({ symbol: symbol, disarm: !!disarm })
+    });
+    if (resp.status === "ok") {
+      if (disarm) {
+        toast(`🕊️ ${symbol} disarmed — back to passive watchlist`, "success");
+      } else {
+        toast(`⚔️ ${symbol} armed — entry alerts on. Place your limit/GTT order at your broker.`, "success");
+      }
+      // Optimistically update local state so the card re-renders instantly
+      (_analysisStocks || []).forEach(s => {
+        if (s.symbol === symbol) s.position_status = disarm ? "OPEN" : "ARMED";
+      });
+      try { renderStockValidation(); } catch {}
+      loadPositions();
+    } else {
+      toast(`⚠️ ${resp.message || "Arm failed"}`, "error");
+    }
+  } catch (err) {
+    console.error("armStock failed:", err);
+    toast("⚠️ Could not reach the server to arm " + symbol, "error");
   }
 }
 
@@ -8780,18 +8839,16 @@ function renderChartAnalysis() {
    POSITION SIZING calculator
    ══════════════════════════════════════════════════════════ */
 
-function recalcPosSize() {
-  const cap   = parseFloat(document.getElementById("ps_capital").value)  || 0;
-  const rPct  = parseFloat(document.getElementById("ps_risk_pct").value) || 0;
-  const entry = parseFloat(document.getElementById("ps_entry").value)    || 0;
-  const sl    = parseFloat(document.getElementById("ps_sl").value)       || 0;
-  const tgt   = parseFloat(document.getElementById("ps_target").value)   || 0; // Target 2
-
+/* Pure sizing math — single source of truth shared by the Trading-tab
+   calculator (recalcPosSize) and the Analysis-tab validation card.
+   `stock` (nullable) supplies conviction/regime/expiry multipliers;
+   entry/sl/tgt are the plan levels; cap/rPct the account inputs. */
+function computeTradeSizing(stock, entry, sl, tgt, cap, rPct) {
   const risk        = cap * rPct / 100;
   const riskPerShr  = Math.max(0, entry - sl);
   const baseQty     = riskPerShr > 0 ? Math.floor(risk / riskPerShr) : 0;
 
-  // Calculate Conviction, Regime, Expiry Sizing Factors
+  // Conviction, Regime, Expiry sizing factors
   let convictionMult = 1.0;
   let convictionLabel = "STRONG";
   let regimeMult = 1.0;
@@ -8800,43 +8857,35 @@ function recalcPosSize() {
   let qualityScore = 100;
   let setupGrade = "—";
   let setupScoreStr = "";
-  
-  if (_selectedTradeStock) {
-    const s = _selectedTradeStock;
+
+  if (stock) {
+    const s = stock;
     const vCheck = getStockValidation(s);
     const scoreInfo = computeCompositeScore(s, vCheck);
     qualityScore = scoreInfo.score;
     setupGrade = s.setup_grade || "—";
     setupScoreStr = ` (${s.setup_score || 0}/6.0)`;
-    
-    if (qualityScore >= 80) {
-      convictionMult = 1.0;
-      convictionLabel = "STRONG";
-    } else if (qualityScore >= 65) {
-      convictionMult = 0.75;
-      convictionLabel = "MODERATE";
-    } else if (qualityScore >= 50) {
-      convictionMult = 0.5;
-      convictionLabel = "WEAK";
-    } else {
-      convictionMult = 0.0;
-      convictionLabel = "INELIGIBLE";
-    }
 
-    regimeMult = s.regime_multiplier !== undefined ? parseFloat(s.regime_multiplier) : 1.0;
+    const tierInfo = _convictionTier(qualityScore);
+    convictionLabel = tierInfo.label;
+    convictionMult = qualityScore >= 80 ? 1.0 : qualityScore >= 65 ? 0.75 : qualityScore >= 50 ? 0.5 : 0.0;
+
+    regimeMult = s.regime_multiplier !== undefined && s.regime_multiplier !== null ? parseFloat(s.regime_multiplier) : 1.0;
+    if (isNaN(regimeMult)) regimeMult = 1.0;
 
     if (s.expiry_info && s.expiry_info.in_window && s.expiry_info.multiplier !== undefined) {
       expiryMult = s.expiry_info.multiplier;
       expiryReason = s.expiry_info.reason || "";
-    } else if (s.expiry_multiplier !== undefined) {
+    } else if (s.expiry_multiplier !== undefined && s.expiry_multiplier !== null && s.expiry_multiplier !== "") {
       expiryMult = parseFloat(s.expiry_multiplier);
+      if (isNaN(expiryMult)) expiryMult = 1.0;
       expiryReason = s.expiry_reason || "";
     }
   }
 
   const finalMult = convictionMult * regimeMult * expiryMult;
 
-  // Calculate Adjusted Suggested Quantity: apply multipliers BEFORE clamping to the 20% cap
+  // Adjusted quantity: apply multipliers BEFORE clamping to the 20% allocation cap
   let qtyAdj = Math.floor(baseQty * finalMult);
   const maxAlloc = cap * 0.20;
   let isCappedAdj = false;
@@ -8849,25 +8898,49 @@ function recalcPosSize() {
   }
   const deployedAdj = qtyAdj * entry;
 
-  // Unadjusted quantity calculation (for reference/display)
-  let qty = baseQty;
+  // Unadjusted quantity (for reference/display)
+  const qty = baseQty;
   const deployed = qty * entry;
 
   const rr        = riskPerShr > 0 ? (tgt - entry) / riskPerShr : 0;
-  const slRiskPct = sl > 0 ? ((entry - sl) / entry * 100) : 0;
- 
-   // Blended Targets and returns
-   const t1 = entry > 0 && tgt > entry ? entry + (tgt - entry) / 2 : 0;
-   const qtyT1 = Math.floor(qtyAdj / 2);
-   const qtyT2 = qtyAdj - qtyT1;
-   const t1Profit = t1 > entry ? (t1 - entry) * qtyT1 : 0;
-   const t2Profit = tgt > entry ? (tgt - entry) * qtyT2 : 0;
-   const totalBlendedProfit = t1Profit + t2Profit;
-   const blendedRisk = riskPerShr * qtyAdj;
-   const blendedRR = blendedRisk > 0 ? totalBlendedProfit / blendedRisk : 0;
- 
-   const rrCls     = rr >= 2 ? "up" : rr >= 1.5 ? "neutral" : "down";
-   const slRiskCls = slRiskPct <= 3 ? "up" : "down";
+  const slRiskPct = sl > 0 && entry > 0 ? ((entry - sl) / entry * 100) : 0;
+
+  // Blended targets and returns (half book at T1, rest at T2)
+  const t1 = entry > 0 && tgt > entry ? entry + (tgt - entry) / 2 : 0;
+  const qtyT1 = Math.floor(qtyAdj / 2);
+  const qtyT2 = qtyAdj - qtyT1;
+  const t1Profit = t1 > entry ? (t1 - entry) * qtyT1 : 0;
+  const t2Profit = tgt > entry ? (tgt - entry) * qtyT2 : 0;
+  const totalBlendedProfit = t1Profit + t2Profit;
+  const blendedRisk = riskPerShr * qtyAdj;
+  const blendedRR = blendedRisk > 0 ? totalBlendedProfit / blendedRisk : 0;
+  const rupeeRiskAdj = riskPerShr * qtyAdj;
+
+  return {
+    cap, rPct, risk, riskPerShr, baseQty, qty, deployed,
+    convictionMult, convictionLabel, regimeMult, expiryMult, expiryReason,
+    qualityScore, setupGrade, setupScoreStr, finalMult,
+    qtyAdj, deployedAdj, isCappedAdj, maxAlloc,
+    rr, slRiskPct, t1, totalBlendedProfit, blendedRR, rupeeRiskAdj
+  };
+}
+
+function recalcPosSize() {
+  const cap   = parseFloat(document.getElementById("ps_capital").value)  || 0;
+  const rPct  = parseFloat(document.getElementById("ps_risk_pct").value) || 0;
+  const entry = parseFloat(document.getElementById("ps_entry").value)    || 0;
+  const sl    = parseFloat(document.getElementById("ps_sl").value)       || 0;
+  const tgt   = parseFloat(document.getElementById("ps_target").value)   || 0; // Target 2
+
+  const sz = computeTradeSizing(_selectedTradeStock, entry, sl, tgt, cap, rPct);
+  const { risk, riskPerShr, qty, deployed,
+          convictionMult, convictionLabel, regimeMult, expiryMult, expiryReason,
+          setupGrade, setupScoreStr, finalMult,
+          qtyAdj, deployedAdj, isCappedAdj, maxAlloc,
+          rr, slRiskPct, t1, totalBlendedProfit, blendedRR } = sz;
+
+  const rrCls     = rr >= 2 ? "up" : rr >= 1.5 ? "neutral" : "down";
+  const slRiskCls = slRiskPct <= 3 ? "up" : "down";
   const blendedRrCls = blendedRR >= 2 ? "up" : blendedRR >= 1.5 ? "neutral" : "down";
 
   document.getElementById("ps_out_risk").textContent      = `₹${fmt(risk,0)}`;
@@ -9012,11 +9085,9 @@ function recalcPosSize() {
   try { renderEntryChecklist(); } catch {}
 }
 
-/* Entry gates — reads live page state */
-function renderEntryGates() {
-  const wrap = document.getElementById("entryGates");
-  if (!wrap) return;
-
+/* The 5 live macro market & regime gates — shared by the Trading-tab
+   Entry Gates card and the Analysis-tab validation card accordion. */
+function buildMacroGates() {
   const regime    = window._marketState?.regime    || "";
   const fiiVal    = window._marketState?.fii_today || 0;
   const dayName   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date().getDay()];
@@ -9029,7 +9100,7 @@ function renderEntryGates() {
   const activePosTDs = document.querySelectorAll(".pos-table tbody tr");
   const activeCount  = activePosTDs.length || 0;
 
-  const gates = [
+  return [
     { lbl: "Nifty Regime", val: regime || "—",
       ok: regime === "GREEN", warn: regime === "AMBER",
       detail: "Skip fresh longs in RED regime" },
@@ -9046,6 +9117,14 @@ function renderEntryGates() {
       ok: activeCount <= 5, warn: activeCount > 3 && activeCount <= 5,
       detail: activeCount > 5 ? "⚠️ Over limit (Cap: 5)" : "Within limit (Cap: 5)" },
   ];
+}
+
+/* Entry gates — reads live page state */
+function renderEntryGates() {
+  const wrap = document.getElementById("entryGates");
+  if (!wrap) return;
+
+  const gates = buildMacroGates();
 
   wrap.innerHTML = gates.map(g => {
     const cls = g.ok ? "pos" : g.warn ? "zero" : "neg";
@@ -9354,9 +9433,11 @@ function _caCheck(pass, warn) {
    with a client-side fallback derived from the scan fields.
    ══════════════════════════════════════════════════════════ */
 
-// The 9 Safety Gates (binary). Returns { passed, gates[], passCount, failCount, total, failedGates[] }.
-// NOTE: the adversarial debate verdict is intentionally NOT a gate — it is a judgment call
-// surfaced independently via the ⚖️ JUDGE badge / Debate Chamber, not a structural-safety block.
+// The 12 Safety Gates (binary) — any fail blocks entry. Returns { passed, gates[],
+// passCount, failCount, total, failedGates[] }. Gate "Adversarial check" (the debate
+// SKIP verdict) is displayed in the Debate Chamber section of the card, the other 11
+// under "Hard Safety Gates" — but ALL 12 are hard blockers. Gates are identified by
+// NAME, not number: the backend (core_risk_filters.py) numbers its gates differently.
 function evaluateGates(s) {
   const reasons = Array.isArray(s.reasons) ? s.reasons : [];
   // Find server reason(s) matching any of the given lowercase substrings.
@@ -9509,6 +9590,42 @@ function evaluateGates(s) {
     failCount: failedGates.length,
     total: gates.length
   };
+}
+
+// The 8 Soft Safety Warnings (core_risk_filters.py warnings.append sites), matched
+// against the server's reasons list. Soft warnings do NOT individually block entry,
+// but 3+ TOTAL flags (hard fails + soft warnings combined) triggers a Multi-flag
+// rejection → SKIP verdict → pruned on the next cadence.
+function evaluateSoftWarnings(s) {
+  const reasons = Array.isArray(s.reasons) ? s.reasons.map(r => String(r).toLowerCase()) : [];
+  const match = (patterns) => {
+    const m = reasons.find(r => patterns.some(p => r.includes(p)));
+    return m || null;
+  };
+  const defs = [
+    { name: "Trend-distance alignment", patterns: ["trend distance", "distance alignment", "too far from ema", "extended from ema"],
+      tooltip: "Price stretched too far above its trend anchor (EMA) — entries here often mean buying a pullback candidate at the top." },
+    { name: "No-man's-land timing", patterns: ["no man's land", "no-mans-land", "nml", "pullback support", "breakout resistance", "mid-range"],
+      tooltip: "Price is between clear support and resistance — neither a pullback-to-support nor a breakout entry. Wait for structure." },
+    { name: "Trend stalling", patterns: ["trend stalling", "negative 20-day return"],
+      tooltip: "20-day return is negative — the move that qualified this stock is already fading." },
+    { name: "Target above 52w high", patterns: ["target above 52w high", "exceeds 52w high"],
+      tooltip: "Target 2 sits above the 52-week high — price must break into all-time discovery to pay you." },
+    { name: "Volume vacuum near highs", patterns: ["low volume ratio", "exhaustion risk"],
+      tooltip: "Very low volume while near the 52-week high — buyers may be exhausted (rally running on fumes)." },
+    { name: "Fresh bearish MACD", patterns: ["bearish macd"],
+      tooltip: "A bearish MACD crossover happened in the last 3 days — short-term momentum just flipped down." },
+    { name: "Momentum divergence", patterns: ["momentum divergence"],
+      tooltip: "Price is near its 52-week high but RSI/MACD are weakening — price and momentum disagree." },
+    { name: "Supply wall congestion", patterns: ["supply wall", "clustered resistance"],
+      tooltip: "Price sits just under a cluster of resistance levels — lots of trapped sellers overhead." },
+  ];
+  const items = defs.map(d => {
+    const hitReason = match(d.patterns);
+    return { name: d.name, triggered: !!hitReason, reason: hitReason, tooltip: d.tooltip };
+  });
+  const triggered = items.filter(i => i.triggered);
+  return { items, triggered, count: triggered.length, total: items.length };
 }
 
 // Quality score → conviction tier + sizing multiplier (section 6 of the spec).
@@ -9860,21 +9977,86 @@ function renderStockValidation() {
 
     const cleanSymbol = s.symbol.replace(/[^a-zA-Z0-9]/g, "_");
 
-    // ── Safety gate strip (collapsed: N/9 + dots; click to expand labelled reasons) ──
-    const gateId = `gates_${cleanSymbol}`;
-    const isGateOpen = window._expandedGateStrips && window._expandedGateStrips.has(gateId);
-    const gateListCls = isGateOpen ? "ca-gate-list open" : "ca-gate-list";
-    const gateChevronCls = isGateOpen ? "ca-gate-chevron open" : "ca-gate-chevron";
+    // Helper: accordion open-state classes persisted across re-renders
+    const accState = (id) => {
+      const open = window._expandedGateStrips && window._expandedGateStrips.has(id);
+      return { listCls: open ? "ca-gate-list open" : "ca-gate-list",
+               chevCls: open ? "ca-gate-chevron open" : "ca-gate-chevron" };
+    };
 
-    const countCls = gr.passed ? "pass" : "fail";
-    const countTxt = gr.passed ? `${gr.passCount}/${gr.total} PASS` : `${gr.failCount}/${gr.total} FAIL`;
-    const gateDots = gr.gates.map(g =>
-      `<span class="ca-gate-dot ${g.pass ? "pass" : "fail"}" title="${g.num}. ${g.name}${g.pass ? "" : " — " + (g.reason || "fail")}"></span>`
+    // ── Headline status badge: PASS / WATCH / SKIP / INSUFFICIENT DATA ──
+    let headline = (s.verdict || "").toUpperCase();
+    if (headline === "WARNING") headline = "WATCH";
+    if (item.blocked) headline = "SKIP";
+    if (!headline) headline = (s.is_default || !s.scan_date) ? "INSUFFICIENT DATA" : "PASS";
+    const headlineStyles = {
+      "PASS":  "background:var(--green-bg); color:var(--green); border:1px solid rgba(16,185,129,0.4);",
+      "WATCH": "background:var(--yellow-bg); color:var(--yellow); border:1px solid rgba(245,158,11,0.4);",
+      "SKIP":  "background:var(--red-bg); color:var(--red); border:1px solid rgba(239,68,68,0.4);",
+      "INSUFFICIENT DATA": "background:var(--card); color:var(--muted); border:1px dashed var(--border);"
+    };
+    const headlineBadge = `<span class="tag" style="${headlineStyles[headline] || headlineStyles["INSUFFICIENT DATA"]} font-weight:800; letter-spacing:0.4px; padding:2px 8px; border-radius:5px;" title="Overall verdict for this stock. PASS = eligible · WATCH = eligible with warnings · SKIP = blocked · INSUFFICIENT DATA = not validated by a fresh scan yet.">${headline}</span>`;
+
+    // ── ACTION SECTION — sizing metrics + BUY Now / ARM LIMIT ──
+    const capIn  = parseFloat(document.getElementById("ps_capital")?.value)  || 500000;
+    const rPctIn = parseFloat(document.getElementById("ps_risk_pct")?.value) || 1;
+    const entryPx = parseFloat(s.entry || 0) || parseFloat(s.price || 0);
+    const slPx    = parseFloat(s.sl || 0);
+    const t2Px    = parseFloat(s.target_2 || 0);
+    const t1Px    = parseFloat(s.target_1 || 0);
+    const sz = computeTradeSizing(s, entryPx, slPx, t2Px, capIn, rPctIn);
+    const isArmed = (s.position_status || "OPEN") === "ARMED";
+    const entryZone = (s.entry_min && s.entry_max && s.entry_min !== s.entry_max)
+      ? `₹${fmtP(s.entry_min)}–₹${fmtP(s.entry_max)}` : `₹${fmtP(entryPx)}`;
+    const metric = (lbl, val, tip) => `
+      <div class="ca-act-metric" title="${(tip || "").replace(/"/g, "&quot;")}">
+        <div class="cam-lbl">${lbl}</div>
+        <div class="cam-val">${val}</div>
+      </div>`;
+    const actionMetrics = `
+      <div class="ca-act-grid">
+        ${metric("Entry", entryZone, "Planned entry zone (locked at first scan). Buy inside this zone, not above it.")}
+        ${metric("Qty", sz.qtyAdj > 0 ? sz.qtyAdj.toLocaleString("en-IN") : "—", `Suggested quantity after conviction × regime × expiry sizing (${sz.finalMult.toFixed(2)}x) using capital ₹${fmt(capIn,0)} at ${rPctIn}% risk from the Trading tab.`)}
+        ${metric("Stop Loss", slPx ? `₹${fmtP(slPx)}` : "—", "If price closes below this, the plan is wrong — exit. Never move a stop loss down.")}
+        ${metric("Planned Loss", sz.rupeeRiskAdj > 0 ? `₹${fmt(sz.rupeeRiskAdj,0)}` : "—", "The rupees you lose if the stop loss is hit at the suggested quantity. This is the maximum planned risk on this trade.")}
+        ${metric("Targets", (t1Px && t2Px) ? `₹${fmtP(t1Px)} / ₹${fmtP(t2Px)}` : "—", "T1 (book half) / T2 (book rest). After T1, the stop moves to your entry price.")}
+        ${metric("Allocation", sz.deployedAdj > 0 ? `₹${fmt(sz.deployedAdj,0)}` : "—", `Suggested capital deployed (qty × entry)${sz.isCappedAdj ? " — capped at 20% of capital" : ""}.`)}
+      </div>`;
+    const buyDisabled = item.blocked ? "disabled" : "";
+    const armBtnHtml = isArmed
+      ? `<div style="display:flex; gap:6px; flex:1">
+           <button class="ca-btn ca-armed-btn" disabled title="This stock is ARMED — the poller watches its price and alerts you when it reaches the entry zone.">Armed ⚔️</button>
+           <button class="ca-btn ca-disarm-btn" onclick="armStock('${s.symbol}', true)" title="Revert to a passive watchlist row (no price watch, no entry alert).">Disarm</button>
+         </div>`
+      : `<button class="ca-btn ca-arm-btn" ${buyDisabled} onclick="armStock('${s.symbol}', false)" title="Mark your intent to buy: turns on price-watching and the ENTRY READY alert for this stock. No broker order is placed.">⚔️ ARM LIMIT</button>`;
+    const actionHtml = `
+      <div class="ca-action-section">
+        <div class="ca-act-head">🎬 Action${item.blocked ? ` <span style="color:var(--red);font-weight:700">· blocked by safety gates</span>` : ""}</div>
+        ${actionMetrics}
+        <div class="ca-act-btnrow">
+          <button class="ca-btn ca-buynow-btn" ${buyDisabled} onclick="buyStockDirectly('${s.symbol}')" title="Records the buy at current data and moves this stock to your active portfolio. Gates are NOT re-checked at buy time — confirm the card is fresh first.">🛍️ BUY Now</button>
+          ${armBtnHtml}
+        </div>
+        <div class="ca-act-note">${isArmed
+          ? "⚔️ Armed: price-watch &amp; entry alert are ON. This app has NOT placed any order — place your limit/GTT order at your broker yourself."
+          : "ARM LIMIT turns on the entry-zone alert only — it does not place a broker order. BUY Now records the trade here; gates are not re-checked at buy time."}</div>
+      </div>`;
+
+    // ── HARD SAFETY GATES (11 — the Adversarial/debate gate shows in the Debate Chamber) ──
+    const hardGates  = gr.gates.filter(g => g.name !== "Adversarial check");
+    const debateGate = gr.gates.find(g => g.name === "Adversarial check");
+    const hardFailed = hardGates.filter(g => !g.pass);
+    const gateId = `gates_${cleanSymbol}`;
+    const gAcc = accState(gateId);
+    const countCls = hardFailed.length === 0 ? "pass" : "fail";
+    const countTxt = hardFailed.length === 0 ? `${hardGates.length}/${hardGates.length} PASS` : `${hardFailed.length}/${hardGates.length} FAIL`;
+    const gateDots = hardGates.map(g =>
+      `<span class="ca-gate-dot ${g.pass ? "pass" : "fail"}" title="${g.name}${g.pass ? "" : " — " + (g.reason || "fail")}"></span>`
     ).join("");
-    const gateItems = gr.gates.map(g =>
+    const gateItems = hardGates.map(g =>
       `<div class="ca-gate-item ${g.pass ? "pass" : "fail"}" title="${g.tooltip || ''}">
         <span class="gi-dot ${g.pass ? "pass" : "fail"}"></span>
-        <span class="gi-name">${g.num}. ${g.name}</span>
+        <span class="gi-name">${g.name}</span>
         <span class="gi-value">${g.value || "—"}</span>
         ${g.pass ? "" : `<span class="gi-reason">${g.reason || "Failed"}</span>`}
       </div>`
@@ -9882,16 +10064,111 @@ function renderStockValidation() {
     const gateStripHtml = `
       <div class="ca-gate-strip">
         <button class="ca-gate-bar" onclick="toggleGateStrip('${gateId}', this)">
-          <span class="ca-gate-title" title="🛡 Safety gates — all 12 must PASS or this stock is blocked from entry.\n1. Weekly trend: not bearish\n2. Fundamentals: no weakness flagged\n3. Institutional: no FII/DII distribution\n4. Liquidity: meets min turnover/volume\n5. Overextension: ≤25% return over 20d\n6. Adversarial check: judge verdict not SKIP\n7. Data freshness: ≤1 trading day old\n8. Sector × Nifty regime: not a rotation-trap / hard-skip cell\n9. Distance to entry: CMP ≤ 5% above entry zone max\n10. CMP Risk-Reward: target upside ≥ 2% and R:R from CMP ≥ 1:1\n11. Breakout Volume: volume ratio ≥ 1.2x if BREAKOUT\n12. Server verdict: backend verdict is not SKIP\nDots show per-gate status — click the bar to expand reasons.">🛡 Safety gates <span class="${gateChevronCls}">▼</span></span>
+          <span class="ca-gate-title" title="🛡 Hard safety gates — binary disqualifiers checked by name (the adversarial debate check lives in the Debate Chamber below). Dots show per-gate status — click to expand reasons.">🛡 Hard Safety Gates <span class="${gAcc.chevCls}">▼</span></span>
           <span style="display:flex;align-items:center;gap:10px">
             <span class="ca-gate-dots">${gateDots}</span>
             <span class="ca-gate-count ${countCls}">${countTxt}</span>
           </span>
         </button>
-        <div id="${gateId}" class="${gateListCls}">${gateItems}</div>
+        <div id="${gateId}" class="${gAcc.listCls}">
+          <div class="ca-rule-note">Rule: failing any hard gate blocks entry, and the stock is pruned on the next daily maintenance run.</div>
+          ${gateItems}
+        </div>
       </div>`;
 
-    // ── Body: BLOCKED → ineligible panel only · ELIGIBLE → compact score pill + collapsible quality rows ──
+    // ── SOFT SAFETY WARNINGS (8) ──
+    const sw = evaluateSoftWarnings(s);
+    const swId = `softwarn_${cleanSymbol}`;
+    const sAcc = accState(swId);
+    const totalFlags = gr.failCount + sw.count;
+    const swCountStyle = sw.count === 0 ? "" : (totalFlags >= 3 ? "" : "background:var(--yellow-bg);color:var(--yellow);border:1px solid rgba(245,158,11,.3)");
+    const swCountCls = sw.count === 0 ? "pass" : (totalFlags >= 3 ? "fail" : "");
+    const swItems = sw.items.map(w =>
+      `<div class="ca-gate-item ${w.triggered ? "fail" : "pass"}" title="${(w.tooltip || "").replace(/"/g, "&quot;")}">
+        <span class="gi-dot ${w.triggered ? "fail" : "pass"}"></span>
+        <span class="gi-name">${w.name}</span>
+        <span class="gi-value">${w.triggered ? "FLAGGED" : "Clear"}</span>
+        ${w.triggered && w.reason ? `<span class="gi-reason">${w.reason}</span>` : ""}
+      </div>`
+    ).join("");
+    const softWarnHtml = `
+      <div class="ca-gate-strip">
+        <button class="ca-gate-bar" onclick="toggleGateStrip('${swId}', this)">
+          <span class="ca-gate-title" title="Soft warnings don't individually block entry, but they stack: 3+ TOTAL flags (hard fails + soft warnings combined) becomes a Multi-flag rejection.">⚠️ Soft Safety Warnings <span class="${sAcc.chevCls}">▼</span></span>
+          <span class="ca-gate-count ${swCountCls}" style="${swCountStyle}">${sw.count}/${sw.total} FLAGGED</span>
+        </button>
+        <div id="${swId}" class="${sAcc.listCls}">
+          <div class="ca-rule-note">Rule: 3+ total flags (hard-gate fails + soft warnings combined — currently ${totalFlags}) triggers a Multi-flag rejection → SKIP verdict → pruned on the next cadence.</div>
+          ${swItems}
+        </div>
+      </div>`;
+
+    // ── SIZING & ALLOCATION ──
+    const szId = `sizing_${cleanSymbol}`;
+    const zAcc = accState(szId);
+    const multRow = (lbl, val, note) => `
+      <div class="ca-gate-item pass" title="${(note || "").replace(/"/g, "&quot;")}">
+        <span class="gi-name" style="margin-left:0">${lbl}</span>
+        <span class="gi-value">${val}</span>
+      </div>`;
+    const sizingHtml = `
+      <div class="ca-gate-strip">
+        <button class="ca-gate-bar" onclick="toggleGateStrip('${szId}', this)">
+          <span class="ca-gate-title" title="Multipliers that shrink (never grow) the base position size. They multiply together into the blended sizer.">⚖️ Sizing &amp; Allocation <span class="${zAcc.chevCls}">▼</span></span>
+          <span class="ca-gate-count ${sz.finalMult >= 1 ? "pass" : ""}" style="${sz.finalMult >= 1 ? "" : "background:var(--yellow-bg);color:var(--yellow);border:1px solid rgba(245,158,11,.3)"}">${sz.finalMult.toFixed(2)}× SIZE</span>
+        </button>
+        <div id="${szId}" class="${zAcc.listCls}">
+          ${multRow("Conviction sizing", `${sz.convictionLabel} · ${sz.convictionMult.toFixed(2)}×`, "From the quality score: ≥80 STRONG 1.0× · ≥65 MODERATE 0.75× · ≥50 WEAK 0.5× · below 50 ineligible.")}
+          ${multRow("Regime sizing", `${sz.regimeMult.toFixed(2)}×`, "From the Sector × Nifty regime matrix — weaker market conditions mean a smaller position.")}
+          ${multRow("Expiry sizing", `${sz.expiryMult.toFixed(2)}×${sz.expiryReason ? " · " + sz.expiryReason : ""}`, "F&O expiry-week reduction, if applicable.")}
+          ${multRow("Blended sizer", `${sz.finalMult.toFixed(2)}× → ${sz.qtyAdj.toLocaleString("en-IN")} shares${sz.isCappedAdj ? " (20% allocation cap applied)" : ""}`, "conviction × regime × expiry, applied to the base quantity, then capped at 20% of capital.")}
+        </div>
+      </div>`;
+
+    // ── TRADE SIZE & RISK ──
+    const rkId = `risk_${cleanSymbol}`;
+    const rAcc = accState(rkId);
+    const riskHtml = `
+      <div class="ca-gate-strip">
+        <button class="ca-gate-bar" onclick="toggleGateStrip('${rkId}', this)">
+          <span class="ca-gate-title" title="The money math for this trade, using the capital and risk %% set in the Trading tab.">💰 Trade Size &amp; Risk <span class="${rAcc.chevCls}">▼</span></span>
+          <span class="ca-gate-count ${sz.slRiskPct > 0 && sz.slRiskPct <= 3 ? "pass" : ""}" style="${sz.slRiskPct > 0 && sz.slRiskPct <= 3 ? "" : "background:var(--yellow-bg);color:var(--yellow);border:1px solid rgba(245,158,11,.3)"}">SL ${sz.slRiskPct ? sz.slRiskPct.toFixed(1) : "—"}%</span>
+        </button>
+        <div id="${rkId}" class="${rAcc.listCls}">
+          ${multRow("Capital / risk per trade", `₹${fmt(capIn,0)} · ${rPctIn}% (₹${fmt(sz.risk,0)})`, "Set in the Trading tab position sizer — the most you plan to lose on any single trade.")}
+          ${multRow("Risk per share", sz.riskPerShr > 0 ? `₹${fmt(sz.riskPerShr,2)}` : "—", "Entry minus stop loss — the rupees at risk on each share.")}
+          ${multRow("SL risk from entry", sz.slRiskPct ? `${sz.slRiskPct.toFixed(1)}%` : "—", "How far the stop loss sits below entry. ≤3% is healthy for swing trades.")}
+          ${multRow("Blended profit (T1+T2)", sz.totalBlendedProfit > 0 ? `₹${fmt(sz.totalBlendedProfit,0)}` : "—", "Expected profit if half the position exits at T1 and the rest at T2.")}
+          ${multRow("Blended R:R", sz.blendedRR > 0 ? `1:${sz.blendedRR.toFixed(2)}` : "—", "Blended profit vs planned loss. Below 1:1.5 the trade barely pays for its risk.")}
+        </div>
+      </div>`;
+
+    // ── MACRO MARKET & REGIME GATES (5 live checks — shared with the Trading tab) ──
+    const mgId = `macro_${cleanSymbol}`;
+    const mAcc = accState(mgId);
+    const macroGates = buildMacroGates();
+    const macroFails = macroGates.filter(g => !g.ok && !g.warn).length;
+    const macroItems = macroGates.map(g =>
+      `<div class="ca-gate-item ${g.ok ? "pass" : "fail"}" title="${(g.detail || "").replace(/"/g, "&quot;")}">
+        <span class="gi-dot ${g.ok ? "pass" : "fail"}" style="${!g.ok && g.warn ? "background:var(--yellow)" : ""}"></span>
+        <span class="gi-name">${g.lbl}</span>
+        <span class="gi-value">${g.val}</span>
+        <span class="gi-reason" style="${g.ok ? "color:var(--muted)" : g.warn ? "color:var(--yellow)" : ""}">${g.ok ? "PASS" : g.warn ? "AMBER — " + g.detail : "BLOCK — " + g.detail}</span>
+      </div>`
+    ).join("");
+    const macroHtml = `
+      <div class="ca-gate-strip">
+        <button class="ca-gate-bar" onclick="toggleGateStrip('${mgId}', this)">
+          <span class="ca-gate-title" title="Market-wide execution gates — the same 5 live checks as the Trading tab's Entry Gates. These are about TODAY'S market, not this stock.">🌐 Macro Market &amp; Regime Gates <span class="${mAcc.chevCls}">▼</span></span>
+          <span class="ca-gate-count ${macroFails === 0 ? "pass" : "fail"}">${macroFails === 0 ? `${macroGates.length}/${macroGates.length} OK` : `${macroFails}/${macroGates.length} BLOCK`}</span>
+        </button>
+        <div id="${mgId}" class="${mAcc.listCls}">
+          <div class="ca-rule-note">Live market-wide checks (Nifty regime, FII flow, VIX, expiry day, position count) — a blocked market day means no fresh entries, even for a PASS stock.</div>
+          ${macroItems}
+        </div>
+      </div>`;
+
+    // ── Body: BLOCKED → ineligible panel · ELIGIBLE → collapsible quality score ──
     let bodyHtml;
     if (item.blocked) {
       const failList = gr.failedGates.map(g => `<li>${g.reason || g.name}</li>`).join("");
@@ -9932,9 +10209,10 @@ function renderStockValidation() {
       <div class="ca-vcard-head">
         <div>
           ${ribbon}
-          <div style="display:flex;align-items:center;gap:6px">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
             <div class="sym">${s.symbol}</div>
-            ${safetyVerdictBadge(s.verdict)}
+            ${headlineBadge}
+            ${isArmed ? `<span class="tag" style="background:var(--blue-bg);color:var(--blue);border:1px solid rgba(59,130,246,0.4);font-weight:800;padding:2px 8px;border-radius:5px" title="ARMED — price-watched, ENTRY READY alert on. No broker order placed.">⚔️ ARMED</span>` : ""}
             ${debateVerdictBadge(s)}
             <button onclick="removeStockFromWatchlist('${s.symbol}')" title="Remove from watchlist" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:2px;border-radius:4px;line-height:1">🗑️</button>
           </div>
@@ -9954,8 +10232,12 @@ function renderStockValidation() {
         </div>
       </div>
 
+      ${actionHtml}
       ${gateStripHtml}
+      ${softWarnHtml}
       ${bodyHtml}
+      ${sizingHtml}
+      ${riskHtml}
 
       <!-- Premium Collapsible Qualitative Research & Corporate Actions Accordion -->
       <div class="ca-vcard-qualitative" style="border-top:1px solid var(--border)">
@@ -9980,11 +10262,12 @@ function renderStockValidation() {
       <!-- ⚔️ Collapsible Bull vs. Bear Debate Accordion -->
       <div class="ca-vcard-debate" style="border-top:1px solid var(--border)">
         <button class="ca-accordion-toggle" onclick="toggleDebatePanel('${s.symbol}', this)">
-          <span class="accord-label">⚔️ Bull vs. Bear Debate Chamber</span>
+          <span class="accord-label" title="Adversarial AI debate: a bull agent and a bear agent argue the trade, a judge rules. A SKIP verdict blocks entry and auto-prunes the stock.">⚔️ Bull vs. Bear Debate Chamber${debateGate && !debateGate.pass ? ` <span style="color:var(--red);font-weight:800;font-size:10px">· SKIP — blocks entry</span>` : ""}</span>
           <span class="accord-chevron debate-chevron ${(window._openDebatePanels && window._openDebatePanels.has(s.symbol)) ? 'open' : ''}">▼</span>
         </button>
-        
+
         <div id="debate_panel_${s.symbol}" class="ca-accordion-panel debate-panel-content" style="display:${(window._openDebatePanels && window._openDebatePanels.has(s.symbol)) ? 'flex' : 'none'}">
+          <div class="ca-rule-note" style="padding:6px 12px 0">Rule: a SKIP verdict from the judge blocks entry and auto-prunes this stock from the watchlist.</div>
           <div id="debate_body_${s.symbol}">
             ${(window._renderedDebates && window._renderedDebates[s.symbol]) ? window._renderedDebates[s.symbol] : `
               <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12px; gap:8px">
@@ -9995,6 +10278,8 @@ function renderStockValidation() {
           </div>
         </div>
       </div>
+
+      ${macroHtml}
 
       <div class="ca-vcard-foot" style="display:flex; flex-direction:column; align-items:stretch; gap:8px">
         <button class="ca-btn" onclick="sendToSizer('${s.symbol}')" style="font-size:11.5px; padding:8px 12px; background:var(--blue-bg); color:var(--blue); border-color:var(--blue); font-weight:700; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; width:100%; border-radius:8px; transition:all 0.15s; box-shadow:0 2px 8px rgba(59,130,246,0.12)" onmouseover="this.style.background='var(--blue)';this.style.color='#ffffff'" onmouseout="this.style.background='var(--blue-bg)';this.style.color='var(--blue)'">

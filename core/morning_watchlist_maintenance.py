@@ -286,12 +286,15 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
 
     for idx, row in df_positions.iterrows():
         status = str(row["Status"]).upper()
-        if status not in ("OPEN", "BOUGHT"):
+        if status not in ("OPEN", "ARMED", "BOUGHT"):
             continue
-            
+
         sym = str(row["Symbol"]).strip().upper()
-        
-        if status == "OPEN":
+
+        # ARMED (user intends to buy, price-watched) candidates are evaluated,
+        # refreshed and pruned exactly like OPEN ones — pruning only ever writes
+        # Status="PRUNED", so a surviving ARMED row keeps its ARMED status.
+        if status in ("OPEN", "ARMED"):
             logger.info("Evaluating watchlist candidate: %s", sym)
             try:
                 # 1. Run time-based checks first (which don't require technicals)

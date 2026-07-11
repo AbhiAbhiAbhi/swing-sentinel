@@ -24,7 +24,7 @@ def main() -> int:
     try:
         positions = check_positions_and_notify()
         open_count = sum(1 for p in positions
-                         if str(p.get("Status", "OPEN")).upper() == "OPEN")
+                         if str(p.get("Status", "OPEN")).upper() in ("OPEN", "ARMED"))
         closed_count = len(positions) - open_count
         logger.info("poll complete: %d open, %d closed (total %d)",
                     open_count, closed_count, len(positions))
