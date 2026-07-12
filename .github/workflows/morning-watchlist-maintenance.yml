@@ -9,8 +9,10 @@ on:
 permissions:
   contents: write          # required to commit positions.csv state back
 
+# Shared group across all workflows that write data/positions.csv, so they
+# queue behind each other instead of racing on the same file.
 concurrency:
-  group: morning-watchlist-maintenance
+  group: positions-state
   cancel-in-progress: false
 
 jobs:
@@ -47,5 +49,15 @@ jobs:
             echo "No state change — nothing to commit."
           else
             git commit -m "Auto: morning watchlist level adjustments [skip ci]"
-            git push
+            for i in 1 2 3; do
+              if git pull --rebase origin "${GITHUB_REF_NAME}" && git push; then
+                break
+              fi
+              if [ "$i" = "3" ]; then
+                echo "::error::Failed to push positions.csv state after 3 attempts"
+                exit 1
+              fi
+              echo "Push attempt $i failed — retrying in $((i * 5))s..."
+              sleep $((i * 5))
+            done
           fi
