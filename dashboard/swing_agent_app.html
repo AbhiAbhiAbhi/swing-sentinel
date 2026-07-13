@@ -1947,24 +1947,38 @@ body.light-theme .tab-group {
 
   <!-- Composite Bias Builder -->
   <div id="sec_bias">
-  <div class="tab-section-head"><span style="display:flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--orange)"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>Composite Market Bias</span><button class="sec-toggle" onclick="toggleSection('sec_bias')" title="Expand / Shrink"><span class="chevron">▼</span></button></div>
+  <div class="tab-section-head">
+    <span style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--orange)"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+      Composite Market Bias
+      <small id="biasSummary" class="pill" style="margin-left:6px;font-size:9.5px;padding:2px 8px;border-radius:4px;font-weight:700;display:none"></small>
+    </span>
+    <button class="sec-toggle" onclick="toggleSection('sec_bias')" title="Expand / Shrink"><span class="chevron">▼</span></button>
+  </div>
   <div class="sec-body">
   <div class="bias-builder" id="biasBuilder">
     <!-- populated by renderBiasBuilder() -->
   </div>
-  <div class="bias-final" id="biasFinal">
-    <div>
-      <div class="label">Final Score</div>
-      <div class="total" id="biasFinalTotal">0</div>
-    </div>
-    <div>
-      <div class="label">Verdict</div>
-      <div class="verdict" id="biasFinalVerdict">—</div>
-    </div>
-    <div style="font-size:11px;color:var(--muted);max-width:340px;text-align:right">
-      <b>≥+3</b> Strong Bullish · <b>+1/+2</b> Mild · <b>0</b> Neutral (half-size) · <b>≤−2</b> No fresh longs
-    </div>
   </div>
+  </div>
+
+  <!-- Macro Market & Regime Gates -->
+  <div id="sec_macro_gates">
+  <div class="tab-section-head">
+    <span style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--orange)">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="2" x2="12" y2="22"></line>
+        <line x1="2" y1="12" x2="22" y2="12"></line>
+      </svg>
+      Macro Market &amp; Regime Gates <small id="macroGatesSummary" class="pill" style="margin-left:6px;font-size:9.5px;padding:2px 8px;border-radius:4px;font-weight:700"></small>
+    </span>
+    <button class="sec-toggle" onclick="toggleSection('sec_macro_gates')" title="Expand / Shrink"><span class="chevron">▼</span></button>
+  </div>
+  <div class="sec-body">
+    <div class="bias-builder" id="macroGatesBuilder">
+      <!-- populated by renderMacroGatesHeader() -->
+    </div>
   </div>
   </div>
 
@@ -6282,6 +6296,30 @@ function renderFillTimePanel(s) {
 }
 
 /* ── Render positions ────────────────────────────────────── */
+/* renderHistLine — compact per-ticker history: simulated backtest record
+   (Bt) + own closed-trade record (Own). Empty string when neither exists. */
+function renderHistLine(p) {
+  const parts = [];
+  let title = "Bt = simulated backtest record · Own = your closed trades (avg R)";
+  const bt = p.bt_history;
+  if (bt && bt.trades > 0) {
+    parts.push(`Bt ${bt.wins}W/${bt.losses}L${bt.partial ? "*" : ""}`);
+    if (bt.partial) title += " · * last 50 backtest trades only — re-run backtest.py";
+  }
+  const own = p.own_history;
+  if (own && own.trades > 0) {
+    let seg = `Own ${own.wins}W-${own.losses}L`;
+    if (own.r_count > 0 && own.avg_r !== null && own.avg_r !== undefined) {
+      seg += ` ${own.avg_r >= 0 ? "+" : ""}${own.avg_r.toFixed(1)}R`;
+    }
+    parts.push(seg);
+  }
+  if (!parts.length) {
+    return `<div style="margin-top:3px;font-size:9.5px;color:var(--muted);opacity:0.55;white-space:nowrap" title="No track record yet — this ticker has no closed trades in your history and no signals in the offline backtest.">Hist: —</div>`;
+  }
+  return `<div style="margin-top:3px;font-size:9.5px;color:var(--muted);white-space:nowrap" title="${title}">Hist: ${parts.join(" · ")}</div>`;
+}
+
 /* renderWatchlist — unified renderer driven by /api/results
    Shows summary cards + per-setup breakdown + active table + closed table */
 function renderWatchlist(r) {
@@ -6405,6 +6443,8 @@ function renderWatchlist(r) {
       scan_date:            p.scan_date || "",
       shareholding:         p.shareholding || (cached ? cached.shareholding : null),
       debate:               p.debate || null,
+      own_history:          p.own_history || null,
+      bt_history:           p.bt_history || null,
     };
   });
 
@@ -6523,6 +6563,7 @@ function renderWatchlist(r) {
             ${p.index_membership.map(idx => `<span class="tag t-index" style="font-size:8px;padding:1px 4px;line-height:1">${idx}</span>`).join("")}
           </div>
         ` : ""}
+        ${renderHistLine(p)}
       </td>
       <td>
         <small style="color:var(--muted)">${p.setup||"—"}</small>
@@ -6572,6 +6613,7 @@ function renderWatchlist(r) {
             ${p.index_membership.map(idx => `<span class="tag t-index" style="font-size:8px;padding:1px 4px;line-height:1">${idx}</span>`).join("")}
           </div>
         ` : ""}
+        ${renderHistLine(p)}
       </td>
       <td>
         <small style="color:var(--muted)">${p.setup||"—"}</small>
@@ -7456,6 +7498,196 @@ function renderDebateBody(symbol, d) {
   `;
   window._renderedDebates = window._renderedDebates || {};
   window._renderedDebates[symbol] = body.innerHTML;
+}
+
+/* ── 📜 Historical & Live Evidence panel ─────────────────────────────────
+   Evidence is a ranking aid only — it NEVER changes PASS/WATCH/SKIP.
+   Cached server-side; the GET is fast and never triggers a simulation. */
+function _fmtEvR(v) { return (v === null || v === undefined) ? "—" : `${v >= 0 ? "+" : ""}${Number(v).toFixed(2)}R`; }
+function _fmtEvTs(iso) { try { return new Date(iso).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }); } catch { return "—"; } }
+
+function toggleEvidencePanel(symbol, setup, btn) {
+  window._openEvidencePanels = window._openEvidencePanels || new Set();
+  const panel = document.getElementById(`evidence_panel_${symbol}`);
+  const chev = btn.querySelector(".evidence-chevron");
+  if (!panel) return;
+  if (panel.style.display === "none") {
+    panel.style.display = "flex";
+    if (chev) chev.classList.add("open");
+    window._openEvidencePanels.add(symbol);
+    const body = document.getElementById(`evidence_body_${symbol}`);
+    if (body && body.dataset.loaded !== "1") loadEvidenceData(symbol, setup);
+  } else {
+    panel.style.display = "none";
+    if (chev) chev.classList.remove("open");
+    window._openEvidencePanels.delete(symbol);
+  }
+}
+
+async function loadEvidenceData(symbol, setup) {
+  const body = document.getElementById(`evidence_body_${symbol}`);
+  if (!body) return;
+  body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px">
+    <div class="spinner" style="display:block;width:16px;height:16px;border-width:2px;border-color:var(--blue) transparent transparent transparent"></div>
+    <span style="font-size:11px;color:var(--muted)">Loading cached evidence…</span></div>`;
+  try {
+    const d = await apiFetch(`/api/evidence/${encodeURIComponent(symbol)}?setup=${encodeURIComponent(setup || "PULLBACK")}`);
+    renderEvidenceBody(symbol, setup, d);
+  } catch (e) {
+    body.innerHTML = `<div style="padding:12px;font-size:11px;color:var(--red)">Evidence load failed: ${e.message || e}</div>`;
+  }
+}
+
+function renderEvidenceBody(symbol, setup, d) {
+  const body = document.getElementById(`evidence_body_${symbol}`);
+  if (!body) return;
+  const hist = d.historical, state = d.historical_state, live = d.live || {};
+  const ls = live.summary || {};
+  const sver = d.strategy_version || "";
+
+  // ── Historical column ──
+  let histCol;
+  if (state === "missing") {
+    histCol = `<div style="font-weight:800;color:var(--yellow)">INSUFFICIENT DATA</div>
+      <div style="color:var(--muted);margin-top:4px">No cached simulation for <span title="${sver}">strategy ${sver.slice(0, 10)}…</span>. Run it now or wait for the daily 16:15 refresh.</div>`;
+  } else if (state === "queued") {
+    histCol = `<div style="font-weight:800;color:var(--blue)">RUNNING…</div>
+      <div style="color:var(--muted);margin-top:4px">Simulating up to 24 months of daily data. This panel refreshes automatically.</div>`;
+    _pollEvidence(symbol, setup);
+  } else if (hist && hist.status === "insufficient_history") {
+    histCol = `<div style="font-weight:800;color:var(--yellow)">SHORT HISTORY</div>
+      <div style="color:var(--muted);margin-top:4px">${((hist.coverage || {}).coverage_notes || []).join(" · ") || "Too few bars for a reliable simulation (recent listing)."}</div>`;
+  } else if (hist) {
+    const s = hist.summary || {}, cov = hist.coverage || {};
+    const staleBadge = state === "stale"
+      ? ` <span style="background:var(--yellow-bg);color:var(--yellow);border:1px solid rgba(245,158,11,0.4);font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px" title="${hist.stale_reason || ""}">as of ${hist.market_data_as_of}</span>` : "";
+    const errBadge = state === "error"
+      ? ` <span style="background:var(--red-bg);color:var(--red);border:1px solid rgba(239,68,68,0.4);font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px" title="${hist.stale_reason || ""}">refresh failed — showing last good</span>` : "";
+    histCol = `
+      <div>${cov.months || "12"} mo · <b>${s.independent_episodes ?? 0}</b> independent episodes · <b>${cov.sample_quality || "?"}</b> sample${staleBadge}${errBadge}</div>
+      <div style="margin-top:3px">Signals observed: ${s.signals_observed ?? 0} · Filled ${s.filled ?? 0}/${s.independent_episodes ?? 0} <small style="color:var(--muted)">(${s.not_filled ?? 0} never filled — that's realistic, not a loss)</small></div>
+      <div style="margin-top:3px">Net expectancy <b>${_fmtEvR(s.net_expectancy_r)}</b> · Worst ${_fmtEvR(s.worst_realised_r)} · Median hold ${s.median_hold_sessions ?? "—"} sessions${s.gap_through_stop_count ? ` · <span style="color:var(--yellow)">${s.gap_through_stop_count} gap-through-stop</span>` : ""}</div>
+      <div style="margin-top:4px;color:var(--muted);font-size:9.5px">Updated ${_fmtEvTs(hist.generated_at)} · net of costs (${(hist.rules || {}).cost_model_version || "india-cash-v1"})</div>`;
+  } else {
+    histCol = `<div style="color:var(--red)">Refresh failed and no earlier result exists.</div>`;
+  }
+
+  // ── Live column ──
+  let liveCol;
+  if (live.status === "no_data") {
+    liveCol = `<div style="color:var(--muted)">No completed ${setup} trades on ${symbol} in your history yet. This fills in as you close trades.</div>`;
+  } else {
+    liveCol = `
+      <div><b>${ls.completed ?? 0}</b> comparable completed trades${live.status === "low_confidence" ? ` <span style="color:var(--yellow);font-size:9.5px;font-weight:700">too few for confidence</span>` : ""}</div>
+      <div style="margin-top:3px">Net expectancy <b>${_fmtEvR(ls.net_expectancy_r)}</b>${ls.r_sample != null && ls.r_sample < (ls.completed || 0) ? ` <small style="color:var(--muted)">(R known for ${ls.r_sample}/${ls.completed})</small>` : ""}</div>
+      <div style="margin-top:3px">Win rate ${(ls.win_rate != null) ? Math.round(ls.win_rate * 100) + "%" : "—"} · Worst ${_fmtEvR(ls.worst_realised_r)} · Median hold ${ls.median_hold_sessions ?? "—"}d</div>
+      <div style="margin-top:4px;color:var(--muted);font-size:9.5px">${ls.complete_snapshots ?? 0} complete · ${ls.partial_legacy_records ?? 0} partial legacy records · pre-versioning history</div>`;
+  }
+
+  // ── Expanded episode table ──
+  let episodesHtml = "";
+  const eps = (hist && hist.episodes) || [];
+  if (eps.length) {
+    const rows = eps.slice(-15).reverse().map(e => {
+      const reasons = (e.exits || []).map(x => x.reason).join("+") || "NOT FILLED";
+      const rCls = e.net_r == null ? "" : (e.net_r > 0 ? 'style="color:var(--green);font-weight:700"' : 'style="color:var(--red);font-weight:700"');
+      return `<tr>
+        <td>${e.signal_date}</td>
+        <td>${e.fill_status === "FILLED" ? (e.fill_date || "") : '<span style="color:var(--muted)">not filled</span>'}</td>
+        <td>₹${e.entry_zone_min}–${e.entry_zone_max}</td>
+        <td>₹${e.sl}</td>
+        <td>${reasons}${e.gap_through_stop ? " ⚠gap" : ""}</td>
+        <td ${rCls}>${_fmtEvR(e.net_r)}</td>
+        <td>${e.hold_sessions ?? "—"}</td>
+      </tr>`;
+    }).join("");
+    episodesHtml = `
+      <details style="margin-top:8px">
+        <summary style="cursor:pointer;font-size:10.5px;color:var(--blue);font-weight:700">Show ${Math.min(eps.length, 15)} most recent episodes & assumptions</summary>
+        <div style="overflow-x:auto;margin-top:6px">
+        <table style="width:100%;font-size:10px;border-collapse:collapse">
+          <thead><tr style="color:var(--muted);text-align:left"><th>Signal</th><th>Filled</th><th>Entry zone</th><th>SL</th><th>Exit</th><th>Net R</th><th>Hold</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+        <div style="margin-top:6px;font-size:9.5px;color:var(--muted)">
+          Rules: limit entry (max wait ${(hist.rules || {}).max_wait_sessions ?? 5} sessions, never above zone) · stop-first on same-bar stop+target ·
+          ${(((hist.rules || {}).t1_exit_fraction ?? 0.5) * 100)}% out at T1 then stop→breakeven · ${(hist.rules || {}).max_hold_sessions ?? 20}-session time exit ·
+          gap-through-stop exits at the open · one episode per market move (${(hist.rules || {}).cooldown_sessions ?? 5}-session cooldown) ·
+          strategy ${sver} · coverage ${(hist.coverage || {}).start || "?"} → ${(hist.coverage || {}).end || "?"}
+        </div>
+      </details>`;
+  }
+
+  const a = d.actions || {};
+  const recalcBtn = `<button onclick="recalcEvidence('${symbol}','${setup}')" class="ca-btn pine"
+      ${(!a.can_recalculate) ? "disabled" : ""}
+      title="${a.queued ? "A simulation is already running" : (a.rate_limited ? "Rate limited — try again in a couple of minutes" : "Re-run the historical simulation now")}"
+      style="font-size:10px;padding:3px 8px;background:var(--blue-bg);color:var(--blue);border-color:var(--blue)">↻ Recalculate</button>`;
+
+  const html = `
+    <div style="padding:10px 12px;font-size:11px;line-height:1.45">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div>
+          <div style="font-size:9.5px;font-weight:800;letter-spacing:0.5px;color:var(--muted);text-transform:uppercase;margin-bottom:4px" title="What happened when this same strategy setup occurred in this stock's own price history — simulated with realistic fills and costs. Validates the rules, not your execution.">📜 Historical setup evidence</div>
+          ${histCol}
+        </div>
+        <div>
+          <div style="font-size:9.5px;font-weight:800;letter-spacing:0.5px;color:var(--muted);text-transform:uppercase;margin-bottom:4px" title="How Swing Sentinel actually performed on comparable completed trades from your own positions history. Validates execution — kept separate from the simulation, never merged.">🛰️ Live Swing Sentinel record</div>
+          ${liveCol}
+        </div>
+      </div>
+      ${episodesHtml}
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+        ${recalcBtn}
+        <span style="font-size:9px;color:var(--muted)">Evidence is a ranking aid — it never overrides safety gates, and past results don't guarantee future returns.</span>
+      </div>
+    </div>`;
+
+  window._renderedEvidence = window._renderedEvidence || {};
+  window._renderedEvidence[symbol] = html;
+  body.innerHTML = html;
+  body.dataset.loaded = "1";
+
+  // Subordinate hint in the accordion label (never affects PASS/WATCH/SKIP)
+  const hint = document.getElementById(`evidence_hint_${symbol}`);
+  if (hint && hist && hist.summary && hist.summary.independent_episodes > 0 && state !== "queued") {
+    const s = hist.summary, cov = hist.coverage || {};
+    hint.textContent = ` · ${_fmtEvR(s.net_expectancy_r)} / ${s.independent_episodes} episodes (${cov.sample_quality || "?"})`;
+  }
+}
+
+async function recalcEvidence(symbol, setup) {
+  try {
+    const res = await apiFetch(`/api/evidence/${encodeURIComponent(symbol)}/recalculate`, {
+      method: "POST",
+      body: JSON.stringify({ setup_type: setup || "PULLBACK", reason: "manual" }),
+    });
+    toast(res.status === "queued" ? `📜 Evidence run queued for ${symbol}` : `📜 ${symbol}: ${res.status}`, "info");
+    _pollEvidence(symbol, setup);
+  } catch (e) {
+    toast(`Evidence run failed: ${e.message || e}`, "error");
+  }
+}
+
+function _pollEvidence(symbol, setup, attempt = 0) {
+  window._evidencePolls = window._evidencePolls || {};
+  const key = `${symbol}_${setup}`;
+  if (window._evidencePolls[key]) return;   // one poller per card
+  window._evidencePolls[key] = true;
+  const tick = async (n) => {
+    delete window._evidencePolls[key];
+    if (n > 12) return;
+    try {
+      const d = await apiFetch(`/api/evidence/${encodeURIComponent(symbol)}?setup=${encodeURIComponent(setup || "PULLBACK")}`);
+      if (d.historical_state === "queued") {
+        window._evidencePolls[key] = true;
+        setTimeout(() => tick(n + 1), 5000);
+      } else {
+        renderEvidenceBody(symbol, setup, d);
+      }
+    } catch { /* stop polling on error */ }
+  };
+  setTimeout(() => tick(attempt + 1), 5000);
 }
 
 function toggleQualitativePanel(symbol, btn) {
@@ -8615,7 +8847,7 @@ function switchTab(tabId) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tabId));
   try { localStorage.setItem(LS_ACTIVE_TAB_KEY, tabId); } catch {}
   // Trigger tab-specific refresh
-  if (tabId === "analysis")   { renderBiasBuilder(); renderChartAnalysis(); renderStockValidation(); renderPrunedSection(); if (_newsData) renderNews(); }
+  if (tabId === "analysis")   { renderBiasBuilder(); renderMacroGatesHeader(); renderChartAnalysis(); renderStockValidation(); renderPrunedSection(); if (_newsData) renderNews(); }
   if (tabId === "trading")    { renderEntryGates(); renderEntryChecklist(); renderStockSelector(); recalcPosSize(); recalcTrail(); }
   if (tabId === "portfolio")  { loadPositions(); renderReviewMetrics(); renderJournalList(); loadMaintenanceSchedule(); }
   if (tabId === "analytics")  { loadPositions(); }
@@ -8713,10 +8945,61 @@ function renderBiasBuilder() {
     total >= -2 ? { txt: "MILD BEARISH — quarter size",       cls: "down" } :
                   { txt: "STRONG BEARISH — no fresh longs",    cls: "down" };
 
-  const totalEl   = document.getElementById("biasFinalTotal");
-  const verdictEl = document.getElementById("biasFinalVerdict");
-  if (totalEl)   { totalEl.textContent = (total >= 0 ? "+" : "") + total; totalEl.className = `total ${verdict.cls}`; }
-  if (verdictEl) { verdictEl.textContent = verdict.txt; verdictEl.className = `verdict ${verdict.cls}`; }
+  const summaryEl = document.getElementById("biasSummary");
+  if (summaryEl) {
+    const formattedScore = (total >= 0 ? "+" : "") + total;
+    summaryEl.textContent = `${formattedScore} (${verdict.txt})`;
+    summaryEl.style.display = "inline-block";
+    if (verdict.cls === "up") {
+      summaryEl.style.background = "var(--green-bg)";
+      summaryEl.style.color = "var(--green)";
+      summaryEl.style.border = "1px solid rgba(16,185,129,0.4)";
+    } else if (verdict.cls === "down") {
+      summaryEl.style.background = "var(--red-bg)";
+      summaryEl.style.color = "var(--red)";
+      summaryEl.style.border = "1px solid rgba(239,68,68,0.4)";
+    } else {
+      summaryEl.style.background = "var(--yellow-bg)";
+      summaryEl.style.color = "var(--yellow)";
+      summaryEl.style.border = "1px solid rgba(245,158,11,0.4)";
+    }
+  }
+}
+
+function renderMacroGatesHeader() {
+  const wrap = document.getElementById("macroGatesBuilder");
+  const summaryEl = document.getElementById("macroGatesSummary");
+  if (!wrap) return;
+
+  const gates = buildMacroGates();
+  const failedCount = gates.filter(g => !g.ok && !g.warn).length;
+
+  if (summaryEl) {
+    if (failedCount === 0) {
+      summaryEl.textContent = `${gates.length}/${gates.length} PASS`;
+      summaryEl.style.background = "var(--green-bg)";
+      summaryEl.style.color = "var(--green)";
+      summaryEl.style.border = "1px solid rgba(16,185,129,0.4)";
+    } else {
+      summaryEl.textContent = `${failedCount}/${gates.length} BLOCK`;
+      summaryEl.style.background = "var(--red-bg)";
+      summaryEl.style.color = "var(--red)";
+      summaryEl.style.border = "1px solid rgba(239,68,68,0.4)";
+    }
+  }
+
+  wrap.innerHTML = gates.map(g => {
+    const badgeCls = g.ok ? "score pos" : (g.warn ? "score" : "score neg");
+    const badgeStyle = g.warn ? `style="color:var(--yellow);background:var(--yellow-bg);"` : "";
+    const badgeText = g.ok ? "✓ PASS" : g.warn ? "⚠ AMBER" : "✗ BLOCK";
+    return `
+      <div class="bias-card">
+        <div class="lbl">${g.lbl}</div>
+        <div class="val">${g.val}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">${g.detail}</div>
+        <span class="${badgeCls}" ${badgeStyle}>${badgeText}</span>
+      </div>`;
+  }).join("");
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -10022,19 +10305,35 @@ function renderStockValidation() {
         ${metric("Targets", (t1Px && t2Px) ? `₹${fmtP(t1Px)} / ₹${fmtP(t2Px)}` : "—", "T1 (book half) / T2 (book rest). After T1, the stop moves to your entry price.")}
         ${metric("Allocation", sz.deployedAdj > 0 ? `₹${fmt(sz.deployedAdj,0)}` : "—", `Suggested capital deployed (qty × entry)${sz.isCappedAdj ? " — capped at 20% of capital" : ""}.`)}
       </div>`;
-    const buyDisabled = item.blocked ? "disabled" : "";
+    const macroGates = buildMacroGates();
+    const failedMacro = macroGates.filter(g => !g.ok && !g.warn);
+    const isMacroBlocked = failedMacro.length > 0;
+    
+    let macroWarningBanner = "";
+    let finalBuyDisabled = item.blocked ? "disabled" : "";
+    if (isMacroBlocked) {
+      finalBuyDisabled = "disabled";
+      const failedList = failedMacro.map(g => g.lbl).join(", ");
+      macroWarningBanner = `
+        <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); border-radius:6px; padding:10px 12px; margin-bottom:12px; font-size:12.5px; color:var(--red); line-height:1.4; display:flex; align-items:center; gap:8px;">
+          <span>⚠️</span>
+          <div><b>BUY &amp; ARM Disabled:</b> Blocked by macro market gate(s): <span style="text-decoration:underline; font-weight:700">${failedList}</span>. Check header for details.</div>
+        </div>`;
+    }
+
     const armBtnHtml = isArmed
       ? `<div style="display:flex; gap:6px; flex:1">
            <button class="ca-btn ca-armed-btn" disabled title="This stock is ARMED — the poller watches its price and alerts you when it reaches the entry zone.">Armed ⚔️</button>
            <button class="ca-btn ca-disarm-btn" onclick="armStock('${s.symbol}', true)" title="Revert to a passive watchlist row (no price watch, no entry alert).">Disarm</button>
          </div>`
-      : `<button class="ca-btn ca-arm-btn" ${buyDisabled} onclick="armStock('${s.symbol}', false)" title="Mark your intent to buy: turns on price-watching and the ENTRY READY alert for this stock. No broker order is placed.">⚔️ ARM LIMIT</button>`;
+      : `<button class="ca-btn ca-arm-btn" ${finalBuyDisabled} onclick="armStock('${s.symbol}', false)" title="Mark your intent to buy: turns on price-watching and the ENTRY READY alert for this stock. No broker order is placed.">⚔️ ARM LIMIT</button>`;
     const actionHtml = `
       <div class="ca-action-section">
-        <div class="ca-act-head">🎬 Action${item.blocked ? ` <span style="color:var(--red);font-weight:700">· blocked by safety gates</span>` : ""}</div>
+        <div class="ca-act-head">🎬 Action${(item.blocked || isMacroBlocked) ? ` <span style="color:var(--red);font-weight:700">· blocked by safety gates</span>` : ""}</div>
         ${actionMetrics}
+        ${macroWarningBanner}
         <div class="ca-act-btnrow">
-          <button class="ca-btn ca-buynow-btn" ${buyDisabled} onclick="buyStockDirectly('${s.symbol}')" title="Records the buy at current data and moves this stock to your active portfolio. Gates are NOT re-checked at buy time — confirm the card is fresh first.">🛍️ BUY Now</button>
+          <button class="ca-btn ca-buynow-btn" ${finalBuyDisabled} onclick="buyStockDirectly('${s.symbol}')" title="Records the buy at current data and moves this stock to your active portfolio. Gates are NOT re-checked at buy time — confirm the card is fresh first.">🛍️ BUY Now</button>
           ${armBtnHtml}
         </div>
         <div class="ca-act-note">${isArmed
@@ -10143,31 +10442,6 @@ function renderStockValidation() {
         </div>
       </div>`;
 
-    // ── MACRO MARKET & REGIME GATES (5 live checks — shared with the Trading tab) ──
-    const mgId = `macro_${cleanSymbol}`;
-    const mAcc = accState(mgId);
-    const macroGates = buildMacroGates();
-    const macroFails = macroGates.filter(g => !g.ok && !g.warn).length;
-    const macroItems = macroGates.map(g =>
-      `<div class="ca-gate-item ${g.ok ? "pass" : "fail"}" title="${(g.detail || "").replace(/"/g, "&quot;")}">
-        <span class="gi-dot ${g.ok ? "pass" : "fail"}" style="${!g.ok && g.warn ? "background:var(--yellow)" : ""}"></span>
-        <span class="gi-name">${g.lbl}</span>
-        <span class="gi-value">${g.val}</span>
-        <span class="gi-reason" style="${g.ok ? "color:var(--muted)" : g.warn ? "color:var(--yellow)" : ""}">${g.ok ? "PASS" : g.warn ? "AMBER — " + g.detail : "BLOCK — " + g.detail}</span>
-      </div>`
-    ).join("");
-    const macroHtml = `
-      <div class="ca-gate-strip">
-        <button class="ca-gate-bar" onclick="toggleGateStrip('${mgId}', this)">
-          <span class="ca-gate-title" title="Market-wide execution gates — the same 5 live checks as the Trading tab's Entry Gates. These are about TODAY'S market, not this stock.">🌐 Macro Market &amp; Regime Gates <span class="${mAcc.chevCls}">▼</span></span>
-          <span class="ca-gate-count ${macroFails === 0 ? "pass" : "fail"}">${macroFails === 0 ? `${macroGates.length}/${macroGates.length} OK` : `${macroFails}/${macroGates.length} BLOCK`}</span>
-        </button>
-        <div id="${mgId}" class="${mAcc.listCls}">
-          <div class="ca-rule-note">Live market-wide checks (Nifty regime, FII flow, VIX, expiry day, position count) — a blocked market day means no fresh entries, even for a PASS stock.</div>
-          ${macroItems}
-        </div>
-      </div>`;
-
     // ── Body: BLOCKED → ineligible panel · ELIGIBLE → collapsible quality score ──
     let bodyHtml;
     if (item.blocked) {
@@ -10225,6 +10499,7 @@ function renderStockValidation() {
               ${s.index_membership.map(idx => `<span class="tag t-index" style="font-size:9px;padding:1px 5px">${idx}</span>`).join("")}
             </div>
           ` : ""}
+          ${renderHistLine(s)}
         </div>
         <div>
           <div class="px ${chgCls}">₹${fmtP(s.price)}</div>
@@ -10279,27 +10554,23 @@ function renderStockValidation() {
         </div>
       </div>
 
-      ${macroHtml}
-
-      <div class="ca-vcard-foot" style="display:flex; flex-direction:column; align-items:stretch; gap:8px">
-        <button class="ca-btn" onclick="sendToSizer('${s.symbol}')" style="font-size:11.5px; padding:8px 12px; background:var(--blue-bg); color:var(--blue); border-color:var(--blue); font-weight:700; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; width:100%; border-radius:8px; transition:all 0.15s; box-shadow:0 2px 8px rgba(59,130,246,0.12)" onmouseover="this.style.background='var(--blue)';this.style.color='#ffffff'" onmouseout="this.style.background='var(--blue-bg)';this.style.color='var(--blue)'">
-          <div style="display:flex; align-items:center; gap:6px">
-            <span>📐 Size & Plan Trade</span>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width:12px;height:12px">
-              <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
-            </svg>
-          </div>
-          <div style="font-size:9.5px; font-weight:500; opacity:0.85; display:flex; gap:6px; flex-wrap:wrap; justify-content:center">
-            <span>LTP: ₹${fmtP(s.price || 0)}</span> · 
-            <span>SL: ₹${fmtP(s.sl || 0)}</span> · 
-            <span>T1: ₹${fmtP(s.target_1 || 0)}</span> · 
-            <span>T2: ₹${fmtP(s.target_2 || 0)}</span>
-          </div>
-          <div style="font-size:9.5px; font-weight:500; opacity:0.75">
-            📋 Entry Checklist: ${gr.passCount} / ${gr.total} Passed
-          </div>
+      <!-- 📜 Collapsible Historical & Live Evidence Accordion -->
+      <div class="ca-vcard-evidence" style="border-top:1px solid var(--border)">
+        <button class="ca-accordion-toggle" onclick="toggleEvidencePanel('${s.symbol}', '${s.setup || "PULLBACK"}', this)">
+          <span class="accord-label" title="Evidence and ranking aid: how this setup performed in this stock's own history (simulated with realistic fills & costs) and how the app actually performed on comparable trades. It never overrides safety gates.">📜 Historical &amp; Live Evidence<span id="evidence_hint_${s.symbol}" style="font-weight:600;color:var(--muted);font-size:10px"></span></span>
+          <span class="accord-chevron evidence-chevron ${(window._openEvidencePanels && window._openEvidencePanels.has(s.symbol)) ? 'open' : ''}">▼</span>
         </button>
+        <div id="evidence_panel_${s.symbol}" class="ca-accordion-panel evidence-panel-content" style="display:${(window._openEvidencePanels && window._openEvidencePanels.has(s.symbol)) ? 'flex' : 'none'};flex-direction:column">
+          <div id="evidence_body_${s.symbol}">
+            ${(window._renderedEvidence && window._renderedEvidence[s.symbol]) ? window._renderedEvidence[s.symbol] : `
+              <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;gap:8px">
+                <span style="font-size:11px;color:var(--muted);text-align:center">Evidence not loaded — expand to fetch the cached result.</span>
+              </div>
+            `}
+          </div>
+        </div>
       </div>
+
     </div>`;
   }).join("")}</div>`;
 }
@@ -10752,9 +11023,9 @@ renderStocks = function(stocks) {
 
 // Wrap renderMarket / renderGlobal so the bias builder refreshes live
 const _origRenderMarket = renderMarket;
-renderMarket = function(d) { _origRenderMarket(d); renderBiasBuilder(); };
+renderMarket = function(d) { _origRenderMarket(d); renderBiasBuilder(); renderMacroGatesHeader(); };
 const _origRenderGlobal = renderGlobal;
-renderGlobal = function(d) { _origRenderGlobal(d); renderBiasBuilder(); };
+renderGlobal = function(d) { _origRenderGlobal(d); renderBiasBuilder(); renderMacroGatesHeader(); };
 
 // Initial render of all checklist sections + tools
 function _initChecklistsAndTools() {
@@ -10762,6 +11033,7 @@ function _initChecklistsAndTools() {
   try { recalcPosSize();      } catch {}
   try { recalcTrail();        } catch {}
   renderBiasBuilder();
+  renderMacroGatesHeader();
   renderEntryGates();
   renderStockValidation();
   renderStockSelector();

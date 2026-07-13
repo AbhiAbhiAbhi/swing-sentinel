@@ -517,6 +517,36 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
             logger.error("Failed to write updated positions.csv: %s", e)
             return {"status": "error", "message": f"Failed to save positions: {e}"}
             
+    # Evidence staleness check — LOG ONLY, never simulate here (the daily
+    # 16:15 evidence job / manual recalculate do the slow work)
+    try:
+        try:
+            from core import core_evidence as _ev
+            from core import core_evidence_store as _evs
+        except ImportError:
+            import core_evidence as _ev
+            import core_evidence_store as _evs
+        _cfg = _ev.load_rule_config(_ROOT)
+        _sver = _ev.strategy_version(_cfg)
+        stale_syms = []
+        for _, r in df_positions.iterrows():
+            if str(r.get("Status") or "").strip().upper() not in ("OPEN", "ARMED", "BOUGHT"):
+                continue
+            _sym = str(r.get("Symbol") or "").strip().upper()
+            _setup = str(r.get("Setup") or "").strip().upper()
+            if _setup not in _ev.SETUP_FAMILIES:
+                _setup = "PULLBACK"
+            _cached = _evs.read_cache(_sym, _setup, _sver)
+            _is_stale, _ = _evs.is_stale(_cached)
+            if _cached is None or _is_stale:
+                stale_syms.append(_sym)
+        if stale_syms:
+            logger.info("[evidence] stale/missing for %d watchlist symbols "
+                        "(refresh runs 16:15 IST): %s", len(stale_syms),
+                        ", ".join(stale_syms[:10]))
+    except Exception as ev_exc:
+        logger.warning("[evidence] staleness check skipped: %s", ev_exc)
+
     # Send Telegram summary
     send_summary_notification(
         kept_symbols,

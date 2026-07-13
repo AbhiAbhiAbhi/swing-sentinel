@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "symbol": "ICICIBANK",
+  "setup_type": "PULLBACK",
+  "strategy_version": "v1.0-36652f68cdb2",
+  "generated_at": "2026-07-12T11:49:50.323831+05:30",
+  "rules": {
+    "entry_mode": "limit",
+    "max_wait_sessions": 5,
+    "max_hold_sessions": 20,
+    "cooldown_sessions": 5,
+    "same_bar_policy": "stop_first",
+    "t1_exit_fraction": 0.5,
+    "breakeven_after_t1": true,
+    "cost_model_version": "india-cash-v1"
+  },
+  "market_data_as_of": "2026-07-10",
+  "coverage": {
+    "start": "2024-05-29",
+    "end": "2026-07-10",
+    "months": 24,
+    "sessions": 528,
+    "warmup_sessions": 250,
+    "sample_quality": "weak",
+    "coverage_notes": [
+      "extended to 24 months (fewer than 15 independent episodes in 12)",
+      "earnings calendar, news sentiment and institutional filters not_reconstructed for historical dates"
+    ]
+  },
+  "summary": {
+    "signals_observed": 12,
+    "independent_episodes": 5,
+    "filled": 2,
+    "not_filled": 3,
+    "wins": 1,
+    "losses": 1,
+    "net_expectancy_r": -0.11,
+    "median_realised_r": -0.11,
+    "median_hold_sessions": 14.5,
+    "worst_realised_r": -1.089,
+    "gap_through_stop_count": 0,
+    "max_drawdown_r": -1.089
+  },
+  "episodes": [
+    {
+      "signal_date": "2024-09-09",
+      "setup_type": "PULLBACK",
+      "entry_zone_min": 1192.41,
+      "entry_zone_max": 1210.48,
+      "sl": 1174.52,
+      "t1": 1241.37,
+      "t2": 1268.81,
+      "fill_status": "NOT_FILLED",
+      "fill_date": null,
+      "fill_price": null,
+      "exits": [],
+      "gross_r": null,
+      "net_r": null,
+      "hold_sessions": null,
+      "gap_through_stop": false
+    },
+    {
+      "signal_date": "2024-10-31",
+      "setup_type": "PULLBACK",
+      "entry_zone_min": 1249.51,
+      "entry_zone_max": 1268.45,
+      "sl": 1230.77,
+      "t1": 1325.13,
+      "t2": 1356.76,
+      "fill_status": "FILLED",
+      "fill_date": "2024-11-04",
+      "fill_price": 1269.0842,
+      "exits": [
+        {
+          "date": "2024-11-21",
+          "price": 1230.1546,
+          "fraction": 1.0,
+          "reason": "SL"
+        }
+      ],
+      "gross_r": -1.016,
+      "net_r": -1.089,
+      "hold_sessions": 11,
+      "gap_through_stop": false,
+      "gross_pnl_pct": -3.0675,
+      "net_pnl_pct": -3.2866,
+      "cost_pct": 0.2191
+    },
+    {
+      "signal_date": "2025-06-27",
+      "setup_type": "PULLBACK",
+      "entry_zone_min": 1406.71,
+      "entry_zone_max": 1428.02,
+      "sl": 1385.61,
+      "t1": 1455.57,
+      "t2": 1484.68,
+      "fill_status": "FILLED",
+      "fill_date": "2025-07-01",
+      "fill_price": 1428.734,
+      "exits": [
+        {
+          "date": "2025-07-21",
+          "price": 1454.8422,
+          "fraction": 0.5,
+          "reason": "T1"
+        },
+        {
+          "date": "2025-07-25",
+          "price": 1483.9377,
+          "fraction": 0.5,
+          "reason": "T2"
+        }
+      ],
+      "gross_r": 0.943,
+      "net_r": 0.868,
+      "hold_sessions": 18,
+      "gap_through_stop": false,
+      "gross_pnl_pct": 2.8456,
+      "net_pnl_pct": 2.6204,
+      "cost_pct": 0.2252
+    },
+    {
+      "signal_date": "2026-01-09",
+      "setup_type": "PULLBACK",
+      "entry_zone_min": 1364.95,
+      "entry_zone_max": 1385.63,
+      "sl": 1344.48,
+      "t1": 1442.2,
+      "t2": 1471.04,
+      "fill_status": "NOT_FILLED",
+      "fill_date": null,
+      "fill_price": null,
+      "exits": [],
+      "gross_r": null,
+      "net_r": null,
+      "hold_sessions": null,
+      "gap_through_stop": false
+    },
+    {
+      "signal_date": "2026-02-10",
+      "setup_type": "PULLBACK",
+      "entry_zone_min": 1371.97,
+      "entry_zone_max": 1392.76,
+      "sl": 1351.39,
+      "t1": 1443.9,
+      "t2": 1476.76,
+      "fill_status": "NOT_FILLED",
+      "fill_date": null,
+      "fill_price": null,
+      "exits": [],
+      "gross_r": null,
+      "net_r": null,
+      "hold_sessions": null,
+      "gap_through_stop": false
+    }
+  ],
+  "status": "complete",
+  "stale_reason": null
+}

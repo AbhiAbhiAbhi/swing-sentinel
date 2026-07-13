@@ -47,6 +47,7 @@ def _tg_send(msg: str):
         logger.warning("[telegram] send failed: %s", exc)
 
 # ── Risk filters + sectors ───────────────────────────────────────────────────
+RISK_FILTERS_AVAILABLE = True
 try:
     from core.risk_filters import apply_risk_filters, fetch_screener_shareholding, apply_structural_safety_gates
     from core.sectors       import get_sector, fetch_sector_pulse
@@ -54,10 +55,16 @@ except ImportError:
     try:
         from core_risk_filters import apply_risk_filters, fetch_screener_shareholding, apply_structural_safety_gates
         from core_sectors      import get_sector, fetch_sector_pulse
-    except ImportError:
+    except ImportError as _rf_exc:
+        # Stubs keep the Flask dashboard bootable, but scans are refused via
+        # the RISK_FILTERS_AVAILABLE guard in run_get_stocks_job — a silent
+        # PASS-everything scan is worse than no scan.
+        RISK_FILTERS_AVAILABLE = False
+        logger.error("[risk-filters] UNAVAILABLE — scans will be refused: %s", _rf_exc)
         def apply_risk_filters(sym, tech, sector_pulse=None, thresholds=None, detail=None): return True, [], "PASS", 1.0
         def get_sector(sym): return "OTHERS"
         def fetch_sector_pulse(): return {}
+        def fetch_screener_shareholding(sym): return {}
         class GateResult:
             def __init__(self, passed, fail_reason=""):
                 self.passed = passed
@@ -1221,13 +1228,26 @@ def _append_rows_to_csv(path: str, rows: list) -> tuple:
                 except ValueError:
                     pass
 
+    # Stale-checkout guard: never append a row whose (Symbol, Entry_Date)
+    # already exists in the file, regardless of Status. Catches duplicates a
+    # concurrent workflow committed after this checkout was taken.
+    blocked_pairs = set()
+    if not existing.empty and "Symbol" in existing.columns and "Entry_Date" in existing.columns:
+        blocked_pairs = set(
+            zip(
+                existing["Symbol"].astype(str).str.strip(),
+                existing["Entry_Date"].astype(str).str.strip(),
+            )
+        )
+
     added, skipped = [], []
     for row in rows:
-        sym = row.get("Symbol", "")
-        if sym in blocked_syms:
+        sym   = str(row.get("Symbol", "")).strip()
+        edate = str(row.get("Entry_Date", "")).strip()
+        if sym in blocked_syms or (sym, edate) in blocked_pairs:
             logger.info(
-                "[positions] Skipping %s — active position, entered today, or "
-                "pruned/closed within %d days",
+                "[positions] Skipping %s — active position, entered today, "
+                "pruned/closed within %d days, or duplicate Symbol+Entry_Date",
                 sym, PRUNE_COOLDOWN_DAYS,
             )
             skipped.append(sym)
@@ -1242,7 +1262,8 @@ def _append_rows_to_csv(path: str, rows: list) -> tuple:
             row["Cur_Entry_Min"]  = row.get("entry_min") or row.get("entry_zone_min") or row.get("Entry_Price")
             row["Cur_Entry_Max"]  = row.get("entry_max") or row.get("entry_zone_max") or row.get("Entry_Price")
             added.append(row)
-            blocked_syms.add(sym)   # also dedupe within this single batch
+            blocked_syms.add(sym)              # also dedupe within this single batch
+            blocked_pairs.add((sym, edate))
 
     if added:
         new_df   = pd.DataFrame(added)
@@ -1763,6 +1784,14 @@ def _add_stocks_to_positions(stocks):
 
 def run_get_stocks_job(filters=None):
     """Run the canonical scan, persist it, then add every passed stock."""
+    if not RISK_FILTERS_AVAILABLE:
+        logger.error("[get-stocks] Aborting: risk filters unavailable")
+        _tg_send(
+            "<b>SCAN ABORTED</b>\n"
+            "risk_filters/sectors modules failed to import — every stock would "
+            "receive an unconditional PASS. Fix the import before scanning."
+        )
+        raise RuntimeError("Risk filters unavailable — scan refused")
     _load_schedule_config()
     effective_filters = filters if isinstance(filters, dict) and filters else dict(_scan_filters)
     logger.info("[get-stocks] Starting scheduled scan")
@@ -2715,11 +2744,302 @@ def api_backtest():
     return send_from_directory(os.path.join(_ROOT, "data"), "backtest_results.json")
 
 
+_BT_BY_SYMBOL_CACHE = {"mtime": None, "data": {}}
+
+
+def _load_backtest_by_symbol():
+    """Per-symbol backtest record from data/backtest_results.json → {} on any
+    failure (best-effort, never fatal). Prefers the write-time `by_symbol` key;
+    older files without it fall back to aggregating `closed_positions` (only
+    the 50 most recent trades — tagged partial). Cached by file mtime since
+    /api/results polls frequently but the file only changes on backtest runs."""
+    path = os.path.join(_ROOT, "data", "backtest_results.json")
+    try:
+        mtime = os.path.getmtime(path)
+        if _BT_BY_SYMBOL_CACHE["mtime"] == mtime:
+            return _BT_BY_SYMBOL_CACHE["data"]
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        by_symbol = data.get("by_symbol")
+        if not isinstance(by_symbol, dict):
+            by_symbol = {}
+            for t in data.get("closed_positions", []):
+                sym = str(t.get("symbol", "") or "").strip()
+                if not sym:
+                    continue
+                b = by_symbol.setdefault(sym, {"trades": 0, "wins": 0,
+                                               "losses": 0, "pnls": [],
+                                               "partial": True})
+                b["trades"] += 1
+                if t.get("outcome") == "T2_WIN":
+                    b["wins"] += 1
+                elif t.get("outcome") == "SL_LOSS":
+                    b["losses"] += 1
+                if isinstance(t.get("pnl_pct"), (int, float)):
+                    b["pnls"].append(t["pnl_pct"])
+            for b in by_symbol.values():
+                decided = b["wins"] + b["losses"]
+                b["win_rate"] = round(b["wins"] / decided, 3) if decided else 0
+                b["avg_pnl_pct"] = round(sum(b["pnls"]) / len(b["pnls"]), 2) if b["pnls"] else 0
+                del b["pnls"]
+        _BT_BY_SYMBOL_CACHE["mtime"] = mtime
+        _BT_BY_SYMBOL_CACHE["data"] = by_symbol
+        return by_symbol
+    except Exception as exc:
+        logger.warning("[results] backtest by_symbol load failed: %s", exc)
+        return {}
+
+
 def _date_str(v):
     """Date cell → clean string; NaN floats are truthy, so `or`-chaining raw
     cells yields the literal string 'nan' — route all date reads through this."""
     s = str(v if v is not None else "").strip()
     return "" if s.lower() in ("nan", "none", "nat") else s
+
+
+# ── Historical & Live Evidence (docs/STOCK_CARD_HISTORICAL_AND_LIVE_EVIDENCE_SPEC.md)
+# Slow simulations run in background threads and land in per-symbol JSON caches
+# (data/historical_evidence/); the GET below is strictly a fast reader.
+
+import threading as _threading
+import time as _time
+
+_EVIDENCE_LOCK = _threading.Lock()
+_EVIDENCE_INFLIGHT = set()          # "SYM_SETUP_SVER" keys with a running job
+_EVIDENCE_LAST_RUN = {}             # key → epoch seconds (manual rate limit)
+_EVIDENCE_CFG_CACHE = {"mtime": None, "cfg": None, "sver": None}
+
+
+def _evidence_mod():
+    try:
+        from core import core_evidence as ev
+        from core import core_evidence_store as evs
+    except ImportError:
+        import core_evidence as ev
+        import core_evidence_store as evs
+    return ev, evs
+
+
+def _evidence_cfg():
+    """Rule config + strategy version, cached by schedule_config.json mtime
+    (a rule change → new version → new cache files, per the spec)."""
+    ev, _ = _evidence_mod()
+    path = os.path.join(_ROOT, "data", "schedule_config.json")
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        mtime = None
+    c = _EVIDENCE_CFG_CACHE
+    if c["cfg"] is None or c["mtime"] != mtime:
+        c["cfg"] = ev.load_rule_config(_ROOT)
+        c["sver"] = ev.strategy_version(c["cfg"])
+        c["mtime"] = mtime
+    return c["cfg"], c["sver"]
+
+
+def _evidence_live_inputs():
+    """Closed positions.csv rows (as dicts) + post-mortem map for initial-SL
+    resolution. positions.csv is small — cheap to do per request."""
+    rows = []
+    path = os.path.join(_ROOT, "data", "positions.csv")
+    if os.path.exists(path):
+        df = pd.read_csv(path, dtype=object)
+        for _, r in df.iterrows():
+            outcome = str(r.get("Outcome") or "").strip()
+            if outcome and outcome.lower() != "nan":
+                rows.append(r.to_dict())
+    pm_map = {}
+    try:
+        pm_dir = os.path.join(_ROOT, "data", "post_mortems")
+        if os.path.isdir(pm_dir):
+            for fn in os.listdir(pm_dir):
+                if not fn.endswith(".json"):
+                    continue
+                with open(os.path.join(pm_dir, fn), encoding="utf-8") as fh:
+                    pm = json.load(fh)
+                sym = str(pm.get("symbol", "")).strip()
+                if sym:
+                    pm_map[f"{sym}_{pm.get('entry_date', '')}"] = pm
+                    pm_map.setdefault(sym, pm)
+    except Exception as exc:
+        logger.warning("[evidence] post-mortem load failed: %s", exc)
+    return rows, pm_map
+
+
+def _run_evidence_job(symbol, setup_type, sver, cfg):
+    """Background worker: simulate → cache. Errors mark the cache stale but
+    never delete the last good result."""
+    ev, evs = _evidence_mod()
+    key = f"{symbol}_{setup_type}_{sver}"
+    try:
+        result = ev.run_historical_evidence(symbol, setup_type, rules=cfg)
+        evs.write_cache(result)
+        logger.info("[evidence] %s: %s (%s episodes)", key, result.get("status"),
+                    (result.get("summary") or {}).get("independent_episodes"))
+    except Exception as exc:
+        logger.error("[evidence] %s failed: %s", key, exc)
+        try:
+            evs.mark_error(symbol, setup_type, sver, exc)
+        except Exception:
+            pass
+    finally:
+        with _EVIDENCE_LOCK:
+            _EVIDENCE_INFLIGHT.discard(key)
+
+
+def _queue_evidence_job(symbol, setup_type, sver, cfg):
+    """Coalesced enqueue: one thread per SYM_SETUP_SVER key. Returns
+    (queued: bool, key)."""
+    key = f"{symbol}_{setup_type}_{sver}"
+    with _EVIDENCE_LOCK:
+        if key in _EVIDENCE_INFLIGHT:
+            return False, key
+        _EVIDENCE_INFLIGHT.add(key)
+        _EVIDENCE_LAST_RUN[key] = datetime.now().timestamp()
+    _threading.Thread(target=_run_evidence_job,
+                      args=(symbol, setup_type, sver, cfg),
+                      daemon=True, name=f"evidence-{key}").start()
+    return True, key
+
+
+@app.route("/api/evidence/<symbol>")
+def api_evidence(symbol):
+    """Fast reader: cached historical evidence + on-the-fly live record.
+    Never triggers a simulation (POST /recalculate or the daily job do)."""
+    try:
+        ev, evs = _evidence_mod()
+        symbol = str(symbol).strip().upper()
+        setup = str(request.args.get("setup") or "").strip().upper()
+        if setup not in ev.SETUP_FAMILIES:
+            setup = "PULLBACK"
+        cfg, sver = _evidence_cfg()
+        key = f"{symbol}_{setup}_{sver}"
+
+        cached = evs.read_cache(symbol, setup, sver)
+        if cached is None:
+            state = "queued" if key in _EVIDENCE_INFLIGHT else "missing"
+        elif cached.get("status") in ("error", "error_stale"):
+            state = "error"
+        else:
+            stale, why = evs.is_stale(cached)
+            state = "stale" if stale else "complete"
+            if stale:
+                cached["stale_reason"] = why
+        if key in _EVIDENCE_INFLIGHT:
+            state = "queued" if cached is None else state
+
+        rows, pm_map = _evidence_live_inputs()
+        live = ev.build_live_evidence(symbol, setup, rows, pm_map, sver)
+
+        now = datetime.now().timestamp()
+        rate_limited = (now - _EVIDENCE_LAST_RUN.get(key, 0)) < 120
+        return jsonify({
+            "symbol": symbol,
+            "setup_type": setup,
+            "strategy_version": sver,
+            "historical_state": state,
+            "historical": cached,
+            "live": live,
+            "actions": {
+                "can_recalculate": key not in _EVIDENCE_INFLIGHT and not rate_limited,
+                "queued": key in _EVIDENCE_INFLIGHT,
+                "rate_limited": rate_limited,
+            },
+        })
+    except Exception as exc:
+        logger.error("[evidence] GET %s failed: %s", symbol, exc)
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/evidence/<symbol>/recalculate", methods=["POST"])
+def api_evidence_recalculate(symbol):
+    """Queue a historical simulation for one symbol+setup. 202 with the job
+    key; coalesces duplicates; 120s per-key manual rate limit."""
+    try:
+        ev, _ = _evidence_mod()
+        symbol = str(symbol).strip().upper()
+        body = request.get_json(silent=True) or {}
+        setup = str(body.get("setup_type") or "").strip().upper()
+        if setup not in ev.SETUP_FAMILIES:
+            setup = "PULLBACK"
+        cfg, sver = _evidence_cfg()
+        key = f"{symbol}_{setup}_{sver}"
+
+        now = datetime.now().timestamp()
+        with _EVIDENCE_LOCK:
+            inflight = key in _EVIDENCE_INFLIGHT
+            last = _EVIDENCE_LAST_RUN.get(key, 0)
+        if inflight:
+            return jsonify({"status": "already_running", "job_key": key}), 202
+        if now - last < 120 and str(body.get("reason")) != "scheduled":
+            return jsonify({"status": "rate_limited", "job_key": key,
+                            "retry_after_s": int(120 - (now - last))}), 429
+
+        queued, key = _queue_evidence_job(symbol, setup, sver, cfg)
+        return jsonify({
+            "status": "queued" if queued else "already_running",
+            "job_key": key,
+            "estimated_source": "historical_daily_ohlcv",
+        }), 202
+    except Exception as exc:
+        logger.error("[evidence] POST %s failed: %s", symbol, exc)
+        return jsonify({"error": str(exc)}), 500
+
+
+def _evidence_refresh_job():
+    """Daily 16:15 IST: refresh stale/missing evidence for watchlist symbols.
+    Priority BOUGHT → ARMED → OPEN; capped; sequential with a small pause so
+    yfinance is never hammered."""
+    try:
+        ev, evs = _evidence_mod()
+        cfg, sver = _evidence_cfg()
+        path = os.path.join(_ROOT, "data", "positions.csv")
+        if not os.path.exists(path):
+            return
+        df = pd.read_csv(path, dtype=object)
+        rank = {"BOUGHT": 0, "ARMED": 1, "OPEN": 2}
+        candidates = []
+        for _, r in df.iterrows():
+            status = str(r.get("Status") or "").strip().upper()
+            if status not in rank:
+                continue
+            sym = str(r.get("Symbol") or "").strip().upper()
+            setup = str(r.get("Setup") or "").strip().upper()
+            if setup not in ev.SETUP_FAMILIES:
+                setup = "PULLBACK"
+            if sym:
+                candidates.append((rank[status], sym, setup))
+        candidates.sort()
+
+        try:
+            with open(os.path.join(_ROOT, "data", "schedule_config.json"), encoding="utf-8") as fh:
+                cap = int((json.load(fh) or {}).get("evidence_daily_cap", 25))
+        except Exception:
+            cap = 25
+
+        run, seen = 0, set()
+        for _, sym, setup in candidates:
+            if run >= cap:
+                break
+            if (sym, setup) in seen:
+                continue
+            seen.add((sym, setup))
+            cached = evs.read_cache(sym, setup, sver)
+            stale, _why = evs.is_stale(cached)
+            if cached is not None and not stale and cached.get("status") == "complete":
+                continue
+            key = f"{sym}_{setup}_{sver}"
+            with _EVIDENCE_LOCK:
+                if key in _EVIDENCE_INFLIGHT:
+                    continue
+                _EVIDENCE_INFLIGHT.add(key)
+                _EVIDENCE_LAST_RUN[key] = datetime.now().timestamp()
+            _run_evidence_job(sym, setup, sver, cfg)   # sequential on purpose
+            run += 1
+            _time.sleep(2)
+        logger.info("[evidence] daily refresh done — %d simulations", run)
+    except Exception as exc:
+        logger.error("[evidence] daily refresh failed: %s", exc)
 
 
 @app.route("/api/results")
@@ -3034,11 +3354,13 @@ def api_results():
         # are resolved at read time (positions.csv is never rewritten here).
         try:
             from core.core_r_analytics import (
-                compute_r_analytics, compute_trade_r, resolve_initial_sl,
+                compute_r_analytics, compute_symbol_history,
+                compute_trade_r, resolve_initial_sl,
             )
         except ImportError:
             from core_r_analytics import (
-                compute_r_analytics, compute_trade_r, resolve_initial_sl,
+                compute_r_analytics, compute_symbol_history,
+                compute_trade_r, resolve_initial_sl,
             )
 
         # Post-mortem JSONs keyed by SYMBOL_entrydate (and SYMBOL as fallback)
@@ -3138,6 +3460,20 @@ def api_results():
         except Exception as r_exc:
             logger.warning("[results] r-analytics failed: %s", r_exc)
             r_analytics = {}
+
+        # Per-ticker history for the stock cards (own record + backtest
+        # record) — best-effort, never fatal
+        try:
+            own_hist = compute_symbol_history(r_trades)
+            bt_hist = _load_backtest_by_symbol()
+            for wp in watchlist_list:
+                wp["own_history"] = own_hist.get(wp.get("symbol"))
+                wp["bt_history"] = bt_hist.get(wp.get("symbol"))
+            for ap_ in active_list:
+                ap_["own_history"] = own_hist.get(ap_.get("symbol"))
+                ap_["bt_history"] = bt_hist.get(ap_.get("symbol"))
+        except Exception as h_exc:
+            logger.warning("[results] symbol-history join failed: %s", h_exc)
 
         return jsonify({
             "post_mortems":     post_mortems,
@@ -3847,6 +4183,19 @@ def _start_scheduler():
         logger.info("[post_mortem] scheduled daily sweep at 15:45 IST")
     except Exception as e:
         logger.error("[post_mortem] failed to schedule sweep: %s", e)
+    # Historical-evidence refresh — after market close, after the post-mortem
+    # sweep, so yfinance data includes the completed session
+    try:
+        _scheduler.add_job(
+            _evidence_refresh_job,
+            CronTrigger(day_of_week="mon-fri", hour=16, minute=15, timezone=ist),
+            id="evidence_refresh",
+            max_instances=1,
+            coalesce=True,
+        )
+        logger.info("[evidence] scheduled daily refresh at 16:15 IST")
+    except Exception as e:
+        logger.error("[evidence] failed to schedule daily refresh: %s", e)
     try:
         _scheduler.add_job(
             _weekly_pm_digest_job,

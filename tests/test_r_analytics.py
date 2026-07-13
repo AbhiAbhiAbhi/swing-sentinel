@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 from core_r_analytics import (
     compute_r_analytics,
     compute_slippage,
+    compute_symbol_history,
     compute_trade_r,
     resolve_initial_sl,
     vol_bucket,
@@ -226,6 +227,68 @@ def test_analytics_breakdowns_unknown_buckets():
     assert b["vol_bucket"]["UNKNOWN"]["count"] == 1
     assert b["nifty_regime"]["UPTREND"]["count"] == 1
     assert b["nifty_regime"]["UNKNOWN"]["count"] == 1
+
+
+# ── compute_symbol_history ───────────────────────────────────────────────────
+
+def test_symbol_history_empty_input():
+    assert compute_symbol_history([]) == {}
+
+
+def test_symbol_history_mixed_record():
+    trades = [
+        _trade(exit=110.0),                    # win, +2R
+        _trade(exit=110.0),                    # win, +2R
+        _trade(exit=95.0, outcome="SL_LOSS"),  # loss, -1R
+    ]
+    out = compute_symbol_history(trades)
+    s = out["TEST"]
+    assert s["trades"] == 3
+    assert s["wins"] == 2
+    assert s["losses"] == 1
+    assert s["avg_r"] == 1.0  # mean(2, 2, -1)
+    assert s["r_count"] == 3
+
+
+def test_symbol_history_money_win_overrides_outcome_label():
+    # Labelled SL_LOSS but exited above entry → counts as a win (money rule)
+    trades = [_trade(exit=101.0, outcome="SL_LOSS")]
+    s = compute_symbol_history(trades)["TEST"]
+    assert s["wins"] == 1
+    assert s["losses"] == 0
+
+
+def test_symbol_history_unrecoverable_sl_excluded_from_avg_r():
+    trades = [
+        _trade(exit=110.0),                                          # +2R
+        _trade(exit=110.0, initial_sl=None,
+               initial_sl_source="unrecoverable"),                   # no R
+    ]
+    s = compute_symbol_history(trades)["TEST"]
+    assert s["trades"] == 2
+    assert s["wins"] == 2      # still a money win
+    assert s["r_count"] == 1   # only one trade contributed to avg_r
+    assert s["avg_r"] == 2.0
+
+
+def test_symbol_history_unpriced_trade_neither_win_nor_loss():
+    trades = [_trade(exit=None)]
+    s = compute_symbol_history(trades)["TEST"]
+    assert s["trades"] == 1
+    assert s["wins"] == 0
+    assert s["losses"] == 0
+    assert s["avg_r"] is None
+    assert s["r_count"] == 0
+
+
+def test_symbol_history_multiple_symbols_kept_separate():
+    trades = [
+        _trade(symbol="AAA", exit=110.0),
+        _trade(symbol="BBB", exit=95.0, outcome="SL_LOSS"),
+    ]
+    out = compute_symbol_history(trades)
+    assert out["AAA"]["wins"] == 1 and out["AAA"]["losses"] == 0
+    assert out["BBB"]["wins"] == 0 and out["BBB"]["losses"] == 1
 
 
 def test_analytics_slippage_block():

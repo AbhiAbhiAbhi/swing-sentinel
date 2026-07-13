@@ -1622,23 +1622,17 @@ body.light-theme .tab-group {
 
   <!-- Composite Bias Builder -->
   <div id="sec_bias">
-  <div class="tab-section-head"><span style="display:flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--orange)"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>Composite Market Bias</span><button class="sec-toggle" onclick="toggleSection('sec_bias')" title="Expand / Shrink"><span class="chevron">▼</span></button></div>
+  <div class="tab-section-head">
+    <span style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--orange)"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+      Composite Market Bias
+      <small id="biasSummary" class="pill" style="margin-left:6px;font-size:9.5px;padding:2px 8px;border-radius:4px;font-weight:700;display:none"></small>
+    </span>
+    <button class="sec-toggle" onclick="toggleSection('sec_bias')" title="Expand / Shrink"><span class="chevron">▼</span></button>
+  </div>
   <div class="sec-body">
   <div class="bias-builder" id="biasBuilder">
     <!-- populated by renderBiasBuilder() -->
-  </div>
-  <div class="bias-final" id="biasFinal">
-    <div>
-      <div class="label">Final Score</div>
-      <div class="total" id="biasFinalTotal">0</div>
-    </div>
-    <div>
-      <div class="label">Verdict</div>
-      <div class="verdict" id="biasFinalVerdict">—</div>
-    </div>
-    <div style="font-size:11px;color:var(--muted);max-width:340px;text-align:right">
-      <b>≥+3</b> Strong Bullish · <b>+1/+2</b> Mild · <b>0</b> Neutral (half-size) · <b>≤−2</b> No fresh longs
-    </div>
   </div>
   </div>
   </div>
@@ -7798,10 +7792,25 @@ function renderBiasBuilder() {
     total >= -2 ? { txt: "MILD BEARISH — quarter size",       cls: "down" } :
                   { txt: "STRONG BEARISH — no fresh longs",    cls: "down" };
 
-  const totalEl   = document.getElementById("biasFinalTotal");
-  const verdictEl = document.getElementById("biasFinalVerdict");
-  if (totalEl)   { totalEl.textContent = (total >= 0 ? "+" : "") + total; totalEl.className = `total ${verdict.cls}`; }
-  if (verdictEl) { verdictEl.textContent = verdict.txt; verdictEl.className = `verdict ${verdict.cls}`; }
+  const summaryEl = document.getElementById("biasSummary");
+  if (summaryEl) {
+    const formattedScore = (total >= 0 ? "+" : "") + total;
+    summaryEl.textContent = `${formattedScore} (${verdict.txt})`;
+    summaryEl.style.display = "inline-block";
+    if (verdict.cls === "up") {
+      summaryEl.style.background = "var(--green-bg)";
+      summaryEl.style.color = "var(--green)";
+      summaryEl.style.border = "1px solid rgba(16,185,129,0.4)";
+    } else if (verdict.cls === "down") {
+      summaryEl.style.background = "var(--red-bg)";
+      summaryEl.style.color = "var(--red)";
+      summaryEl.style.border = "1px solid rgba(239,68,68,0.4)";
+    } else {
+      summaryEl.style.background = "var(--yellow-bg)";
+      summaryEl.style.color = "var(--yellow)";
+      summaryEl.style.border = "1px solid rgba(245,158,11,0.4)";
+    }
+  }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -9048,23 +9057,6 @@ function renderStockValidation() {
             : `<span class="ca-score weak" style="border:1px solid var(--red); background:rgba(239,68,68,0.12); color:#ef4444; font-weight:bold" title="Safety gates: ${item.reasons.join('; ')}\n\nSafety Gate Rules:\n1. Weekly Trend: BEARISH = Blocked\n2. Fundamentals: Negative EPS/PE/ROE/EBITDA = Blocked\n3. Institutional: DISTRIBUTION = Blocked\n4. Liquidity: Volume < 100k shares = Blocked\n5. Overextended: 20d return > 25% = Blocked\n6. Debate: SKIP = Blocked\n7. Data freshness: Stale (>1 trading day) = Blocked\n8. Sector x Nifty alignment: Misaligned = Blocked">⚠️ BLOCKED: ${item.reasons[0]}</span>`
           }
         </div>
-        <button class="ca-btn" onclick="sendToSizer('${s.symbol}')" style="font-size:11.5px; padding:8px 12px; background:var(--blue-bg); color:var(--blue); border-color:var(--blue); font-weight:700; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; width:100%; border-radius:8px; transition:all 0.15s; box-shadow:0 2px 8px rgba(59,130,246,0.12)" onmouseover="this.style.background='var(--blue)';this.style.color='#ffffff'" onmouseout="this.style.background='var(--blue-bg)';this.style.color='var(--blue)'">
-          <div style="display:flex; align-items:center; gap:6px">
-            <span>📐 Size & Plan Trade</span>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width:12px;height:12px">
-              <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
-            </svg>
-          </div>
-          <div style="font-size:9.5px; font-weight:500; opacity:0.85; display:flex; gap:6px; flex-wrap:wrap; justify-content:center">
-            <span>LTP: ₹${fmtP(s.price || 0)}</span> · 
-            <span>SL: ₹${fmtP(s.sl || 0)}</span> · 
-            <span>T1: ₹${fmtP(s.target_1 || 0)}</span> · 
-            <span>T2: ₹${fmtP(s.target_2 || 0)}</span>
-          </div>
-          <div style="font-size:9.5px; font-weight:500; opacity:0.75">
-            📋 Entry Checklist: ${v.passCount} / ${v.total} Passed
-          </div>
-        </button>
       </div>
     </div>`;
   }).join("")}</div>`;

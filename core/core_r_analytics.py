@@ -143,6 +143,45 @@ def _label(val):
     return s if s and s.lower() != "nan" else UNKNOWN
 
 
+def compute_symbol_history(trades):
+    """Per-symbol trade record over the same closed-trade dicts as
+    compute_r_analytics → {symbol: {trades, wins, losses, avg_r, r_count}}.
+
+    Win = money definition (exit > entry), independent of the Outcome label.
+    Trades with unparseable prices count in `trades` but neither W nor L.
+    avg_r averages only trades with a computable R (unrecoverable initial
+    SLs are excluded, never estimated); r_count is how many contributed.
+    """
+    out = {}
+    for t in trades:
+        sym = str(t.get("symbol", "") or "").strip()
+        if not sym:
+            continue
+        s = out.setdefault(sym, {"trades": 0, "wins": 0, "losses": 0,
+                                 "rs": []})
+        s["trades"] += 1
+        entry = _num(t.get("entry"))
+        exit_px = _num(t.get("exit"))
+        if entry is not None and entry > 0 and exit_px is not None:
+            if exit_px > entry:
+                s["wins"] += 1
+            else:
+                s["losses"] += 1
+        r = compute_trade_r(t.get("entry"), t.get("exit"), t.get("initial_sl"))
+        if r is not None:
+            s["rs"].append(r)
+    return {
+        sym: {
+            "trades": s["trades"],
+            "wins": s["wins"],
+            "losses": s["losses"],
+            "avg_r": round(sum(s["rs"]) / len(s["rs"]), 2) if s["rs"] else None,
+            "r_count": len(s["rs"]),
+        }
+        for sym, s in out.items()
+    }
+
+
 def compute_r_analytics(trades):
     """Aggregate R expectancy + slippage over closed-trade dicts.
 

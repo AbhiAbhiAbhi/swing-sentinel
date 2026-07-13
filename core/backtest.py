@@ -103,8 +103,21 @@ def fetch_history(symbol: str, months: int) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def find_signals(df: pd.DataFrame, lookback_start_idx: int) -> list:
-    """Walk forward through df, return list of indices where Chartink rules match."""
+# Live Chartink-mirror thresholds; keep in sync with data/schedule_config.json
+# scan_filters (min_price, rsi 40-70, adx_min 20, min_volume_lakh 5).
+DEFAULT_SIGNAL_FILTERS = {
+    "min_price": 50,
+    "rsi_min": 40,
+    "rsi_max": 70,
+    "adx_min": 20,
+    "min_volume": 500_000,
+}
+
+
+def signal_mask(df: pd.DataFrame, filters: dict = None) -> pd.Series:
+    """Boolean Series: bars where the entry rules match (vectorized, no
+    exit-window trimming — callers slice the range they replay)."""
+    f = {**DEFAULT_SIGNAL_FILTERS, **(filters or {})}
     close, vol = df["Close"], df["Volume"]
     ema20  = _ema(close, 20)
     ema50  = _ema(close, 50)
@@ -113,25 +126,25 @@ def find_signals(df: pd.DataFrame, lookback_start_idx: int) -> list:
     macd_line, macd_sig = _macd(close)
     adx    = _adx(df, 14)
     avg_vol = vol.rolling(20).mean()
+    mask = (
+        (close >= f["min_price"])
+        & (close > ema20)
+        & (ema20 > ema50)
+        & (close > ema200)
+        & (rsi > f["rsi_min"]) & (rsi < f["rsi_max"])
+        & (macd_line > macd_sig)
+        & (adx > f["adx_min"])
+        & (vol > f["min_volume"])
+        & (vol > avg_vol)   # extra: today's vol above 20d avg
+    )
+    return mask.fillna(False)
 
-    signals = []
-    for i in range(lookback_start_idx, len(df) - 30):  # leave 30-day exit window
-        try:
-            if (
-                close.iat[i] >= 50
-                and close.iat[i] > ema20.iat[i]
-                and ema20.iat[i] > ema50.iat[i]
-                and close.iat[i] > ema200.iat[i]
-                and 40 < rsi.iat[i] < 70
-                and macd_line.iat[i] > macd_sig.iat[i]
-                and adx.iat[i] > 20
-                and vol.iat[i] > 500_000
-                and vol.iat[i] > avg_vol.iat[i]   # extra: today's vol above 20d avg
-            ):
-                signals.append(i)
-        except Exception:
-            continue
-    return signals
+
+def find_signals(df: pd.DataFrame, lookback_start_idx: int) -> list:
+    """Walk forward through df, return list of indices where Chartink rules match."""
+    mask = signal_mask(df)
+    return [i for i in range(lookback_start_idx, len(df) - 30)  # leave 30-day exit window
+            if bool(mask.iat[i])]
 
 
 def simulate_outcome(df: pd.DataFrame, signal_idx: int, plan: dict) -> dict:
@@ -261,6 +274,24 @@ def aggregate(all_trades: list) -> dict:
         b["avg_pnl_pct"] = round(sum(b["pnls"]) / len(b["pnls"]), 2) if b["pnls"] else 0
         del b["pnls"]
 
+    # Per-symbol record over ALL trades (closed_positions below is truncated
+    # to 50, so the stock-card history line must be aggregated here).
+    by_symbol = {}
+    for t in all_trades:
+        b = by_symbol.setdefault(t["symbol"], {"trades": 0, "wins": 0,
+                                               "losses": 0, "pnls": []})
+        b["trades"] += 1
+        if t["outcome"] == "T2_WIN":
+            b["wins"] += 1
+        elif t["outcome"] == "SL_LOSS":
+            b["losses"] += 1
+        b["pnls"].append(t["pnl_pct"])
+    for sym, b in by_symbol.items():
+        decided = b["wins"] + b["losses"]
+        b["win_rate"] = round(b["wins"] / decided, 3) if decided else 0
+        b["avg_pnl_pct"] = round(sum(b["pnls"]) / len(b["pnls"]), 2) if b["pnls"] else 0
+        del b["pnls"]
+
     # Show 50 most recent closed trades for the table
     closed_trades = [t for t in all_trades if t["outcome"] in ("T2_WIN", "SL_LOSS")]
     closed_trades.sort(key=lambda x: x["exit_date"], reverse=True)
@@ -277,6 +308,7 @@ def aggregate(all_trades: list) -> dict:
         "win_rate":         win_rate,
         "avg_days_held":    avg_days_held,
         "by_setup":         by_setup,
+        "by_symbol":        by_symbol,
         "closed_positions": closed_positions,
         "generated_at":     datetime.now().isoformat(),
     }

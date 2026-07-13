@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "symbol": "METROPOLIS",
+  "setup_type": "PULLBACK",
+  "strategy_version": "v1.0-36652f68cdb2",
+  "generated_at": "2026-07-12T11:50:42.338997+05:30",
+  "rules": {
+    "entry_mode": "limit",
+    "max_wait_sessions": 5,
+    "max_hold_sessions": 20,
+    "cooldown_sessions": 5,
+    "same_bar_policy": "stop_first",
+    "t1_exit_fraction": 0.5,
+    "breakeven_after_t1": true,
+    "cost_model_version": "india-cash-v1"
+  },
+  "market_data_as_of": "2026-07-10",
+  "coverage": {
+    "start": "2024-05-29",
+    "end": "2026-07-10",
+    "months": 24,
+    "sessions": 528,
+    "warmup_sessions": 250,
+    "sample_quality": "weak",
+    "coverage_notes": [
+      "extended to 24 months (fewer than 15 independent episodes in 12)",
+      "earnings calendar, news sentiment and institutional filters not_reconstructed for historical dates"
+    ]
+  },
+  "summary": {
+    "signals_observed": 5,
+    "independent_episodes": 5,
+    "filled": 4,
+    "not_filled": 1,
+    "wins": 1,
+    "losses": 3,
+    "net_expectancy_r": -0.703,
+    "median_realised_r": -1.071,
+    "median_hold_sessions": 1.0,
+    "worst_realised_r": -1.097,
+    "gap_through_stop_count": 1,
+    "max_drawdown_r": -3.238
+  },
+  "episodes": [
+    {
+      "signal_date": "2024-07-02",
+      "setup_type": "PULLBACK",
+      "entry_zone_min": 483.55,
+      "entry_zone_max": 490.88,
+      "sl": 475.7,
+      "t1": 514.9,
+      "t2": 529.08,
+      "fill_status": "NOT_FILLED",
+      "fill_date": null,
+      "fill_price": null,
+      "exits": [],
+      "gross_r": null,
+      "net_r": null,
+      "hold_sessions": null,
+      "gap_through_stop": false
+    },
+    {
+      "signal_date": "2024-09-11",
+      "setup_type": "PULLBACK",
+      "entry_zone_min": 521.68,
+      "entry_zone_max": 529.58,
+      "sl": 513.27,
+      "t1": 546.95,
+      "t2": 570.61,
+      "fill_status": "FILLED",
+      "fill_date": "2024-09-18",
+      "fill_price": 529.8448,
+      "exits": [
+        {
+          "date": "2024-09-24",
+          "price": 546.6765,
+          "fraction": 0.5,
+          "reason": "T1"
+        },
+        {
+          "date": "2024-09-26",
+          "price": 529.5799,
+          "fraction": 0.5,
+          "reason": "BREAKEVEN"
+        }
+      ],
+      "gross_r": 0.5,
+      "net_r": 0.428,
+      "hold_sessions": 6,
+      "gap_through_stop": false,
+      "gross_pnl_pct": 1.5634,
+      "net_pnl_pct": 1.3395,
+      "cost_pct": 0.2239
+    },
+    {
+      "signal_date": "2024-11-12",
+      "setup_type": "PULLBACK",
+      "entry_zone_min": 531.42,
+      "entry_zone_max": 539.48,
+      "sl": 519.94,
+      "t1": 569.95,
+      "t2": 590.04,
+      "fill_status": "FILLED",
+      "fill_date": "2024-11-13",
+      "fill_price": 539.3361,
+      "exits": [
+        {
+          "date": "2024-11-13",
+          "price": 519.68,
+          "fraction": 1.0,
+          "reason": "SL"
+        }
+      ],
+      "gross_r": -1.013,
+      "net_r": -1.074,
+      "hold_sessions": 0,
+      "gap_through_stop": false,
+      "gross_pnl_pct": -3.6445,
+      "net_pnl_pct": -3.863,
+      "cost_pct": 0.2185
+    },
+    {
+      "signal_date": "2024-12-17",
+      "setup_type": "PULLBACK",
+      "entry_zone_min": 533.07,
+      "entry_zone_max": 541.15,
+      "sl": 523.21,
+      "t1": 560.11,
+      "t2": 586.9,
+      "fill_status": "FILLED",
+      "fill_date": "2024-12-18",
+      "fill_price": 541.4206,
+      "exits": [
+        {
+          "date": "2024-12-19",
+          "price": 522.6207,
+          "fraction": 1.0,
+          "reason": "SL"
+        }
+      ],
+      "gross_r": -1.032,
+      "net_r": -1.097,
+      "hold_sessions": 1,
+      "gap_through_stop": true,
+      "gross_pnl_pct": -3.4723,
+      "net_pnl_pct": -3.691,
+      "cost_pct": 0.2186
+    },
+    {
+      "signal_date": "2025-10-07",
+      "setup_type": "PULLBACK",
+      "entry_zone_min": 510.11,
+      "entry_zone_max": 517.84,
+      "sl": 497.44,
+      "t1": 556.25,
+      "t2": 571.31,
+      "fill_status": "FILLED",
+      "fill_date": "2025-10-08",
+      "fill_price": 518.0989,
+      "exits": [
+        {
+          "date": "2025-10-09",
+          "price": 497.1913,
+          "fraction": 1.0,
+          "reason": "SL"
+        }
+      ],
+      "gross_r": -1.012,
+      "net_r": -1.067,
+      "hold_sessions": 1,
+      "gap_through_stop": false,
+      "gross_pnl_pct": -4.0354,
+      "net_pnl_pct": -4.2535,
+      "cost_pct": 0.2181
+    }
+  ],
+  "status": "complete",
+  "stale_reason": null
+}
