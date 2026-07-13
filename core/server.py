@@ -95,6 +95,13 @@ _scan_filters = {
     "block_weak_sectors": True,
     "top_n": 30,
 }
+# Position sizing (issue #7): capital-at-risk config, editable in
+# data/schedule_config.json under the "sizing" key.
+_sizing = {
+    "enabled": True,
+    "capital": 10000,
+    "risk_pct": 1.0,
+}
 
 try:
     from core.prune_logic import evaluate_prune
@@ -114,7 +121,7 @@ except ImportError:
             return {"status": "error", "message": "Import failed"}
 
 def _load_schedule_config():
-    global _maintenance_time, _get_stocks_time, _scan_filters
+    global _maintenance_time, _get_stocks_time, _scan_filters, _sizing
     config_path = os.path.join(_ROOT, "data", "schedule_config.json")
     if os.path.exists(config_path):
         try:
@@ -125,6 +132,9 @@ def _load_schedule_config():
                 saved_filters = data.get("scan_filters")
                 if isinstance(saved_filters, dict):
                     _scan_filters = {**_scan_filters, **saved_filters}
+                saved_sizing = data.get("sizing")
+                if isinstance(saved_sizing, dict):
+                    _sizing = {**_sizing, **saved_sizing}
         except Exception as e:
             logger.warning("[server] Failed to load schedule_config.json: %s", e)
 
@@ -137,6 +147,7 @@ def _save_schedule_config():
             "maintenance_time": _maintenance_time,
             "get_stocks_time": _get_stocks_time,
             "scan_filters": _scan_filters,
+            "sizing": _sizing,
         }, f, indent=2)
 
 
@@ -218,7 +229,7 @@ try:
         fetch_stock_technicals,
         NSE_TICKERS,
     )
-    from core.trade_plan import calculate_rr, calculate_trade_plan, position_risk
+    from core.trade_plan import calculate_rr, calculate_trade_plan, position_risk, compute_position_size
     from core.risk_filters import fetch_earnings_date
 except ImportError:
     from core_chartink_fetcher import fetch_chartink_stocks
@@ -231,7 +242,7 @@ except ImportError:
         fetch_stock_technicals,
         NSE_TICKERS,
     )
-    from core_trade_plan import calculate_rr, calculate_trade_plan, position_risk
+    from core_trade_plan import calculate_rr, calculate_trade_plan, position_risk, compute_position_size
     from core_risk_filters import fetch_earnings_date
 
 # ── Setup grading + expiry ───────────────────────────────────────────
@@ -2089,7 +2100,8 @@ def api_positions_buy():
             "Buy_RSI", "Buy_ATR_Pct", "Buy_Vol_Ratio",
             "Setup_Grade", "Setup_Score", "Expiry_Multiplier", "Expiry_Reason",
             "gtt_id", "Risk_Per_Share", "Rupee_Risk",
-            "Initial_SL", "Initial_SL_Source", "Nifty_Regime_Entry"
+            "Initial_SL", "Initial_SL_Source", "Nifty_Regime_Entry",
+            "Size_Multiplier", "Sizing_Source"
         ])
 
         # Live setup grading and expiry sizing at execution time
@@ -2134,6 +2146,35 @@ def api_positions_buy():
         except Exception:
             pass
 
+        # Position sizing (issue #7): unless the caller supplied an explicit
+        # quantity, size from capital-at-risk × the fill-time multipliers.
+        # The Nifty×sector matrix is already folded into Cur_Regime_Mult.
+        sized_qty = None
+        sizing_source = "manual" if data.get("quantity") else "default"
+        size_mult = ""
+        if not data.get("quantity") and _sizing.get("enabled"):
+            regime_mult = 1.0
+            if idx is not None and "Cur_Regime_Mult" in df.columns:
+                rm = _num(df.at[idx, "Cur_Regime_Mult"])
+                if rm is not None:
+                    regime_mult = rm
+            size_res = compute_position_size(
+                entry_price, sl,
+                _sizing.get("capital", 10000), _sizing.get("risk_pct", 1.0),
+                expiry_mult=exp_mult, regime_mult=regime_mult,
+            )
+            if size_res["quantity"] < 1:
+                reason = size_res["reason"]
+                if float(exp_mult) == 0.0 and exp_reason:
+                    reason += f" — {exp_reason}"
+                return jsonify({
+                    "error": f"Position sizing blocked: {reason}. "
+                             f"Pass an explicit quantity to override."
+                }), 400
+            sized_qty = size_res["quantity"]
+            size_mult = size_res["combined_mult"]
+            sizing_source = "computed"
+
         if idx is not None:
             # Update status & capture snapshot
             df.at[idx, "Status"] = "BOUGHT"
@@ -2144,8 +2185,13 @@ def api_positions_buy():
             df.at[idx, "Current_SL"] = sl
             df.at[idx, "Target_1"] = t1
             df.at[idx, "Target_2"] = t2
+            df["Quantity"] = df["Quantity"].astype(object)
             if data.get("quantity"):
                 df.at[idx, "Quantity"] = float(data["quantity"])
+            elif sized_qty is not None:
+                df.at[idx, "Quantity"] = float(sized_qty)
+            df.at[idx, "Size_Multiplier"] = size_mult
+            df.at[idx, "Sizing_Source"] = sizing_source
 
             # Date-ordering guard: the poller stamps Entry_Hit_Date while the
             # row is still OPEN; if that stamp predates today's Entry_Date,
@@ -2186,7 +2232,10 @@ def api_positions_buy():
                 "Symbol": symbol,
                 "Name": data.get("name", symbol),
                 "Entry_Price": entry_price,
-                "Quantity": float(data.get("quantity", 1)),
+                "Quantity": float(data["quantity"]) if data.get("quantity")
+                            else float(sized_qty) if sized_qty is not None else 1.0,
+                "Size_Multiplier": size_mult,
+                "Sizing_Source": sizing_source,
                 "Target_1": t1,
                 "Target_2": t2,
                 "Current_SL": sl,
@@ -3423,6 +3472,8 @@ def api_results():
                     "sector": sector,
                     "vol_ratio": vol_ratio,
                     "nifty_regime": nifty_regime,
+                    "quantity": _num(r.get("Quantity")),
+                    "rupee_risk": _num(r.get("Rupee_Risk")),
                 })
                 closed_list.append({
                     "symbol":    symbol,

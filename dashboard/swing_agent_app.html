@@ -11394,6 +11394,17 @@ function renderAnalytics(r) {
       expSub.textContent = "No trades with a known initial SL yet";
     }
 
+    // Rupee-denominated expectancy under real sizing (issue #7)
+    const rup = ra.rupee || {};
+    if (rup.rupee_expectancy !== null && rup.rupee_expectancy !== undefined) {
+      const sgn = v => `${v >= 0 ? "+" : "−"}₹${Math.abs(v).toFixed(0)}`;
+      let line = `${sgn(rup.rupee_expectancy)}/trade · ${sgn(rup.total_rupee_pnl)} total`;
+      if (rup.risk_weighted_expectancy_r !== null && rup.risk_weighted_expectancy_r !== undefined) {
+        line += ` · ${rup.risk_weighted_expectancy_r >= 0 ? "+" : ""}${rup.risk_weighted_expectancy_r.toFixed(2)}R risk-weighted (${rup.trades_with_rupee_risk} sized)`;
+      }
+      expSub.textContent += ` · ₹: ${line}`;
+    }
+
     // Slippage on SL exits (intended stop vs actual fill)
     const slipVal = document.getElementById("an_slip");
     const slipSub = document.getElementById("an_slip_sub");

@@ -17,5 +17,10 @@
     "earnings_window_days": 3,
     "block_weak_sectors": true,
     "top_n": 30
+  },
+  "sizing": {
+    "enabled": true,
+    "capital": 10000,
+    "risk_pct": 1.0
   }
 }

@@ -186,9 +186,51 @@ def compute_r_analytics(trades):
     """Aggregate R expectancy + slippage over closed-trade dicts.
 
     Each trade dict: symbol, entry, exit, initial_sl, initial_sl_source,
-    current_sl, outcome, setup, grade, sector, vol_ratio, nifty_regime.
+    current_sl, outcome, setup, grade, sector, vol_ratio, nifty_regime,
+    and optionally quantity / rupee_risk (issue #7 sizing).
     Trades whose R cannot be computed are excluded and counted.
+
+    Rupee aggregates use quantity (default 1 when missing so pre-sizing
+    history stays comparable): total_rupee_pnl, rupee_expectancy, and
+    risk_weighted_expectancy_r (Σ ₹pnl / Σ rupee_risk over trades with
+    rupee_risk > 0 — expectancy per rupee risked).
     """
+    # Rupee aggregates need only entry/exit/quantity, so they run over every
+    # closed trade — including ones excluded from R for missing stops.
+    rupee_pnls = []
+    risked_pnl = 0.0   # ₹ P&L summed only over trades that have a rupee_risk
+    risked_total = 0.0
+    n_risked = 0
+    for t in trades:
+        try:
+            entry_f, exit_f = float(t.get("entry")), float(t.get("exit"))
+        except (TypeError, ValueError):
+            continue
+        if entry_f <= 0 or exit_f <= 0:
+            continue
+        try:
+            qty = float(t.get("quantity") or 1)
+        except (TypeError, ValueError):
+            qty = 1.0
+        pnl = (exit_f - entry_f) * qty
+        rupee_pnls.append(pnl)
+        try:
+            rr = float(t.get("rupee_risk") or 0)
+        except (TypeError, ValueError):
+            rr = 0.0
+        if rr > 0:
+            risked_pnl += pnl
+            risked_total += rr
+            n_risked += 1
+    rupee = {
+        "total_rupee_pnl": round(sum(rupee_pnls), 2) if rupee_pnls else None,
+        "rupee_expectancy": round(sum(rupee_pnls) / len(rupee_pnls), 2) if rupee_pnls else None,
+        "risk_weighted_expectancy_r": (
+            round(risked_pnl / risked_total, 3) if risked_total > 0 else None
+        ),
+        "trades_with_rupee_risk": n_risked,
+    }
+
     rs = []            # (trade, r) with computable R
     excluded = 0
     for t in trades:
@@ -213,6 +255,7 @@ def compute_r_analytics(trades):
                 "expectancy_r_slippage_adjusted": None,
             },
             "breakdowns": {},
+            "rupee": rupee,
         }
 
     r_vals = [r for _, r in rs]
@@ -257,4 +300,5 @@ def compute_r_analytics(trades):
             "expectancy_r_slippage_adjusted": round(sum(no_slip_rs) / len(no_slip_rs), 3),
         },
         "breakdowns": breakdowns,
+        "rupee": rupee,
     }

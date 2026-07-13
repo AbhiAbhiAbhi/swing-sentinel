@@ -121,6 +121,61 @@ def calculate_rr(stock_data: Dict) -> str:
     return f"1:{rr}" if rr else "N/A"
 
 
+def compute_position_size(entry, initial_sl, capital, risk_pct,
+                          expiry_mult=1.0, regime_mult=1.0):
+    """
+    Size a position from capital-at-risk and the fill-time multipliers
+    (issue #7):
+
+        risk_per_share = entry - initial_sl
+        combined_mult  = expiry_mult * regime_mult   (sector matrix is
+                         already folded into regime_mult upstream)
+        quantity       = floor(capital * risk_pct/100 * combined_mult
+                               / risk_per_share)
+
+    Returns a dict:
+      quantity (int), risk_per_share (float), combined_mult (float),
+      rupee_risk_budget (float, the sized ₹ budget), reason (str —
+      explains a 0 quantity, "" otherwise).
+
+    Pure: no I/O, no config reads. Blank/invalid multipliers default to 1.0.
+    """
+    def _f(v, default=0.0):
+        try:
+            if v is None or v == "":
+                return default
+            return float(v)
+        except (TypeError, ValueError):
+            return default
+
+    entry_f = _f(entry)
+    sl_f = _f(initial_sl)
+    exp_m = _f(expiry_mult, 1.0)
+    reg_m = _f(regime_mult, 1.0)
+    combined = round(exp_m * reg_m, 4)
+    risk_per_share = round(entry_f - sl_f, 2)
+
+    if entry_f <= 0 or sl_f <= 0 or risk_per_share <= 0:
+        return {"quantity": 0, "risk_per_share": max(0.0, risk_per_share),
+                "combined_mult": combined, "rupee_risk_budget": 0.0,
+                "reason": f"invalid risk_per_share (entry={entry_f}, initial_sl={sl_f})"}
+
+    budget = round(_f(capital) * _f(risk_pct) / 100.0 * combined, 2)
+    quantity = int(budget // risk_per_share)
+
+    reason = ""
+    if quantity < 1:
+        if combined <= 0:
+            reason = f"combined multiplier is 0 (expiry_mult={exp_m}, regime_mult={reg_m})"
+        else:
+            reason = (f"risk budget ₹{budget:.2f} < risk/share ₹{risk_per_share:.2f} "
+                      f"(capital too small for this setup)")
+
+    return {"quantity": quantity, "risk_per_share": risk_per_share,
+            "combined_mult": combined, "rupee_risk_budget": budget,
+            "reason": reason}
+
+
 def position_risk(entry, sl, qty=0):
     """
     Per-position risk, persisted once at first scan and then LOCKED (never

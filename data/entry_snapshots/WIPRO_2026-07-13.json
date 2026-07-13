@@ -1,0 +1,271 @@
+{
+  "symbol": "WIPRO",
+  "entry_date": "2026-07-13",
+  "entry_price": 5000.0,
+  "captured_at": "2026-07-13T14:42:13.330832+05:30",
+  "risk_filters": {
+    "verdict": "SKIP",
+    "passed_all": false,
+    "regime_mult": 1.0,
+    "reasons": [
+      "bearish weekly trend",
+      "Institutional DISTRIBUTION in Jun 2026 (Consensus Score -6.0; breakdown: \u0394FII=+0.45, \u0394DII=-2.67, \u0394Net=-2.22 (Divergence/Flat); net_dir=-2, agreement=+0, breadth=+0, promoter=-2 -> raw=-4.0 x persistence=1.5 = -6.0)",
+      "earnings in 3d (2026-07-16) [NSE]",
+      "recent crash (-8.4% drop in last 30d)",
+      "No Man's Land (SKIP, ratio 0.47, range 7.2%)",
+      "Multi-flag rejection (7 flags: bearish weekly trend; Institutional DISTRIBUTION in Jun 2026 (Consensus Score -6.0; breakdown: \u0394FII=+0.45, \u0394DII=-2.67, \u0394Net=-2.22 (Divergence/Flat); net_dir=-2, agreement=+0, breadth=+0, promoter=-2 -> raw=-4.0 x persistence=1.5 = -6.0); earnings in 3d (2026-07-16) [NSE]; recent crash (-8.4% drop in last 30d); No Man's Land (SKIP, ratio 0.47, range 7.2%); trend alignment failed (Price \u20b9178.48 must be > EMA21 \u20b9177.66 > EMA50 \u20b9185.43); trend stalling (negative 20-day return of -1.6%))"
+    ],
+    "detail": [
+      {
+        "filter": "weekly_trend",
+        "gate": "Gate#2",
+        "verdict": "SKIP",
+        "measured": "BEARISH",
+        "threshold": "not BEARISH",
+        "margin": null
+      },
+      {
+        "filter": "fundamental_strength",
+        "gate": "Gate#3",
+        "verdict": "PASS",
+        "measured": "OK",
+        "threshold": null,
+        "margin": null
+      },
+      {
+        "filter": "institutional_dealings",
+        "gate": "Gate#4",
+        "verdict": "SKIP",
+        "measured": "Institutional DISTRIBUTION in Jun 2026 (Consensus Score -6.0; breakdown: \u0394FII=+0.45, \u0394DII=-2.67, \u0394Net=-2.22 (Divergence/Flat); net_dir=-2, agreement=+0, breadth=+0, promoter=-2 -> raw=-4.0 x persistence=1.5 = -6.0)",
+        "threshold": null,
+        "margin": null
+      },
+      {
+        "filter": "low_liquidity",
+        "gate": "Gate#5",
+        "verdict": "PASS",
+        "measured": 22202579,
+        "threshold": 100000,
+        "margin": 22102579
+      },
+      {
+        "filter": "overextended_1m",
+        "gate": "Gate#6",
+        "verdict": "PASS",
+        "measured": -1.6,
+        "threshold": 25.0,
+        "margin": 26.6
+      },
+      {
+        "filter": "debate_skip_check",
+        "gate": "Gate#7",
+        "verdict": "PASS",
+        "measured": "no cached debate",
+        "threshold": "not SKIP",
+        "margin": null
+      },
+      {
+        "filter": "data_freshness",
+        "gate": "Gate#8",
+        "verdict": "PASS",
+        "measured": "2026-07-13",
+        "threshold": "<=1 trading day old (3 on Friday scan)",
+        "margin": null
+      },
+      {
+        "filter": "ipo_age",
+        "gate": "unlabeled",
+        "verdict": "PASS",
+        "measured": 200,
+        "threshold": 60,
+        "margin": 140
+      },
+      {
+        "filter": "earnings_soon",
+        "gate": "unlabeled",
+        "verdict": "SKIP",
+        "measured": "earnings in 3d (2026-07-16) [NSE]",
+        "threshold": "5d window",
+        "margin": null
+      },
+      {
+        "filter": "post_earnings_cooling",
+        "gate": "unlabeled",
+        "verdict": "PASS",
+        "measured": "OK",
+        "threshold": "5d cooling",
+        "margin": null
+      },
+      {
+        "filter": "sector_nifty_regime",
+        "gate": "Gate#9",
+        "verdict": "PASS",
+        "measured": {
+          "sector": "IT",
+          "pct_from_ema20": 4.54,
+          "sector_status": "GREEN",
+          "nifty_regime": "GREEN",
+          "regime_mult": 1.0
+        },
+        "threshold": -2.0,
+        "margin": 6.54
+      },
+      {
+        "filter": "trend_distance_alignment",
+        "gate": "unlabeled",
+        "verdict": "WARN",
+        "measured": "trend alignment failed (Price \u20b9178.48 must be > EMA21 \u20b9177.66 > EMA50 \u20b9185.43)",
+        "threshold": null,
+        "margin": null
+      },
+      {
+        "filter": "recent_crash",
+        "gate": "unlabeled",
+        "verdict": "SKIP",
+        "measured": "recent crash (-8.4% drop in last 30d)",
+        "threshold": "-8.0% single-day drop",
+        "margin": null
+      },
+      {
+        "filter": "no_mans_land",
+        "gate": "unlabeled",
+        "verdict": "SKIP",
+        "measured": "No Man's Land (SKIP, ratio 0.47, range 7.2%)",
+        "threshold": null,
+        "margin": null
+      },
+      {
+        "filter": "volatility",
+        "gate": "unlabeled",
+        "verdict": "PASS",
+        "measured": "OK",
+        "threshold": "ATR <= 5.0% of price",
+        "margin": null
+      },
+      {
+        "filter": "distance_to_entry",
+        "gate": "CheckA",
+        "verdict": "PASS",
+        "measured": 3.4177498879426236,
+        "threshold": 5.0,
+        "margin": 1.5822501120573764
+      },
+      {
+        "filter": "cmp_risk_reward",
+        "gate": "CheckB",
+        "verdict": "PASS",
+        "measured": 2.532710280373832,
+        "threshold": 1.0,
+        "margin": 1.532710280373832
+      },
+      {
+        "filter": "unsustained_volume_spike",
+        "gate": "CheckD",
+        "verdict": "PASS",
+        "measured": [
+          0.85,
+          0.75,
+          0.47,
+          0.74,
+          0.86
+        ],
+        "threshold": "no isolated >=3x spike",
+        "margin": null
+      },
+      {
+        "filter": "liquidity_trap",
+        "gate": "CheckE",
+        "verdict": "PASS",
+        "measured": {
+          "turnover_cr": 382.728056802,
+          "atr_multiple": 1.877437325905295
+        },
+        "threshold": {
+          "turnover_cr": 10.0,
+          "atr_multiple": 1.5
+        },
+        "margin": null
+      },
+      {
+        "filter": "trend_stalling",
+        "gate": "CheckF",
+        "verdict": "WARN",
+        "measured": -1.6,
+        "threshold": 0.0,
+        "margin": null
+      },
+      {
+        "filter": "target_above_52w_high",
+        "gate": "CheckG",
+        "verdict": "PASS",
+        "measured": 211.0,
+        "threshold": 265.81,
+        "margin": null
+      },
+      {
+        "filter": "volume_vacuum_at_highs",
+        "gate": "CheckH",
+        "verdict": "PASS",
+        "measured": 0.86,
+        "threshold": 0.5,
+        "margin": null
+      },
+      {
+        "filter": "fresh_bearish_macd",
+        "gate": "CheckI",
+        "verdict": "PASS",
+        "measured": -1,
+        "threshold": "not within 3d",
+        "margin": null
+      },
+      {
+        "filter": "momentum_divergence",
+        "gate": "CheckJ",
+        "verdict": "PASS",
+        "measured": {
+          "rsi": 59.31,
+          "macd_histogram": 1.06
+        },
+        "threshold": {
+          "rsi": 50.0,
+          "macd_histogram": 0.0
+        },
+        "margin": null
+      },
+      {
+        "filter": "supply_wall_congestion",
+        "gate": "CheckK",
+        "verdict": "PASS",
+        "measured": false,
+        "threshold": null,
+        "margin": null
+      }
+    ]
+  },
+  "regime": {
+    "nifty": {
+      "price": null,
+      "ema20": 24030.78,
+      "ema50": 23946.45,
+      "ema200": 24442.02,
+      "regime": "GREEN",
+      "vix": 13.29
+    },
+    "sector": {
+      "name": "IT",
+      "pct_from_ema20": 4.54
+    }
+  },
+  "expiry": {
+    "setup_grade": "B",
+    "setup_score": 3.5,
+    "expiry_multiplier": 1.0,
+    "expiry_reason": "Clean zone \u2014 normal size"
+  },
+  "debate": {},
+  "news": {},
+  "structural_gates": {
+    "weekly_trend": "SKIP",
+    "trend_distance_alignment": "WARN"
+  }
+}

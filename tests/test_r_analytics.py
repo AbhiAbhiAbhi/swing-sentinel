@@ -303,3 +303,48 @@ def test_analytics_slippage_block():
     assert round(s["avg_slippage_rupees"], 2) == 1.21
     # slippage-adjusted expectancy exists and is a number
     assert isinstance(s["expectancy_r_slippage_adjusted"], float)
+
+
+# ── rupee aggregates (issue #7 sizing) ───────────────────────────────────────
+
+def test_rupee_aggregates_mixed_quantities():
+    trades = [
+        _trade(exit=110.0, quantity=10, rupee_risk=50.0),   # +₹100
+        _trade(exit=95.0, outcome="SL_LOSS", quantity=4, rupee_risk=20.0),  # -₹20
+    ]
+    out = compute_r_analytics(trades)["rupee"]
+    assert out["total_rupee_pnl"] == 80.0
+    assert out["rupee_expectancy"] == 40.0
+    # (100 - 20) / (50 + 20) = 1.143
+    assert out["risk_weighted_expectancy_r"] == round(80.0 / 70.0, 3)
+    assert out["trades_with_rupee_risk"] == 2
+
+
+def test_rupee_missing_quantity_falls_back_to_1():
+    trades = [_trade(exit=110.0)]  # no quantity/rupee_risk keys
+    out = compute_r_analytics(trades)["rupee"]
+    assert out["total_rupee_pnl"] == 10.0
+    assert out["rupee_expectancy"] == 10.0
+    assert out["risk_weighted_expectancy_r"] is None
+    assert out["trades_with_rupee_risk"] == 0
+
+
+def test_rupee_risk_weighted_only_over_sized_trades():
+    trades = [
+        _trade(exit=110.0, quantity=10, rupee_risk=50.0),   # sized: +₹100
+        _trade(exit=120.0),                                  # unsized: +₹20
+    ]
+    out = compute_r_analytics(trades)["rupee"]
+    assert out["total_rupee_pnl"] == 120.0
+    # weighted expectancy uses only the sized trade: 100 / 50
+    assert out["risk_weighted_expectancy_r"] == 2.0
+    assert out["trades_with_rupee_risk"] == 1
+
+
+def test_rupee_block_present_when_no_r_trades():
+    trades = [_trade(exit=110.0, initial_sl=None, current_sl=None,
+                     quantity=5, rupee_risk=25.0)]
+    out = compute_r_analytics(trades)
+    # R excluded (no SL) but rupee P&L still counted
+    assert out["trades_with_r"] == 0
+    assert out["rupee"]["total_rupee_pnl"] == 50.0

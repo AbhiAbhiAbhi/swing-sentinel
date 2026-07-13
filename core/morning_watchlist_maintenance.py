@@ -334,6 +334,8 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
                         
                         if not passed or verdict == "SKIP":
                             reason_str = "; ".join(reasons) if reasons else "failed safety gates"
+                            # Refresh levels/technicals so Cur_Scan_Date and Cur_* fields reflect today's check
+                            refresh_trade_levels(df_positions, idx, tech, gate)
                             df_positions.at[idx, "Status"] = "PRUNED"
                             df_positions.at[idx, "Prune_Reason"] = f"Safety gates failed: {reason_str}"
                             df_positions.at[idx, "Prune_Date"] = datetime.now(pytz.timezone("Asia/Kolkata")).strftime("%Y-%m-%d")
@@ -363,6 +365,8 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
                         logger.info("Kept & refreshed: %s (passed structural checks)", sym)
                     else:
                         # Failed structural checks -> Mark as PRUNED instead of deleting
+                        # Refresh levels/technicals so Cur_Scan_Date and Cur_* fields reflect today's check
+                        refresh_trade_levels(df_positions, idx, tech)
                         df_positions.at[idx, "Status"] = "PRUNED"
                         df_positions.at[idx, "Prune_Reason"] = reason
                         df_positions.at[idx, "Prune_Date"] = datetime.now(pytz.timezone("Asia/Kolkata")).strftime("%Y-%m-%d")
