@@ -101,7 +101,16 @@ _sizing = {
     "enabled": True,
     "capital": 10000,
     "risk_pct": 1.0,
+    "min_rr_at_fill": 1.5,
 }
+
+
+def _rr_at_fill(entry_price, sl, t2):
+    """R:R at the actual fill; None if risk is non-positive."""
+    risk = entry_price - sl
+    if risk <= 0:
+        return None
+    return (t2 - entry_price) / risk
 
 try:
     from core.prune_logic import evaluate_prune
@@ -2122,6 +2131,25 @@ def api_positions_buy():
         if repairs:
             logger.warning("[positions/buy] PLAN REPAIRED %s: %s", symbol, "; ".join(repairs))
 
+        # Minimum R:R gate (issue #10): repairs fix impossible levels but a
+        # chased fill can still leave the trade economics below the ~1:2 edge
+        # the grading framework assumes. Re-verify at the actual fill.
+        min_rr = float(_sizing.get("min_rr_at_fill", 1.5) or 0)
+        if min_rr > 0 and not data.get("override_rr"):
+            rr = _rr_at_fill(entry_price, sl, t2)
+            if rr is None:
+                return jsonify({
+                    "error": f"R:R gate blocked: non-positive risk at fill "
+                             f"₹{entry_price:.2f} (SL ₹{sl:.2f}). "
+                             f"Pass override_rr=true to bypass."
+                }), 400
+            if rr < min_rr:
+                return jsonify({
+                    "error": f"R:R gate blocked: {rr:.2f} at fill ₹{entry_price:.2f} "
+                             f"is below minimum {min_rr}. "
+                             f"Pass override_rr=true to bypass."
+                }), 400
+
         _ensure_cols(df, [
             "Buy_Weekly_Trend", "Buy_Base_Days", "Buy_Base_Status",
             "Buy_False_Breakout_Risk", "Buy_False_Breakout_Desc",
@@ -3603,6 +3631,28 @@ def _empty_results():
     }
 
 
+def _armed_entry_hit(setup_type, cur, ep, sl, entry_min, prev, price_fresh) -> bool:
+    """Decide whether an ARMED row's ENTRY READY alert should fire.
+
+    Floor: below Current_SL (or just below Cur_Entry_Min when no SL) the setup
+    is invalidated — never signal a buy into a broken chart, even if price is
+    inside the entry zone.
+
+    BREAKOUT setups only trigger on an UPWARD cross of the entry level
+    (previous poll below, current at/above); a fall back down to the level is
+    the failed-breakout scenario the scanner filters elsewhere. First poll
+    (no prior price yet) never fires.
+    """
+    if not (price_fresh and ep and cur):
+        return False
+    floor = sl if sl else (entry_min * 0.99 if entry_min else 0.0)
+    if floor and cur < floor:
+        return False
+    if str(setup_type or "").strip().upper() == "BREAKOUT":
+        return bool(prev and prev < ep and cur >= ep)
+    return cur <= ep * 1.005
+
+
 def check_positions_and_notify() -> list:
     """
     Core watchlist-monitor: reads positions.csv, fetches live prices, detects
@@ -3629,13 +3679,14 @@ def check_positions_and_notify() -> list:
     _ensure_cols(df, [
         "Entry_Hit_Date", "T1_Hit_Date", "T2_Hit_Date", "SL_Hit_Date", "Outcome",
         "Setup_Grade", "Setup_Score", "Expiry_Multiplier", "Expiry_Reason",
-        "Highest_High_Since_Entry",
+        "Highest_High_Since_Entry", "Last_Poll_Price",
         "Failure_Class", "Failure_Contributing", "PM_Confidence", "PM_Generated_At",
     ])
     # Force object/mixed dtype so pandas allows assigning strings to empty/NaN columns without casting errors
     for col in (
         "Entry_Hit_Date", "T1_Hit_Date", "T2_Hit_Date", "SL_Hit_Date", "Outcome",
         "Setup_Grade", "Expiry_Multiplier", "Expiry_Reason", "Highest_High_Since_Entry",
+        "Last_Poll_Price",
         "Failure_Class", "Failure_Contributing", "PM_Confidence", "PM_Generated_At",
     ):
         if col in df.columns:
@@ -3706,8 +3757,24 @@ def check_positions_and_notify() -> list:
             pos["pnl"]     = 0
             pos["pnl_pct"] = 0
             # Gated on price_fresh so a stale prior close can't fire a weekend alert.
-            entry_hit = bool(price_fresh and ep and cur <= ep * 1.005)
+            try:
+                entry_min = float(pos.get("Cur_Entry_Min") or 0)
+            except (TypeError, ValueError):
+                entry_min = 0.0
+            try:
+                prev_raw = pos.get("Last_Poll_Price")
+                prev = float(prev_raw) if prev_raw not in (None, "") else 0.0
+            except (TypeError, ValueError):
+                prev = 0.0
+            entry_hit = _armed_entry_hit(
+                pos.get("Setup"), cur, ep, sl, entry_min, prev, price_fresh
+            )
             pos["entry_hit"] = entry_hit
+            # Remember this poll's price so the next poll can detect an upward
+            # cross for BREAKOUT rows.
+            if price_fresh and cur:
+                df.at[idx, "Last_Poll_Price"] = cur
+                csv_dirty = True
             pos["t1_hit"]    = False
             pos["t2_hit"]    = False
             pos["sl_hit"]    = False

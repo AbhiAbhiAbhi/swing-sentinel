@@ -21,6 +21,7 @@
   "sizing": {
     "enabled": true,
     "capital": 10000,
-    "risk_pct": 1.0
+    "risk_pct": 1.0,
+    "min_rr_at_fill": 1.5
   }
 }
