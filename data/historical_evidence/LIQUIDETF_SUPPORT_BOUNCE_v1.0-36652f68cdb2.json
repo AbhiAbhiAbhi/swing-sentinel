@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "symbol": "LIQUIDETF",
+  "setup_type": "SUPPORT_BOUNCE",
+  "strategy_version": "v1.0-36652f68cdb2",
+  "generated_at": "2026-07-13T22:27:52.090902+05:30",
+  "market_data_as_of": null,
+  "summary": {},
+  "episodes": [],
+  "status": "error",
+  "stale_reason": "float() argument must be a string or a real number, not 'NAType'"
+}

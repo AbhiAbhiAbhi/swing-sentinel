@@ -363,11 +363,11 @@ body.light-theme .theme-toggle-btn:hover {
 }
 
 /* ── Market row ─────────────────────────────────────────── */
-.market-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px}
-.mcard{padding:16px 20px}
-.mcard .lbl{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700}
-.mcard .val{font-size:22px;font-weight:700;line-height:1}
-.mcard .sub{font-size:11px;margin-top:6px;color:var(--muted)}
+.market-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:12px}
+.mcard{padding:10px 14px}
+.mcard .lbl{color:var(--muted);font-size:9.5px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;font-weight:700}
+.mcard .val{font-size:16px;font-weight:700;line-height:1.2}
+.mcard .sub{font-size:10px;margin-top:4px;color:var(--muted)}
 .up{color:var(--green)}.down{color:var(--red)}.neutral{color:var(--yellow)}
 
 /* ── Section head ───────────────────────────────────────── */
@@ -818,11 +818,11 @@ body.light-theme .tab-btn.tab-analytics.active   {color:#7047A3 !important; back
 @media(max-width:700px){.grade-factors{grid-template-columns:repeat(2,1fr)}}
 
 /* Bias score builder (Pre-Market tab) */
-.bias-builder{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-.bias-card{padding:14px 16px}
-.bias-card .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;font-weight:700}
-.bias-card .val{font-size:20px;font-weight:700}
-.bias-card .score{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:var(--radius-sm);margin-top:8px;border:1px solid currentColor}
+.bias-builder{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.bias-card{padding:10px 14px}
+.bias-card .lbl{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;font-weight:700}
+.bias-card .val{font-size:16px;font-weight:700;line-height:1.2}
+.bias-card .score{display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:var(--radius-sm);margin-top:6px;border:1px solid currentColor}
 .bias-card .score.pos{color:var(--green);background:var(--green-bg)}
 .bias-card .score.neg{color:var(--red);background:var(--red-bg)}
 .bias-card .score.zero{color:var(--muted);background:var(--card)}
@@ -1819,20 +1819,6 @@ body.light-theme .tab-group {
       <div class="tool-out-card"><div class="lbl">Blended R:R</div><div class="val" id="ps_out_blended_rr">—</div></div>
     </div>
     <div id="ps_warning_container" style="display:flex; justify-content:center; align-items:center;"></div>
-    </div>
-  </div>
-
-  <div class="tool-card" id="tc_entry_gates">
-    <h3 onclick="toggleSection('tc_entry_gates')">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:middle;color:var(--blue)">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="2" x2="12" y2="22"></line>
-        <line x1="2" y1="12" x2="22" y2="12"></line>
-      </svg>
-      Macro Market & Regime Gates <span class="tool-tag">SKIP IF RED</span><button class="sec-toggle"><span class="chevron">▼</span></button>
-    </h3>
-    <div class="tool-body">
-    <div id="entryGates" class="bias-builder"></div>
     </div>
   </div>
 

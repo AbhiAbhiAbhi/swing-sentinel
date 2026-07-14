@@ -1498,6 +1498,34 @@ def api_positions_pruned():
     return jsonify({"pruned": records, "count": len(records)})
 
 
+def _compute_cf_analytics() -> dict:
+    """Aggregate PRUNED-row counterfactuals per Prune_Reason (issue #6)."""
+    try:
+        from core.core_cf_analytics import aggregate_cf_by_reason
+    except ImportError:
+        from core_cf_analytics import aggregate_cf_by_reason
+    path = os.path.join(_ROOT, "data", "positions.csv")
+    if not os.path.exists(path):
+        return {}
+    df = pd.read_csv(path)
+    if df.empty or "Status" not in df.columns:
+        return {}
+    pruned = df[df["Status"].astype(str).str.upper() == "PRUNED"]
+    if pruned.empty:
+        return {}
+    return aggregate_cf_by_reason(pruned.where(pd.notna(pruned), "").to_dict(orient="records"))
+
+
+@app.route("/api/cf-analytics")
+def api_cf_analytics():
+    """Prune counterfactual hit-rates per Prune_Reason (issue #6)."""
+    try:
+        return jsonify(_compute_cf_analytics())
+    except Exception as exc:
+        logger.error("[cf-analytics] %s", exc)
+        return jsonify({"error": str(exc), "buckets": [], "total": 0, "resolved": 0})
+
+
 @app.route("/api/positions/restore", methods=["POST"])
 def api_positions_restore():
     """Move a PRUNED candidate back to OPEN (re-evaluate) state."""
@@ -3512,6 +3540,13 @@ def api_results():
             logger.warning("[results] r-analytics failed: %s", r_exc)
             r_analytics = {}
 
+        # Prune counterfactuals per Prune_Reason (issue #6) — best-effort
+        try:
+            cf_analytics = _compute_cf_analytics()
+        except Exception as cf_exc:
+            logger.warning("[results] cf-analytics failed: %s", cf_exc)
+            cf_analytics = {}
+
         # Per-ticker history for the stock cards (own record + backtest
         # record) — best-effort, never fatal
         try:
@@ -3529,6 +3564,7 @@ def api_results():
         return jsonify({
             "post_mortems":     post_mortems,
             "r_analytics":      r_analytics,
+            "cf_analytics":     cf_analytics,
             "total":            total,
             "open":             len(open_df) + len(bought_df),
             "closed":           closed,
@@ -3563,7 +3599,7 @@ def _empty_results():
         "active_count": 0, "active_in_profit": 0, "active_in_loss": 0,
         "active_entry_hit": 0, "active_t1_hit": 0,
         "avg_unrealized_pct": 0, "active_positions": [],
-        "post_mortems": {}, "r_analytics": {},
+        "post_mortems": {}, "r_analytics": {}, "cf_analytics": {},
     }
 
 

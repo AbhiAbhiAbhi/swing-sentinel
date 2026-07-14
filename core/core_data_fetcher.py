@@ -309,6 +309,27 @@ def fetch_stock_technicals(symbol: str, df: Optional[pd.DataFrame] = None) -> Di
         return {}
 
 
+def fetch_history_window(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    """
+    Fetch daily OHLC bars for one NSE symbol over an absolute date window
+    (used by the PRUNED counterfactual backfill, which needs bars anchored to
+    Prune_Date rather than the period=... relative fetches above).
+
+    start_date/end_date: "YYYY-MM-DD" (end exclusive, per yfinance).
+    Returns an ascending-indexed DataFrame with High/Low/Close, or an empty
+    DataFrame on any failure — never raises.
+    """
+    ticker = NSE_TICKERS.get(symbol.upper(), f"{symbol}.NS")
+    try:
+        df = yf.Ticker(ticker).history(start=start_date, end=end_date)
+        if df is None or df.empty:
+            return pd.DataFrame()
+        return df.dropna(subset=["Close"]).sort_index()
+    except Exception as e:
+        print(f"[history_window] Error for {symbol} ({start_date}..{end_date}): {e}")
+        return pd.DataFrame()
+
+
 def fetch_prices_bulk_dated(symbols: list) -> Dict[str, tuple]:
     """
     Fetch live prices for many NSE symbols in ONE yfinance call, tagged with the

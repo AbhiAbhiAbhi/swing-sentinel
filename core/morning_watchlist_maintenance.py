@@ -223,6 +223,70 @@ def send_summary_notification(kept, deleted, absent, trailed=None, manual=False,
     send_telegram_alert(message)
 
 
+def backfill_pruned_counterfactuals(df_positions, max_symbols: int = 25) -> int:
+    """
+    Counterfactual backfill for PRUNED rows (issue #6): for prunes ≥10 days
+    old whose CF fields aren't finalized, fetch bars from Prune_Date and fill
+    CF_Return_10d/20d/30d + CF_Would_Have_Hit. CF_Computed_Date is stamped
+    only once the full 30-session horizon exists, so partially matured rows
+    get re-checked on later runs. Returns number of rows updated.
+
+    Capped per run (default 25 yfinance calls) so the morning cron stays fast
+    while the historical backlog drains over a few days.
+    """
+    try:
+        from core.core_cf_analytics import compute_cf_for_row, CF_HORIZONS
+        from core.core_data_fetcher import fetch_history_window
+    except ImportError:
+        from core_cf_analytics import compute_cf_for_row, CF_HORIZONS
+        from core_data_fetcher import fetch_history_window
+
+    from datetime import timedelta
+
+    today = datetime.now(pytz.timezone("Asia/Kolkata")).date()
+    updated = 0
+    for idx, row in df_positions.iterrows():
+        if updated >= max_symbols:
+            break
+        if str(row.get("Status") or "").strip().upper() != "PRUNED":
+            continue
+        if str(row.get("CF_Computed_Date") or "").strip() not in ("", "nan", "None"):
+            continue  # fully matured & computed
+        prune_raw = str(row.get("Prune_Date") or "").strip()
+        try:
+            prune_date = datetime.strptime(prune_raw[:10], "%Y-%m-%d").date()
+        except ValueError:
+            df_positions.at[idx, "CF_Would_Have_Hit"] = "UNRESOLVED"
+            df_positions.at[idx, "CF_Computed_Date"] = today.strftime("%Y-%m-%d")
+            updated += 1
+            continue
+        if (today - prune_date).days < 10:
+            continue  # not matured for even the first horizon
+
+        sym = str(row.get("Symbol") or "").strip().upper()
+        # ~45 trading sessions of calendar buffer covers the 30-session horizon
+        bars = fetch_history_window(
+            sym,
+            prune_date.strftime("%Y-%m-%d"),
+            (prune_date + timedelta(days=65)).strftime("%Y-%m-%d"),
+        )
+        cf = compute_cf_for_row(row.to_dict(), bars)
+        for h in CF_HORIZONS:
+            col = f"CF_Return_{h}d"
+            if cf[col] != "":
+                df_positions.at[idx, col] = cf[col]
+        df_positions.at[idx, "CF_Would_Have_Hit"] = cf["CF_Would_Have_Hit"]
+        if cf["CF_Complete"] or (bars is None or len(bars) == 0) and (today - prune_date).days > 90:
+            # Finalize when the full window exists, or give up on old prunes
+            # with no data (delisted / bad symbol) so they stop burning quota.
+            df_positions.at[idx, "CF_Computed_Date"] = today.strftime("%Y-%m-%d")
+        updated += 1
+        logger.info("[cf-backfill] %s pruned %s → hit=%s r10=%s r20=%s r30=%s",
+                    sym, prune_raw, cf["CF_Would_Have_Hit"],
+                    cf["CF_Return_10d"], cf["CF_Return_20d"], cf["CF_Return_30d"])
+    return updated
+
+
 def run_morning_maintenance(manual_trigger=False) -> dict:
     """
     Executes morning maintenance workflow for all candidates with OPEN status in positions.csv.
@@ -260,6 +324,9 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
         # hit the float-into-str-col error that silently mass-prunes the watchlist.
         "Risk_Per_Share", "Rupee_Risk",
         "Highest_High_Since_Entry", "T1_Hit_Date",
+        # Counterfactual backfill for PRUNED rows (issue #6) — mixed float/str
+        "CF_Return_10d", "CF_Return_20d", "CF_Return_30d",
+        "CF_Would_Have_Hit", "CF_Computed_Date",
     ]
     # Force object dtype so per-cell writes accept both floats (return_20d, adx,
     # EMAs, regime mult) and strings (verdict, reasons JSON) — pandas 3.0 raises
@@ -510,6 +577,17 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
             except Exception as exc:
                 logger.error("Error updating trailing SL for active position %s: %s", sym, exc)
         
+    # Counterfactual backfill for PRUNED rows (issue #6) — best-effort: a
+    # yfinance failure here must never abort the maintenance save above.
+    cf_backfilled = 0
+    try:
+        cf_backfilled = backfill_pruned_counterfactuals(df_positions)
+        if cf_backfilled:
+            csv_updated = True
+            logger.info("[cf-backfill] updated %d pruned rows", cf_backfilled)
+    except Exception as cf_exc:
+        logger.warning("[cf-backfill] skipped: %s", cf_exc)
+
     if csv_updated:
         # Atomic write
         tmp_path = f"{positions_path}.tmp"
@@ -566,7 +644,8 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
         "kept": kept_symbols,
         "deleted": deleted_symbols,
         "absent_pending": absent_pending_symbols,
-        "trailed": trailed_symbols
+        "trailed": trailed_symbols,
+        "cf_backfilled": cf_backfilled
     }
 
 
