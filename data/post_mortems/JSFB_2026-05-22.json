@@ -50,7 +50,7 @@
     "evidence": {
       "GAP_EVENT": "exit day opened below the stop \u2014 stopped on the gap itself",
       "LOW_VOLUME_ENTRY": "entered on 0.28\u00d7 volume (below 1.0\u00d7)",
-      "TIGHT_SL": "reached 113% of the way to T1 before reversing to the stop"
+      "TIGHT_SL": "price recovered to 489.95 within days of the stop-out (STRONG) \u2014 the stop was too tight"
     }
   },
   "app_gaps": [
@@ -81,9 +81,9 @@
   },
   "tight_sl_recheck": {
     "due_date": "2026-07-15",
-    "done": false,
-    "checked_on": null,
-    "recovered": null,
-    "recovery_close": null
+    "done": true,
+    "checked_on": "2026-07-15",
+    "recovered": true,
+    "recovery_close": 489.95001220703125
   }
 }

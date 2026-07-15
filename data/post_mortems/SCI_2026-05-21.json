@@ -87,9 +87,9 @@
   },
   "tight_sl_recheck": {
     "due_date": "2026-07-15",
-    "done": false,
-    "checked_on": null,
-    "recovered": null,
+    "done": true,
+    "checked_on": "2026-07-15",
+    "recovered": false,
     "recovery_close": null
   }
 }
