@@ -1261,10 +1261,59 @@ def _append_rows_to_csv(path: str, rows: list) -> tuple:
         )
 
     added, skipped = [], []
+    new_rows = []
+    existing_updated = False
+
     for row in rows:
         sym   = str(row.get("Symbol", "")).strip()
         edate = str(row.get("Entry_Date", "")).strip()
-        if sym in blocked_syms or (sym, edate) in blocked_pairs:
+        
+        # Check if the symbol is in existing as PRUNED
+        is_pruned = False
+        pruned_idx = None
+        if not existing.empty and "Status" in existing.columns and "Symbol" in existing.columns:
+            _ensure_cols(existing, ["Prune_Reason", "Prune_Date", "Status"])
+            symbol_mask = (existing["Symbol"].astype(str).str.strip().str.upper() == sym.upper()) & \
+                          (existing["Status"].astype(str).str.upper() == "PRUNED")
+            if symbol_mask.any():
+                is_pruned = True
+                pruned_idx = existing[symbol_mask].index[-1]
+                
+        if is_pruned:
+            # Auto-restore in-place
+            existing.at[pruned_idx, "Status"]       = "OPEN"
+            existing.at[pruned_idx, "Prune_Reason"] = ""
+            existing.at[pruned_idx, "Prune_Date"]   = ""
+            
+            # Lock the risk parameters
+            rps, rupee = position_risk(
+                row.get("Entry_Price"), row.get("Current_SL"), row.get("Quantity", 0)
+            )
+            
+            # Update columns from row
+            for col in existing.columns:
+                if col in row:
+                    # Update with new scan value
+                    existing.at[pruned_idx, col] = row[col]
+            
+            # Update calculations/restoration metadata
+            existing.at[pruned_idx, "Risk_Per_Share"] = rps
+            existing.at[pruned_idx, "Rupee_Risk"]     = rupee
+            existing.at[pruned_idx, "Cur_Entry_Min"]  = row.get("entry_min") or row.get("entry_zone_min") or row.get("Entry_Price")
+            existing.at[pruned_idx, "Cur_Entry_Max"]  = row.get("entry_max") or row.get("entry_zone_max") or row.get("Entry_Price")
+            
+            logger.info("[positions] Automatically restored PRUNED symbol %s to OPEN in-place", sym)
+            
+            # Create a dict representing the updated row to return in 'added'
+            updated_row = existing.loc[pruned_idx].to_dict()
+            # Clean nan values to None
+            for k, v in updated_row.items():
+                if isinstance(v, float) and pd.isna(v):
+                    updated_row[k] = None
+            added.append(updated_row)
+            existing_updated = True
+            
+        elif sym in blocked_syms or (sym, edate) in blocked_pairs:
             logger.info(
                 "[positions] Skipping %s — active position, entered today, "
                 "pruned/closed within %d days, or duplicate Symbol+Entry_Date",
@@ -1281,14 +1330,18 @@ def _append_rows_to_csv(path: str, rows: list) -> tuple:
             row["Rupee_Risk"]     = rupee
             row["Cur_Entry_Min"]  = row.get("entry_min") or row.get("entry_zone_min") or row.get("Entry_Price")
             row["Cur_Entry_Max"]  = row.get("entry_max") or row.get("entry_zone_max") or row.get("Entry_Price")
+            new_rows.append(row)
             added.append(row)
             blocked_syms.add(sym)              # also dedupe within this single batch
             blocked_pairs.add((sym, edate))
 
-    if added:
-        new_df   = pd.DataFrame(added)
+    if new_rows:
+        new_df   = pd.DataFrame(new_rows)
         combined = pd.concat([existing, new_df], ignore_index=True) if not existing.empty else new_df
         _save_positions_csv(combined, path)
+    elif existing_updated:
+        # Save updated existing dataframe
+        _save_positions_csv(existing, path)
 
     return added, skipped
 
