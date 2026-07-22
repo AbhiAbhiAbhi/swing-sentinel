@@ -16,6 +16,23 @@
     "top_n": 30,
     "universe": "cash"
   },
+  "All": {
+    "adx_min": 20,
+    "block_weak_sectors": true,
+    "earnings_window_days": 3,
+    "max_1d_drop_pct": -8,
+    "max_atr_pct": 5,
+    "min_ipo_days": 180,
+    "min_price": 50,
+    "min_volume_lakh": 5,
+    "require_ema200": true,
+    "require_ema_alignment": true,
+    "require_macd": true,
+    "rsi_max": 70,
+    "rsi_min": 40,
+    "top_n": 500,
+    "universe": "cash"
+  },
   "NIFTY100": {
     "adx_min": 25,
     "block_weak_sectors": true,
@@ -61,7 +78,7 @@
     "rsi_min": 50,
     "universe": "nifty50"
   },
-  "All": {
+  "all1": {
     "universe": "cash",
     "min_price": 50,
     "rsi_min": 40,
@@ -76,6 +93,6 @@
     "min_ipo_days": 180,
     "earnings_window_days": 3,
     "block_weak_sectors": true,
-    "top_n": 500
+    "top_n": 5000
   }
 }

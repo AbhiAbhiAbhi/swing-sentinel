@@ -16,6 +16,7 @@ import logging
 import os
 from datetime import datetime
 
+import numpy as np
 import pandas as pd
 import yfinance as yf
 
@@ -60,7 +61,10 @@ def _rsi(s: pd.Series, period: int = 14) -> pd.Series:
     gain  = delta.clip(lower=0).rolling(period).mean()
     loss  = (-delta.clip(upper=0)).rolling(period).mean()
     rs    = gain / loss.replace(0, pd.NA)
-    return (100 - 100 / (1 + rs)).astype(float)
+    rsi   = 100 - (100 / (1 + rs))
+    # Replace NaN resulting from 0 loss: if gain > 0 -> 100.0, else 50.0
+    rsi   = rsi.fillna(pd.Series(np.where(loss == 0, np.where(gain > 0, 100.0, 50.0), 50.0), index=s.index))
+    return rsi.astype(float)
 
 def _macd(s: pd.Series, fast: int = 12, slow: int = 26, sig: int = 9):
     ema_f = s.ewm(span=fast, adjust=False).mean()

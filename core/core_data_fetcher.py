@@ -2,6 +2,7 @@
 Data Fetcher Module
 Pulls live market data from NSE via yfinance
 """
+import math
 import time
 from datetime import datetime
 from typing import Dict, Optional
@@ -681,12 +682,20 @@ def fetch_fii_dii_flow(days: int = 5) -> Dict:
 def _rsi(prices: pd.Series, period: int = 14) -> float:
     if len(prices) < period:
         return 50.0
-    delta  = prices.diff()
-    gain   = delta.where(delta > 0, 0.0).rolling(period).mean()
-    loss   = (-delta.where(delta < 0, 0.0)).rolling(period).mean()
-    rs     = gain / loss.replace(0, float('nan'))
-    rsi    = 100 - (100 / (1 + rs))
-    return float(rsi.iloc[-1]) if not rsi.empty else 50.0
+    delta = prices.diff()
+    gain  = delta.where(delta > 0, 0.0).rolling(period).mean()
+    loss  = (-delta.where(delta < 0, 0.0)).rolling(period).mean()
+
+    g = float(gain.iloc[-1]) if not gain.empty else 0.0
+    l = float(loss.iloc[-1]) if not loss.empty else 0.0
+
+    if math.isnan(g) or math.isnan(l):
+        return 50.0
+    if l == 0.0:
+        return 100.0 if g > 0.0 else 50.0
+    rs = g / l
+    rsi = 100.0 - (100.0 / (1.0 + rs))
+    return round(float(rsi), 2)
 
 
 def _macd(prices: pd.Series, fast=12, slow=26, sig=9) -> Dict:

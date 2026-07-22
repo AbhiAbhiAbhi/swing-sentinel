@@ -16,12 +16,12 @@ if _ROOT not in sys.path:
     sys.path.append(_ROOT)
 
 try:
-    from core.data_fetcher import fetch_stock_technicals, NSE_TICKERS
-    from core.trade_plan import calculate_trade_plan
-    from core.risk_filters import apply_structural_safety_gates, apply_risk_filters, filter_fundamental_strength
-    from core.sectors import fetch_sector_pulse
+    from core.core_data_fetcher import fetch_stock_technicals, NSE_TICKERS
+    from core.core_trade_plan import calculate_trade_plan
+    from core.core_risk_filters import apply_structural_safety_gates, apply_risk_filters, filter_fundamental_strength
+    from core.core_sectors import fetch_sector_pulse
     from core.expiry_grading import grade_setup, expiry_context
-    from core.prune_logic import evaluate_prune
+    from core.core_prune_logic import evaluate_prune
 except ImportError:
     # Fallback to direct imports if run from inside core/
     try:
@@ -79,7 +79,9 @@ def get_index_membership_local(symbol: str) -> list:
         "nifty100": "NIFTY100",
         "nifty200": "NIFTY200",
         "nifty500": "NIFTY500",
-        "fno": "F&O"
+        "niftymidcap150": "NIFTY MIDCAP 150",
+        "niftysmallcap250": "NIFTY SMALLCAP 250",
+        "fnolist": "F&O"
     }
     
     for key, label in key_mapping.items():
@@ -327,6 +329,7 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
         # Counterfactual backfill for PRUNED rows (issue #6) — mixed float/str
         "CF_Return_10d", "CF_Return_20d", "CF_Return_30d",
         "CF_Would_Have_Hit", "CF_Computed_Date",
+        "Setup_Score", "Setup_Grade", "Expiry_Multiplier", "Expiry_Reason", "Fundamental_Status",
     ]
     # Force object dtype so per-cell writes accept both floats (return_20d, adx,
     # EMAs, regime mult) and strings (verdict, reasons JSON) — pandas 3.0 raises
