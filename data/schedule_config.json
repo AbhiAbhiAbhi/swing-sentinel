@@ -2,7 +2,7 @@
   "maintenance_time": "16:57",
   "get_stocks_time": "21:44",
   "scan_filters": {
-    "universe": "niftysmallcap250",
+    "universe": "cash",
     "min_price": 50,
     "rsi_min": 40,
     "rsi_max": 70,
@@ -16,7 +16,7 @@
     "min_ipo_days": 180,
     "earnings_window_days": 3,
     "block_weak_sectors": true,
-    "top_n": 5000
+    "top_n": 30
   },
   "sizing": {
     "enabled": true,
