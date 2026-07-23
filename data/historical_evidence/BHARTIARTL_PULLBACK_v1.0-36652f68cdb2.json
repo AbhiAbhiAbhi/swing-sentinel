@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "symbol": "BHARTIARTL",
+  "setup_type": "PULLBACK",
+  "strategy_version": "v1.0-36652f68cdb2",
+  "generated_at": "2026-07-22T16:15:02.953756+05:30",
+  "rules": {
+    "entry_mode": "limit",
+    "max_wait_sessions": 5,
+    "max_hold_sessions": 20,
+    "cooldown_sessions": 5,
+    "same_bar_policy": "stop_first",
+    "t1_exit_fraction": 0.5,
+    "breakeven_after_t1": true,
+    "cost_model_version": "india-cash-v1"
+  },
+  "market_data_as_of": "2026-07-22",
+  "coverage": {
+    "start": "2024-06-10",
+    "end": "2026-07-22",
+    "months": 24,
+    "sessions": 528,
+    "warmup_sessions": 250,
+    "sample_quality": "weak",
+    "coverage_notes": [
+      "extended to 24 months (fewer than 15 independent episodes in 12)",
+      "earnings calendar, news sentiment and institutional filters not_reconstructed for historical dates"
+    ]
+  },
+  "summary": {
+    "signals_observed": 11,
+    "independent_episodes": 5,
+    "filled": 5,
+    "not_filled": 0,
+    "wins": 2,
+    "losses": 3,
+    "net_expectancy_r": 0.024,
+    "median_realised_r": -1.089,
+    "median_hold_sessions": 10,
+    "worst_realised_r": -1.098,
+    "gap_through_stop_count": 0,
+    "max_drawdown_r": -2.178
+  },
+  "episodes": [
+    {
+      "signal_date": "2024-06-28",
+      "setup_type": "PULLBACK",
+      "entry_zone_min": 1378.01,
+      "entry_zone_max": 1398.89,
+      "sl": 1353.61,
+      "t1": 1468.47,
+      "t2": 1513.84,
+      "fill_status": "FILLED",
+      "fill_date": "2024-07-02",
+      "fill_price": 1399.5894,
+      "exits": [
+        {
+          "date": "2024-07-26",
+          "price": 1467.7358,
+          "fraction": 0.5,
+          "reason": "T1"
+        },
+        {
+          "date": "2024-07-31",
+          "price": 1470.2512,
+          "fraction": 0.5,
+          "reason": "TIME"
+        }
+      ],
+      "gross_r": 1.509,
+      "net_r": 1.44,
+      "hold_sessions": 20,
+      "gap_through_stop": false,
+      "gross_pnl_pct": 4.9589,
+      "net_pnl_pct": 4.7315,
+      "cost_pct": 0.2274
+    },
+    {
+      "signal_date": "2025-01-28",
+      "setup_type": "PULLBACK",
+      "entry_zone_min": 1587.14,
+      "entry_zone_max": 1611.19,
+      "sl": 1563.33,
+      "t1": 1648.12,
+      "t2": 1706.73,
+      "fill_status": "FILLED",
+      "fill_date": "2025-01-29",
+      "fill_price": 1607.3725,
+      "exits": [
+        {
+          "date": "2025-01-31",
+          "price": 1562.5483,
+          "fraction": 1.0,
+          "reason": "SL"
+        }
+      ],
+      "gross_r": -1.018,
+      "net_r": -1.098,
+      "hold_sessions": 2,
+      "gap_through_stop": false,
+      "gross_pnl_pct": -2.7887,
+      "net_pnl_pct": -3.008,
+      "cost_pct": 0.2194
+    },
+    {
+      "signal_date": "2025-03-12",
+      "setup_type": "PULLBACK",
+      "entry_zone_min": 1605.36,
+      "entry_zone_max": 1629.69,
+      "sl": 1579.35,
+      "t1": 1714.07,
+      "t2": 1756.39,
+      "fill_status": "FILLED",
+      "fill_date": "2025-03-13",
+      "fill_price": 1630.5048,
+      "exits": [
+        {
+          "date": "2025-03-21",
+          "price": 1713.213,
+          "fraction": 0.5,
+          "reason": "T1"
+        },
+        {
+          "date": "2025-04-07",
+          "price": 1755.5118,
+          "fraction": 0.5,
+          "reason": "T2"
+        }
+      ],
+      "gross_r": 2.03,
+      "net_r": 1.957,
+      "hold_sessions": 15,
+      "gap_through_stop": false,
+      "gross_pnl_pct": 6.3697,
+      "net_pnl_pct": 6.1408,
+      "cost_pct": 0.2288
+    },
+    {
+      "signal_date": "2025-09-18",
+      "setup_type": "PULLBACK",
+      "entry_zone_min": 1890.93,
+      "entry_zone_max": 1919.58,
+      "sl": 1862.57,
+      "t1": 1952.0,
+      "t2": 2028.84,
+      "fill_status": "FILLED",
+      "fill_date": "2025-09-24",
+      "fill_price": 1920.5398,
+      "exits": [
+        {
+          "date": "2025-10-01",
+          "price": 1861.6387,
+          "fraction": 1.0,
+          "reason": "SL"
+        }
+      ],
+      "gross_r": -1.016,
+      "net_r": -1.089,
+      "hold_sessions": 5,
+      "gap_through_stop": false,
+      "gross_pnl_pct": -3.0669,
+      "net_pnl_pct": -3.286,
+      "cost_pct": 0.2191
+    },
+    {
+      "signal_date": "2025-12-22",
+      "setup_type": "PULLBACK",
+      "entry_zone_min": 2076.91,
+      "entry_zone_max": 2108.38,
+      "sl": 2045.76,
+      "t1": 2170.7,
+      "t2": 2214.11,
+      "fill_status": "FILLED",
+      "fill_date": "2025-12-26",
+      "fill_price": 2109.4342,
+      "exits": [
+        {
+          "date": "2026-01-09",
+          "price": 2044.7371,
+          "fraction": 1.0,
+          "reason": "SL"
+        }
+      ],
+      "gross_r": -1.016,
+      "net_r": -1.089,
+      "hold_sessions": 10,
+      "gap_through_stop": false,
+      "gross_pnl_pct": -3.067,
+      "net_pnl_pct": -3.2861,
+      "cost_pct": 0.2191
+    }
+  ],
+  "status": "complete",
+  "stale_reason": null
+}

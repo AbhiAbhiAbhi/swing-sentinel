@@ -47,6 +47,8 @@
   --red-bg:      rgba(239, 68, 68, 0.1);
   --yellow:      #f59e0b;
   --yellow-bg:   rgba(245, 158, 11, 0.1);
+  --amber:       #f59e0b;
+  --amber-bg:    rgba(245, 158, 11, 0.1);
   --blue:        #3b82f6;
   --blue-bg:     rgba(59, 130, 246, 0.1);
   --purple:      #8b5cf6;
@@ -100,6 +102,8 @@ body.light-theme {
   --red-bg:      rgba(200, 58, 58, 0.08);
   --yellow:      #B38202;
   --yellow-bg:   rgba(179, 130, 2, 0.08);
+  --amber:       #B38202;
+  --amber-bg:    rgba(179, 130, 2, 0.08);
   --purple:      #7047A3;
   --orange:      #B85C14;
 
@@ -2049,6 +2053,29 @@ body.light-theme .tab-group {
   </div>
 
 
+  <!-- ── PARKED CANDIDATES — soft-failing, re-evaluated daily ── -->
+  <div id="parkedSection" class="pruned-section" style="display:none">
+  <div class="tab-section-head">
+    <span style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--amber, #f59e0b)">
+        <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      Parked Candidates <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px">Soft-failing — re-evaluated daily, auto-restored when gates clear</small>
+    </span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="pill" id="parkedPill">0 parked</span>
+      <button class="sec-toggle" onclick="toggleSection('parkedSection')" title="Expand / Shrink"><span class="chevron">▼</span></button>
+    </div>
+  </div>
+  <div class="sec-body">
+    <div class="tab-sub" style="color:var(--muted,#9aa);margin-bottom:8px">
+      These candidates failed only soft gates (earnings proximity, R:R, volume, etc.). They will be re-checked each morning — if all gates clear, they return to the watchlist. After 7 failed cycles they are pruned.
+    </div>
+    <div id="parkedList" class="pruned-list"></div>
+  </div>
+  </div>
+
+
   <!-- ── PRUNED CANDIDATES — terminally invalidated, kept for the record ── -->
   <div id="prunedSection" class="pruned-section" style="display:none">
   <div class="tab-section-head">
@@ -2436,6 +2463,21 @@ body.light-theme .tab-group {
       </table>
     </div>
     <div style="font-size:10px; color:var(--muted); margin-top:8px;">What pruned candidates did after removal, vs their original plan. High T1/T2 hit-rate = the rule may be pruning winners; high SL hit-rate = the filter has real alpha. Backfilled by morning maintenance (10/20/30 sessions after prune).</div>
+  </div>
+
+  <!-- Per-gate CF verdicts -->
+  <div class="card-pane" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; margin-bottom:24px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; color:var(--muted); text-transform:uppercase; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+      <span>🔬 PER-GATE CF VERDICTS</span>
+      <span style="font-size:10px; color:var(--muted); font-family:var(--font-mono);" id="an_gate_meta">—</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="data-table" style="width:100%;">
+        <thead><tr><th>Gate</th><th>Total</th><th>Parked</th><th>Pruned</th><th>Unparked</th><th>10d Avg</th><th>Hit T/SL</th><th>Verdict</th></tr></thead>
+        <tbody id="an_gate_rows"><tr><td colspan="8" class="empty-sub" style="text-align:center; padding:20px;">No per-gate data yet.</td></tr></tbody>
+      </table>
+    </div>
+    <div style="font-size:10px; color:var(--muted); margin-top:8px;">Per risk-gate breakdown of parked + pruned candidates. Shows which gates are filtering winners vs. adding alpha.</div>
   </div>
 
   <!-- Charts Block: Equity curve & Sector win rate -->
@@ -6013,16 +6055,27 @@ function renderStocks(stocks) {
         rejectedPill.textContent = `${_filteredOut.length} rejected`;
       }
       rejectedGrid.innerHTML = _filteredOut.map(r => {
-        const reasonsHtml = (r.reasons || []).map(reason => `<li style="margin-bottom:6px; color: var(--red); list-style-type: square; text-align: left;">${reason}</li>`).join("");
+        const fc = r.failure_class || "HARD";
+        const isSoft = fc === "SOFT";
+        const badgeLabel = isSoft ? "PARKABLE" : "TERMINAL";
+        const badgeColor = isSoft ? "var(--amber, #f59e0b)" : "var(--red)";
+        const badgeBg = isSoft ? "rgba(245, 158, 11, 0.10)" : "var(--red-bg)";
+        const badgeBorder = isSoft ? "rgba(245, 158, 11, 0.25)" : "rgba(239, 68, 68, 0.25)";
+        const cardBorder = isSoft ? "rgba(245, 158, 11, 0.25)" : "rgba(239, 68, 68, 0.25)";
+        const cardBg = isSoft ? "rgba(245, 158, 11, 0.02)" : "rgba(239, 68, 68, 0.02)";
+        const reasonColor = isSoft ? "var(--amber, #f59e0b)" : "var(--red)";
+        const gateId = r.primary_gate_id || "";
+        const reasonsHtml = (r.reasons || []).map(reason => `<li style="margin-bottom:6px; color: ${reasonColor}; list-style-type: square; text-align: left;">${reason}</li>`).join("");
         return `
-          <div class="scard" style="border-color: rgba(239, 68, 68, 0.25); background: rgba(239, 68, 68, 0.02); display: flex; flex-direction: column; justify-content: space-between;">
+          <div class="scard" style="border-color: ${cardBorder}; background: ${cardBg}; display: flex; flex-direction: column; justify-content: space-between;">
             <div class="scard-head" style="border-bottom: 1px dashed var(--border); padding: 14px 16px 10px;">
               <div>
                 <div class="sym" style="color: var(--muted);">${r.symbol}</div>
                 <div class="cname" title="${r.name||r.symbol}">${r.name||r.symbol}</div>
               </div>
-              <div>
-                <span class="tag" style="background: var(--red-bg); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.25); font-weight: 700; border-radius: 4px; padding: 2px 6px;">REJECTED</span>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+                <span class="tag" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; font-weight: 700; border-radius: 4px; padding: 2px 6px;">${badgeLabel}</span>
+                ${gateId ? `<span style="font-size:9px;color:var(--muted);font-family:var(--mono,monospace)">${gateId}</span>` : ""}
               </div>
             </div>
             <div style="padding: 12px 16px 14px; flex-grow: 1;">
@@ -6671,7 +6724,7 @@ function renderWatchlist(r) {
   wrap.innerHTML = summary + setups + watchlistBlock + activeBlock + closedBlock;
 
   // Pruned (terminally invalidated) candidates render in their own section below.
-  renderPrunedSection();
+  renderPrunedSection(); renderParkedSection();
 }
 
 /* ── Pruned-from-Analysis section ────────────────────────── */
@@ -6731,7 +6784,7 @@ function selectPrunedFilter(val, label) {
   }
   
   // Re-render pruned candidates list
-  renderPrunedSection();
+  renderPrunedSection(); renderParkedSection();
 }
 
 async function renderPrunedSection(){
@@ -6812,7 +6865,7 @@ async function restorePruned(symbol){
     });
     if(json.status === "ok"){
       if(typeof toast === "function") toast(`${symbol} restored to analysis`, "success");
-      renderPrunedSection();
+      renderPrunedSection(); renderParkedSection();
       // Refresh the main watchlist/analysis list.
       if(typeof loadPositions === "function") loadPositions();
     }else{
@@ -6821,6 +6874,77 @@ async function restorePruned(symbol){
   }catch(e){
     console.error("[pruned] restore failed", e);
     if(typeof toast === "function") toast("Restore failed", "error");
+  }
+}
+
+async function renderParkedSection(){
+  const section = document.getElementById("parkedSection");
+  const list    = document.getElementById("parkedList");
+  const pill    = document.getElementById("parkedPill");
+  if(!section || !list) return;
+
+  let parked = [];
+  try{
+    const json = await apiFetch("/api/positions/parked");
+    parked = json.parked || [];
+  }catch(e){
+    console.error("[parked] fetch failed", e);
+    return;
+  }
+
+  if(!parked.length){ section.style.display = "none"; return; }
+  section.style.display = "block";
+  if(pill) pill.textContent = `${parked.length} parked`;
+
+  list.innerHTML = parked.map(p => {
+    const sym      = _esc(p.Symbol || p.symbol || "?");
+    const reason   = _esc(p.Park_Reason || p.park_reason || "Soft gate failure");
+    const gateId   = _esc(p.Park_Gate_Id || p.park_gate_id || "");
+    const date     = _esc(p.Park_Date || p.park_date || "");
+    const attempts = parseInt(p.Park_Attempts || p.park_attempts || 0, 10);
+    const maxAttempts = 7;
+    const pctWidth = Math.min(100, Math.round(attempts / maxAttempts * 100));
+    const barColor = attempts >= 5 ? "var(--red)" : "var(--amber, #f59e0b)";
+    return `
+      <div class="pruned-card" data-sym="${sym}" style="border-left:3px solid var(--amber, #f59e0b)">
+        <div class="pc-left" style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="pc-sym">${sym}</span>
+            ${gateId ? `<span style="font-size:9px;background:rgba(245,158,11,0.12);color:var(--amber,#f59e0b);padding:1px 5px;border-radius:3px;font-family:var(--mono,monospace)">${gateId}</span>` : ""}
+          </div>
+          <span class="pc-reason" style="color:var(--amber,#f59e0b)">${reason}</span>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+            ${date ? `<span class="pc-date">Parked ${date}</span>` : ""}
+            <span style="font-size:10px;color:var(--muted)">Attempt ${attempts}/${maxAttempts}</span>
+            <div style="width:60px;height:4px;background:var(--border);border-radius:2px;overflow:hidden" title="${attempts}/${maxAttempts} re-check cycles">
+              <div style="width:${pctWidth}%;height:100%;background:${barColor};border-radius:2px"></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="pc-restore" style="background:rgba(245,158,11,0.08);color:var(--amber,#f59e0b);border-color:rgba(245,158,11,0.25)" onclick="forcePruneParked('${sym}')">Force Prune</button>
+          <button class="pc-restore" onclick="restorePruned('${sym}')">Restore</button>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+async function forcePruneParked(symbol){
+  try{
+    const json = await apiFetch("/api/positions/prune", {
+      method:"POST",
+      body: JSON.stringify({symbol, reason: "Manual force-prune from parked state"})
+    });
+    if(json.status === "ok"){
+      if(typeof toast === "function") toast(`${symbol} force-pruned`, "success");
+      renderParkedSection();
+      renderPrunedSection(); renderParkedSection();
+    }else{
+      if(typeof toast === "function") toast(json.message || "Force prune failed", "error");
+    }
+  }catch(e){
+    console.error("[parked] force prune failed", e);
+    if(typeof toast === "function") toast("Force prune failed", "error");
   }
 }
 
@@ -7035,7 +7159,7 @@ async function triggerManualMaintenance() {
       }
       // Surface any newly pruned stocks in the "Pruned from Analysis" panel.
       if (typeof renderPrunedSection === "function") {
-        renderPrunedSection();
+        renderPrunedSection(); renderParkedSection();
       }
     } else {
       throw new Error(r.message || "Backend rejected pipeline iteration request.");
@@ -8848,7 +8972,7 @@ function switchTab(tabId) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tabId));
   try { localStorage.setItem(LS_ACTIVE_TAB_KEY, tabId); } catch {}
   // Trigger tab-specific refresh
-  if (tabId === "analysis")   { renderBiasBuilder(); renderMacroGatesHeader(); renderChartAnalysis(); renderStockValidation(); renderPrunedSection(); if (_newsData) renderNews(); }
+  if (tabId === "analysis")   { renderBiasBuilder(); renderMacroGatesHeader(); renderChartAnalysis(); renderStockValidation(); renderPrunedSection(); renderParkedSection(); if (_newsData) renderNews(); }
   if (tabId === "trading")    { renderEntryGates(); renderEntryChecklist(); renderStockSelector(); recalcPosSize(); recalcTrail(); }
   if (tabId === "portfolio")  { loadPositions(); renderReviewMetrics(); renderJournalList(); loadMaintenanceSchedule(); }
   if (tabId === "analytics")  { loadPositions(); }
@@ -11340,6 +11464,43 @@ function renderCFAnalytics() {
   }).join("");
 }
 
+function renderGateVerdicts() {
+  const tbody = document.getElementById("an_gate_rows");
+  if (!tbody) return;
+  const cf = (_analyticsData && _analyticsData.cf_analytics) || {};
+  const gv = cf.gate_verdicts || {};
+  const gates = gv.gates || [];
+  const meta = document.getElementById("an_gate_meta");
+  if (meta) meta.textContent = gv.total ? `${gv.total} candidates across ${gates.length} gates` : "—";
+  if (!gates.length) {
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-sub" style="text-align:center; padding:20px;">No per-gate data yet.</td></tr>`;
+    return;
+  }
+  const VERDICTS = {
+    PRUNING_WINNERS:   { label: "Pruning winners", color: "var(--red, #ef4444)" },
+    FILTER_HAS_ALPHA:  { label: "Has alpha", color: "var(--green, #22c55e)" },
+    NEUTRAL:           { label: "Neutral", color: "var(--muted)" },
+    INSUFFICIENT_DATA: { label: "n<3", color: "var(--muted)" },
+  };
+  const ret = v => (v === null || v === undefined) ? "—"
+    : `<b class="${v >= 0 ? "up" : "down"}">${v >= 0 ? "+" : ""}${Number(v).toFixed(1)}%</b>`;
+  const pct = v => (v === null || v === undefined) ? "—" : `${Number(v).toFixed(0)}%`;
+  tbody.innerHTML = gates.map(g => {
+    const v = VERDICTS[g.verdict] || VERDICTS.NEUTRAL;
+    const small = g.resolved < 3;
+    return `<tr style="${small ? "opacity:0.5;" : ""}">
+      <td><b>${g.label}</b><br><small style="color:var(--muted);font-size:9px;font-family:var(--font-mono)">${g.gate_id}</small></td>
+      <td>${g.count}</td>
+      <td>${g.parked}</td>
+      <td>${g.pruned}</td>
+      <td>${g.unparked}</td>
+      <td>${ret(g.avg_return_10d)}</td>
+      <td>${pct(g.t_hit_pct)} / ${pct(g.sl_hit_pct)}</td>
+      <td><span style="font-size:10px; font-weight:700; color:${v.color}; border:1px solid var(--border); border-radius:4px; padding:1px 6px;">${v.label}</span></td>
+    </tr>`;
+  }).join("");
+}
+
 function renderAnalytics(r) {
   _analyticsData = r;
   
@@ -11388,7 +11549,7 @@ function renderAnalytics(r) {
     holdVal.textContent = "—";
     document.getElementById("an_slip").textContent = "—";
     document.getElementById("an_r_rows").innerHTML = `<tr><td colspan="4" class="empty-sub" style="text-align:center; padding:20px;">No R data yet.</td></tr>`;
-    renderCFAnalytics(); // prune counterfactuals don't need closed trades
+    renderCFAnalytics(); renderGateVerdicts(); // prune counterfactuals don't need closed trades
 
     // Draw empty canvas structures
     drawEmptyCanvas("equityCanvas", "Need closed trades to draw curve");
@@ -11461,7 +11622,7 @@ function renderAnalytics(r) {
     }
 
     renderRBreakdown();
-    renderCFAnalytics();
+    renderCFAnalytics(); renderGateVerdicts();
 
     // Avg Hold duration
     const totalHoldDays = closedTrades.reduce((s,t) => s + (t.days_held || 0), 0);

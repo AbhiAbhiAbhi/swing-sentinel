@@ -848,6 +848,51 @@ def filter_overextended_1m(tech: dict, max_runup_pct: float = 25.0) -> Tuple[boo
     return True, ""
 
 
+# ── Gate failure classification ─────────────────────────────────────────────
+# HARD = structural / terminal — candidate should be PRUNED
+# SOFT = state-based / transient — candidate should be PARKED (re-evaluated)
+
+GATE_CLASSIFICATION = {
+    "weekly_trend":              "SOFT",
+    "fundamental_strength":      "HARD",
+    "institutional_dealings":    "SOFT",
+    "low_liquidity":             "SOFT",
+    "overextended_1m":           "SOFT",
+    "debate_skip_check":         "HARD",
+    "data_freshness":            "SOFT",
+    "ipo_age":                   "SOFT",
+    "earnings_soon":             "SOFT",
+    "post_earnings_cooling":     "SOFT",
+    "sector_nifty_regime":       "SOFT",
+    "trend_distance_alignment":  "SOFT",
+    "recent_crash":              "SOFT",
+    "no_mans_land":              "HARD",
+    "volatility":                "SOFT",
+    "distance_to_entry":         "SOFT",
+    "cmp_risk_reward":           "SOFT",
+    "breakout_volume":           "SOFT",
+    "unsustained_volume_spike":  "SOFT",
+    "liquidity_trap":            "SOFT",
+    "trend_stalling":            "SOFT",
+    "target_above_52w_high":     "SOFT",
+    "volume_vacuum_at_highs":    "SOFT",
+    "fresh_bearish_macd":        "SOFT",
+    "momentum_divergence":       "SOFT",
+    "supply_wall_congestion":    "SOFT",
+}
+
+
+def _find_primary_gate(failures: list, detail) -> str:
+    """Return the filter_name of the first failing gate from the detail list."""
+    if not detail:
+        return ""
+    failure_set = set(failures)
+    for rec in detail:
+        if rec.get("verdict") in ("SKIP",) and rec.get("filter"):
+            return rec["filter"]
+    return ""
+
+
 # ── Master filter ───────────────────────────────────────────────────────────
 
 def apply_risk_filters(symbol: str, tech: dict,
@@ -856,21 +901,36 @@ def apply_risk_filters(symbol: str, tech: dict,
                        detail: Optional[list] = None) -> Tuple[bool, list, str, float]:
     """
     Run the complete, stacked filter stack and classify the stock into
-    one of the four states: PASS, WATCH, WARNING, or SKIP.
+    one of five states: PASS, WATCH, WARNING, PARK, or SKIP.
     Also calculates the regime multiplier based on Sector × Nifty alignment (Gate #9).
+
+    SKIP  = at least one HARD (structural) failure — candidate should be PRUNED.
+    PARK  = only SOFT (state-based) failures — candidate should be PARKED for re-eval.
+    PASS  = all gates passed.
+    WATCH / WARNING = only advisory warnings, not blocking.
 
     `thresholds` is an optional dict from the UI with parameters.
     `detail`, if a list is passed in, gets one dict appended per filter
-    evaluated (filter/gate/verdict/measured/threshold/margin) — used to build
-    the entry decision snapshot (issue #4). No-op when `detail` is None, so
-    existing callers are unaffected.
+    evaluated (filter/gate/verdict/measured/threshold/margin/failure_class) —
+    used to build the entry decision snapshot (issue #4). No-op when `detail`
+    is None, so existing callers are unaffected.
     """
     def _rec(filter_name, gate, verdict, measured=None, threshold=None, margin=None):
         if detail is not None:
+            fc = GATE_CLASSIFICATION.get(filter_name, "HARD")
             detail.append({
                 "filter": filter_name, "gate": gate, "verdict": verdict,
                 "measured": measured, "threshold": threshold, "margin": margin,
+                "failure_class": fc,
             })
+
+    def _fail(filter_name, reason):
+        """Append a failure to the correct list based on gate classification."""
+        fc = GATE_CLASSIFICATION.get(filter_name, "HARD")
+        if fc == "HARD":
+            hard_failures.append(reason)
+        else:
+            soft_failures.append(reason)
 
     t = thresholds or {}
     max_atr  = t.get("max_atr_pct",          MAX_ATR_PCT * 100) / 100
@@ -885,7 +945,8 @@ def apply_risk_filters(symbol: str, tech: dict,
     block_overextended = bool(t.get("block_overextended", True))
     block_trend_alignment = bool(t.get("block_trend_alignment", True))
 
-    hard_skips = []
+    hard_failures = []
+    soft_failures = []
     warnings = []
     watch_state = "PASS"
     regime_mult = 1.0
@@ -894,7 +955,7 @@ def apply_risk_filters(symbol: str, tech: dict,
     # 2. Weekly trend check (Gate #2)
     w_trend = str(tech.get("weekly_trend", "UNKNOWN")).strip().upper()
     if w_trend == "BEARISH":
-        hard_skips.append("bearish weekly trend")
+        _fail("weekly_trend", "bearish weekly trend")
     _rec("weekly_trend", "Gate#2", "SKIP" if w_trend == "BEARISH" else "PASS",
          measured=w_trend, threshold="not BEARISH")
 
@@ -902,14 +963,14 @@ def apply_risk_filters(symbol: str, tech: dict,
     if block_unprofitable:
         passed, reason = filter_fundamental_strength(symbol)
         if not passed:
-            hard_skips.append(reason)
+            _fail("fundamental_strength", reason)
         _rec("fundamental_strength", "Gate#3", "PASS" if passed else "SKIP",
              measured=reason or "OK")
 
     # 4. Institutional dealings sanity (FII / DII exit - Gate #4)
     passed, reason = filter_institutional_dealings(symbol)
     if not passed:
-        hard_skips.append(reason)
+        _fail("institutional_dealings", reason)
     _rec("institutional_dealings", "Gate#4", "PASS" if passed else "SKIP",
          measured=reason or "OK")
 
@@ -917,7 +978,7 @@ def apply_risk_filters(symbol: str, tech: dict,
     if block_low_liquidity:
         passed, reason = filter_low_liquidity(tech)
         if not passed:
-            hard_skips.append(reason)
+            _fail("low_liquidity", reason)
         avg_vol = tech.get("avg_volume_20d")
         _rec("low_liquidity", "Gate#5", "PASS" if passed else "SKIP",
              measured=avg_vol, threshold=100000,
@@ -927,7 +988,7 @@ def apply_risk_filters(symbol: str, tech: dict,
     if block_overextended:
         passed, reason = filter_overextended_1m(tech)
         if not passed:
-            hard_skips.append(reason)
+            _fail("overextended_1m", reason)
         runup = tech.get("return_20d")
         _rec("overextended_1m", "Gate#6", "PASS" if passed else "SKIP",
              measured=runup, threshold=25.0,
@@ -952,31 +1013,33 @@ def apply_risk_filters(symbol: str, tech: dict,
                     data = json.load(file)
                     dv = (data.get("verdict") or "").strip().upper()
                     if dv == "SKIP":
-                        hard_skips.append(f"debate chamber skip verdict ({data.get('judge_rationale') or 'Adversarial Judge verdict is SKIP'})")
+                        _fail("debate_skip_check", f"debate chamber skip verdict ({data.get('judge_rationale') or 'Adversarial Judge verdict is SKIP'})")
     except Exception as e:
         logger.warning("[risk_filters] Failed to evaluate cached debate for %s: %s", symbol, e)
     _rec("debate_skip_check", "Gate#7", "SKIP" if dv == "SKIP" else "PASS",
          measured=dv or "no cached debate", threshold="not SKIP")
 
     # 8. Data Freshness Check (Gate #8)
-    _freshness_pre_len = len(hard_skips)
+    _freshness_failed = False
     last_bar_date = tech.get("last_bar_date")
     if last_bar_date:
         try:
             scan_date = datetime.strptime(last_bar_date, "%Y-%m-%d").date()
             scan_day = scan_date.weekday()  # 0: Mon, ..., 4: Fri, 5: Sat, 6: Sun
-            
+
             # Current Kolkata date
             kolkata = pytz.timezone("Asia/Kolkata")
             today = datetime.now(kolkata).date()
             diff_days = (today - scan_date).days
-            
+
             # Friday scan (4) remains valid Monday (3 days). Others valid 1 day.
             max_diff = 3 if scan_day == 4 else 1
             if diff_days > max_diff:
-                hard_skips.append(f"stale data (price data from {last_bar_date} is older than 1 trading day)")
+                _fail("data_freshness", f"stale data (price data from {last_bar_date} is older than 1 trading day)")
+                _freshness_failed = True
         except Exception:
-            hard_skips.append("invalid price date format")
+            _fail("data_freshness", "invalid price date format")
+            _freshness_failed = True
     else:
         # If last_bar_date is missing, check the timestamp
         timestamp_str = tech.get("timestamp")
@@ -990,20 +1053,23 @@ def apply_risk_filters(symbol: str, tech: dict,
                 diff_days = (today - scan_date).days
                 max_diff = 3 if scan_day == 4 else 1
                 if diff_days > max_diff:
-                    hard_skips.append("stale data (older than 1 trading day)")
+                    _fail("data_freshness", "stale data (older than 1 trading day)")
+                    _freshness_failed = True
             except Exception:
-                hard_skips.append("stale data (invalid timestamp)")
+                _fail("data_freshness", "stale data (invalid timestamp)")
+                _freshness_failed = True
         else:
-            hard_skips.append("stale data (missing date/timestamp)")
+            _fail("data_freshness", "stale data (missing date/timestamp)")
+            _freshness_failed = True
     _rec("data_freshness", "Gate#8",
-         "SKIP" if len(hard_skips) > _freshness_pre_len else "PASS",
+         "SKIP" if _freshness_failed else "PASS",
          measured=last_bar_date or tech.get("timestamp") or "missing",
          threshold="<=1 trading day old (3 on Friday scan)")
 
     # 8. IPO check
     passed, reason = filter_ipo_age(tech, min_ipo)
     if not passed:
-        hard_skips.append(reason)
+        _fail("ipo_age", reason)
     bars = tech.get("bars_count")
     _rec("ipo_age", "unlabeled", "PASS" if passed else "SKIP",
          measured=bars, threshold=min_ipo,
@@ -1012,13 +1078,13 @@ def apply_risk_filters(symbol: str, tech: dict,
     # 9. Earnings proximity
     passed, reason = filter_earnings_soon(symbol, earn_win)
     if not passed:
-        hard_skips.append(reason)
+        _fail("earnings_soon", reason)
     _rec("earnings_soon", "unlabeled", "PASS" if passed else "SKIP",
          measured=reason or "OK", threshold=f"{earn_win}d window")
 
     passed, reason = filter_post_earnings_cooling(symbol, earn_cool)
     if not passed:
-        hard_skips.append(reason)
+        _fail("post_earnings_cooling", reason)
     _rec("post_earnings_cooling", "unlabeled", "PASS" if passed else "SKIP",
          measured=reason or "OK", threshold=f"{earn_cool}d cooling")
 
@@ -1053,9 +1119,9 @@ def apply_risk_filters(symbol: str, tech: dict,
         if sector_status == "RED":
             regime_mult = 0.0
             if nifty_regime == "RED":
-                hard_skips.append(f"regime misalignment (HARD SKIP: Nifty RED, Sector RED - {sector} {pct:.2f}% below EMA20)")
+                _fail("sector_nifty_regime", f"regime misalignment (HARD SKIP: Nifty RED, Sector RED - {sector} {pct:.2f}% below EMA20)")
             else:
-                hard_skips.append(f"regime misalignment (SKIP: Nifty {nifty_regime}, Sector RED - {sector} {pct:.2f}% below EMA20)")
+                _fail("sector_nifty_regime", f"regime misalignment (SKIP: Nifty {nifty_regime}, Sector RED - {sector} {pct:.2f}% below EMA20)")
         else:
             # Surviving cells -> determine multiplier
             if nifty_regime == "GREEN":
@@ -1093,7 +1159,7 @@ def apply_risk_filters(symbol: str, tech: dict,
     # 12. CRASH FILTER
     passed, reason = filter_recent_crash(tech, worst_60)
     if not passed:
-        hard_skips.append(reason)
+        _fail("recent_crash", reason)
     _rec("recent_crash", "unlabeled", "PASS" if passed else "SKIP",
          measured=reason or "OK", threshold=f"{worst_60*100:.1f}% single-day drop")
 
@@ -1101,7 +1167,7 @@ def apply_risk_filters(symbol: str, tech: dict,
     if block_no_mans_land:
         nml_status, nml_reason = evaluate_nml_logic(symbol, tech)
         if nml_status == "SKIP":
-            hard_skips.append(nml_reason)
+            _fail("no_mans_land", nml_reason)
         elif nml_status == "WARNING":
             warnings.append(nml_reason)
         elif nml_status == "WATCH_SUPPORT":
@@ -1115,7 +1181,7 @@ def apply_risk_filters(symbol: str, tech: dict,
     # 14. Volatility check
     passed, reason = filter_volatility(tech, max_atr)
     if not passed:
-        hard_skips.append(reason)
+        _fail("volatility", reason)
     _rec("volatility", "unlabeled", "PASS" if passed else "SKIP",
          measured=reason or "OK", threshold=f"ATR <= {max_atr*100:.1f}% of price")
 
@@ -1134,7 +1200,7 @@ def apply_risk_filters(symbol: str, tech: dict,
         if price_val > 0 and entry_max > 0:
             distance_pct = ((price_val - entry_max) / price_val) * 100
             if distance_pct > 5.0:
-                hard_skips.append(f"excessive distance to entry (price is {distance_pct:.1f}% above entry zone max of {entry_max})")
+                _fail("distance_to_entry", f"excessive distance to entry (price is {distance_pct:.1f}% above entry zone max of {entry_max})")
         _rec("distance_to_entry", "CheckA", "SKIP" if (distance_pct is not None and distance_pct > 5.0) else "PASS",
              measured=distance_pct, threshold=5.0,
              margin=(5.0 - distance_pct) if distance_pct is not None else None)
@@ -1151,9 +1217,9 @@ def apply_risk_filters(symbol: str, tech: dict,
                 cmp_rr = reward / risk if risk > 0 else 0.0
 
                 if upside_pct < 2.0:
-                    hard_skips.append(f"poor R:R at CMP (upside to target_2 is only {upside_pct:.1f}%)")
+                    _fail("cmp_risk_reward", f"poor R:R at CMP (upside to target_2 is only {upside_pct:.1f}%)")
                 elif cmp_rr < 1.0:
-                    hard_skips.append(f"poor R:R at CMP (reward/risk ratio is 1:{cmp_rr:.1f} - target must be further or SL tighter)")
+                    _fail("cmp_risk_reward", f"poor R:R at CMP (reward/risk ratio is 1:{cmp_rr:.1f} - target must be further or SL tighter)")
         _rec("cmp_risk_reward", "CheckB", "SKIP" if (cmp_rr is not None and cmp_rr < 1.0) else "PASS",
              measured=cmp_rr, threshold=1.0,
              margin=(cmp_rr - 1.0) if cmp_rr is not None else None)
@@ -1163,7 +1229,7 @@ def apply_risk_filters(symbol: str, tech: dict,
         if setup_type == "BREAKOUT":
             vol_ratio = float(tech.get("volume_ratio") or tech.get("vol_ratio") or 1.0)
             if vol_ratio < 1.2:
-                hard_skips.append(f"weak breakout volume (volume ratio {vol_ratio:.2f}x is below 1.2x)")
+                _fail("breakout_volume", f"weak breakout volume (volume ratio {vol_ratio:.2f}x is below 1.2x)")
             _rec("breakout_volume", "CheckC", "SKIP" if vol_ratio < 1.2 else "PASS",
                  measured=vol_ratio, threshold=1.2, margin=vol_ratio - 1.2)
 
@@ -1174,7 +1240,7 @@ def apply_risk_filters(symbol: str, tech: dict,
             days_above_1 = sum(1 for v in vol_ratios_5d if v >= 1.0)
             spike_fail = max_spike >= 3.0 and days_above_1 == 1 and vol_ratios_5d[-1] < 0.8
             if spike_fail:
-                hard_skips.append(f"unsustained volume spike (isolated {max_spike:.1f}x spike in 5d, today is dry at {vol_ratios_5d[-1]:.2f}x)")
+                _fail("unsustained_volume_spike", f"unsustained volume spike (isolated {max_spike:.1f}x spike in 5d, today is dry at {vol_ratios_5d[-1]:.2f}x)")
             _rec("unsustained_volume_spike", "CheckD", "SKIP" if spike_fail else "PASS",
                  measured=vol_ratios_5d, threshold="no isolated >=3x spike")
 
@@ -1187,7 +1253,7 @@ def apply_risk_filters(symbol: str, tech: dict,
             atr_multiple = (entry_base - sl_val) / atr_val
             trap = turnover < 100000000 and atr_multiple < 1.5
             if trap:
-                hard_skips.append(f"liquidity trap risk (turnover {turnover/10000000:.1f} Cr < 10 Cr and stop loss is tight at {atr_multiple:.2f} ATR)")
+                _fail("liquidity_trap", f"liquidity trap risk (turnover {turnover/10000000:.1f} Cr < 10 Cr and stop loss is tight at {atr_multiple:.2f} ATR)")
             _rec("liquidity_trap", "CheckE", "SKIP" if trap else "PASS",
                  measured={"turnover_cr": turnover / 10000000, "atr_multiple": atr_multiple},
                  threshold={"turnover_cr": 10.0, "atr_multiple": 1.5})
@@ -1213,7 +1279,7 @@ def apply_risk_filters(symbol: str, tech: dict,
         near_highs = high_52 > 0 and price_val >= high_52 * 0.95 and setup_type in ("PULLBACK", "CONSOLIDATION")
         vacuum_verdict = "PASS"
         if near_highs and vol_ratio < 0.25:
-            hard_skips.append(f"volume vacuum (critical low volume ratio {vol_ratio:.2f}x near 52w high)")
+            _fail("volume_vacuum_at_highs", f"volume vacuum (critical low volume ratio {vol_ratio:.2f}x near 52w high)")
             vacuum_verdict = "SKIP"
         elif near_highs and vol_ratio < 0.50:
             warnings.append(f"low volume ratio {vol_ratio:.2f}x near 52w high (exhaustion risk)")
@@ -1255,15 +1321,33 @@ def apply_risk_filters(symbol: str, tech: dict,
 
 
     # ── Multi-Flag Stacking ──────────────────────────────────────────────────
-    total_flags = hard_skips + warnings
+    all_skips = hard_failures + soft_failures
+    total_flags = all_skips + warnings
     if len(total_flags) >= 3:
-        hard_skips.append(f"Multi-flag rejection ({len(total_flags)} flags: {'; '.join(total_flags)})")
+        mf_class = "HARD" if hard_failures else "SOFT"
+        mf_reason = f"Multi-flag rejection ({len(total_flags)} flags: {'; '.join(total_flags)})"
+        if mf_class == "HARD":
+            hard_failures.append(mf_reason)
+        else:
+            soft_failures.append(mf_reason)
 
     # ── Determine Final Verdict and Passed State ─────────────────────────────
-    if hard_skips:
+    # Identify the primary gate that drove the verdict
+    primary_gate_id = ""
+    failure_class = ""
+
+    if hard_failures:
         verdict = "SKIP"
         passed_all = False
-        reasons = hard_skips
+        reasons = hard_failures + soft_failures
+        primary_gate_id = _find_primary_gate(hard_failures, detail)
+        failure_class = "HARD"
+    elif soft_failures:
+        verdict = "PARK"
+        passed_all = False
+        reasons = soft_failures
+        primary_gate_id = _find_primary_gate(soft_failures, detail)
+        failure_class = "SOFT"
     elif warnings:
         is_watch = any("pullback support" in r.lower() or "breakout resistance" in r.lower() for r in warnings)
         verdict = "WATCH" if (watch_state == "WATCH" or is_watch) else "WARNING"
@@ -1274,7 +1358,7 @@ def apply_risk_filters(symbol: str, tech: dict,
         passed_all = True
         reasons = []
 
-    return passed_all, reasons, verdict, regime_mult
+    return passed_all, reasons, verdict, regime_mult, primary_gate_id, failure_class
 
 
 class GateResult:

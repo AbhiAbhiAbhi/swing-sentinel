@@ -165,3 +165,150 @@ def aggregate_cf_by_reason(rows: list) -> dict:
         out.append(entry)
 
     return {"buckets": out, "total": total, "resolved": resolved_total}
+
+
+# ── Per-gate CF analytics ──────────────────────────────────────────────────
+
+GATE_REGISTRY = {
+    "weekly_trend":              "Weekly Trend",
+    "fundamental_strength":      "Fundamental Strength",
+    "institutional_dealings":    "FII/DII Dealings",
+    "low_liquidity":             "Low Liquidity",
+    "overextended_1m":           "Overextended 1M",
+    "debate_skip_check":         "Debate Chamber",
+    "data_freshness":            "Data Freshness",
+    "ipo_age":                   "IPO Age",
+    "earnings_soon":             "Earnings Proximity",
+    "post_earnings_cooling":     "Post-Earnings Cooling",
+    "sector_nifty_regime":       "Sector/Nifty Regime",
+    "trend_distance_alignment":  "Trend-Distance Alignment",
+    "recent_crash":              "Recent Crash",
+    "no_mans_land":              "No Man's Land",
+    "volatility":                "Volatility",
+    "distance_to_entry":         "Distance to Entry",
+    "cmp_risk_reward":           "CMP R:R",
+    "breakout_volume":           "Breakout Volume",
+    "unsustained_volume_spike":  "Unsustained Volume",
+    "liquidity_trap":            "Liquidity Trap",
+    "trend_stalling":            "Trend Stalling",
+    "target_above_52w_high":     "Target > 52W High",
+    "volume_vacuum_at_highs":    "Volume Vacuum",
+    "fresh_bearish_macd":        "Bearish MACD",
+    "momentum_divergence":       "Momentum Divergence",
+    "supply_wall_congestion":    "Supply Wall",
+    "multi_flag":                "Multi-Flag Rejection",
+}
+
+_GATE_FALLBACK_PATTERNS = [
+    (re.compile(r"weekly.trend", re.I),           "weekly_trend"),
+    (re.compile(r"fundamental", re.I),            "fundamental_strength"),
+    (re.compile(r"FII|DII|institutional", re.I),  "institutional_dealings"),
+    (re.compile(r"liquidity.trap", re.I),         "liquidity_trap"),
+    (re.compile(r"low.liquid", re.I),             "low_liquidity"),
+    (re.compile(r"overextend", re.I),             "overextended_1m"),
+    (re.compile(r"debate", re.I),                 "debate_skip_check"),
+    (re.compile(r"fresh|stale", re.I),            "data_freshness"),
+    (re.compile(r"IPO|listing", re.I),            "ipo_age"),
+    (re.compile(r"earning", re.I),                "earnings_soon"),
+    (re.compile(r"post.earning|cooling", re.I),   "post_earnings_cooling"),
+    (re.compile(r"sector|regime", re.I),          "sector_nifty_regime"),
+    (re.compile(r"no.man", re.I),                 "no_mans_land"),
+    (re.compile(r"volatil|ATR", re.I),            "volatility"),
+    (re.compile(r"distance", re.I),               "distance_to_entry"),
+    (re.compile(r"R:R|risk.reward", re.I),        "cmp_risk_reward"),
+    (re.compile(r"breakout.vol", re.I),           "breakout_volume"),
+    (re.compile(r"unsustain", re.I),              "unsustained_volume_spike"),
+    (re.compile(r"trend.stall", re.I),            "trend_stalling"),
+    (re.compile(r"52.?w", re.I),                  "target_above_52w_high"),
+    (re.compile(r"volume.vacuum", re.I),          "volume_vacuum_at_highs"),
+    (re.compile(r"MACD|bearish.macd", re.I),      "fresh_bearish_macd"),
+    (re.compile(r"divergen", re.I),               "momentum_divergence"),
+    (re.compile(r"supply.wall|congestion", re.I), "supply_wall_congestion"),
+    (re.compile(r"multi.flag|multiple", re.I),    "multi_flag"),
+    (re.compile(r"crash", re.I),                  "recent_crash"),
+]
+
+
+def bucket_by_gate_id(row) -> str:
+    gate_id = str(row.get("Park_Gate_Id") or row.get("park_gate_id") or "").strip()
+    if gate_id and gate_id in GATE_REGISTRY:
+        return gate_id
+    reason = str(row.get("Prune_Reason") or row.get("Park_Reason") or "")
+    for rx, gid in _GATE_FALLBACK_PATTERNS:
+        if rx.search(reason):
+            return gid
+    return "unknown"
+
+
+def compute_gate_verdicts(rows: list) -> dict:
+    """
+    Per-gate breakdown across PRUNED + PARKED rows.
+
+    Returns {"gates": [...], "total": n} where each gate entry has:
+    count, parked, pruned, unparked, avg_return_10d,
+    t_hit_pct, sl_hit_pct, verdict.
+    """
+    gates = {}
+    total = 0
+    for row in rows:
+        total += 1
+        gid = bucket_by_gate_id(row)
+        g = gates.setdefault(gid, {
+            "gate_id": gid,
+            "label": GATE_REGISTRY.get(gid, gid),
+            "count": 0, "parked": 0, "pruned": 0, "unparked": 0,
+            "returns_10d": [],
+            "hits": {"T1": 0, "T2": 0, "SL": 0, "NONE": 0},
+            "resolved": 0,
+        })
+        g["count"] += 1
+
+        status = str(row.get("Status") or "").upper()
+        if status == "PARKED":
+            g["parked"] += 1
+        elif status == "PRUNED":
+            g["pruned"] += 1
+        unpark_date = str(row.get("Unpark_Date") or "").strip()
+        if unpark_date:
+            g["unparked"] += 1
+
+        hit = str(row.get("CF_Would_Have_Hit") or "").upper()
+        if hit in ("T1", "T2", "SL", "NONE"):
+            g["resolved"] += 1
+            g["hits"][hit] += 1
+
+        v10 = row.get("CF_Return_10d")
+        try:
+            f = float(v10)
+            if math.isfinite(f):
+                g["returns_10d"].append(f)
+        except (TypeError, ValueError):
+            pass
+
+    out = []
+    for gid, g in sorted(gates.items(), key=lambda kv: -kv[1]["count"]):
+        res = g["resolved"]
+        t_hits = g["hits"]["T1"] + g["hits"]["T2"]
+        entry = {
+            "gate_id":     gid,
+            "label":       g["label"],
+            "count":       g["count"],
+            "parked":      g["parked"],
+            "pruned":      g["pruned"],
+            "unparked":    g["unparked"],
+            "resolved":    res,
+            "avg_return_10d": round(sum(g["returns_10d"]) / len(g["returns_10d"]), 2) if g["returns_10d"] else None,
+            "t_hit_pct":   round(t_hits / res * 100.0, 1) if res else None,
+            "sl_hit_pct":  round(g["hits"]["SL"] / res * 100.0, 1) if res else None,
+        }
+        if res < 3:
+            entry["verdict"] = "INSUFFICIENT_DATA"
+        elif entry["t_hit_pct"] >= 50.0:
+            entry["verdict"] = "PRUNING_WINNERS"
+        elif entry["sl_hit_pct"] >= 50.0:
+            entry["verdict"] = "FILTER_HAS_ALPHA"
+        else:
+            entry["verdict"] = "NEUTRAL"
+        out.append(entry)
+
+    return {"gates": out, "total": total}

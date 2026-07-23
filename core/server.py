@@ -61,7 +61,7 @@ except ImportError:
         # PASS-everything scan is worse than no scan.
         RISK_FILTERS_AVAILABLE = False
         logger.error("[risk-filters] UNAVAILABLE — scans will be refused: %s", _rf_exc)
-        def apply_risk_filters(sym, tech, sector_pulse=None, thresholds=None, detail=None): return True, [], "PASS", 1.0
+        def apply_risk_filters(sym, tech, sector_pulse=None, thresholds=None, detail=None): return True, [], "PASS", 1.0, "", ""
         def get_sector(sym): return "OTHERS"
         def fetch_sector_pulse(): return {}
         def fetch_screener_shareholding(sym): return {}
@@ -651,7 +651,7 @@ def process_single_stock(stock, df_sym, sector_pulse, filters):
         if not tech:
             return {"status": "error", "symbol": symbol, "reason": "No technical indicators available"}
 
-        passed, reasons, verdict, regime_mult = apply_risk_filters(symbol, tech, sector_pulse=sector_pulse, thresholds=filters)
+        passed, reasons, verdict, regime_mult, primary_gate_id, failure_class = apply_risk_filters(symbol, tech, sector_pulse=sector_pulse, thresholds=filters)
         if not passed:
             return {
                 "status": "filtered",
@@ -661,6 +661,8 @@ def process_single_stock(stock, df_sym, sector_pulse, filters):
                 "verdict": verdict,
                 "index_membership": get_index_membership(symbol),
                 "regime_multiplier": regime_mult,
+                "failure_class": failure_class,
+                "primary_gate_id": primary_gate_id,
             }
 
         plan = calculate_trade_plan(tech)
@@ -948,7 +950,9 @@ def api_scan():
                 df_positions = pd.read_csv(positions_path)
                 if not df_positions.empty and "Status" in df_positions.columns:
                     _ensure_cols(df_positions, ["Prune_Reason", "Prune_Date",
-                                                "Risk_Per_Share", "Rupee_Risk"])
+                                                "Risk_Per_Share", "Rupee_Risk",
+                                                "Park_Reason", "Park_Gate_Id", "Park_Date",
+                                                "Unpark_Date", "Park_Attempts", "Was_Armed"])
                     csv_updated = False
 
                     for idx, row in df_positions.iterrows():
@@ -1033,9 +1037,68 @@ def api_scan():
                             csv_updated = True
                             logger.info("[cadence] Locked plan re-used for re-evaluate candidate %s", sym)
 
+                    for idx, row in df_positions.iterrows():
+                        if str(row["Status"]).strip().upper() != "PARKED":
+                            continue
+
+                        sym = str(row["Symbol"]).strip().upper()
+                        attempts = int(row.get("Park_Attempts", 0) or 0)
+
+                        if attempts >= 7:
+                            gate_id = str(row.get("Park_Gate_Id", "") or "")
+                            df_positions.at[idx, "Status"]       = "PRUNED"
+                            df_positions.at[idx, "Prune_Reason"] = f"Park window expired: {gate_id}"
+                            df_positions.at[idx, "Prune_Date"]   = _now_date()
+                            csv_updated = True
+                            logger.info("[cadence] PARKED→PRUNED %s (7 cycles expired)", sym)
+                            continue
+
+                        tech = next(
+                            (s for s in scan_results if s["symbol"].upper() == sym), None
+                        ) or next(
+                            (s for s in filtered_out if s["symbol"].upper() == sym), None
+                        )
+                        if tech is None:
+                            try:
+                                tech = fetch_stock_technicals(sym) or {}
+                            except Exception:
+                                tech = {}
+
+                        try:
+                            sp = tech.get("sector_pulse") or sector_pulse
+                            thr = tech.get("thresholds", {})
+                            detail = []
+                            passed, reasons, verdict, _rm, _pgid, _fc = apply_risk_filters(
+                                sym, tech, sp, thr, detail
+                            )
+                        except Exception as rf_exc:
+                            logger.warning("[cadence] park re-check failed for %s: %s", sym, rf_exc)
+                            df_positions.at[idx, "Park_Attempts"] = attempts + 1
+                            csv_updated = True
+                            continue
+
+                        if verdict == "SKIP":
+                            df_positions.at[idx, "Status"]       = "PRUNED"
+                            df_positions.at[idx, "Prune_Reason"] = "; ".join(reasons) if reasons else "Hard failure on re-check"
+                            df_positions.at[idx, "Prune_Date"]   = _now_date()
+                            csv_updated = True
+                            logger.info("[cadence] PARKED→PRUNED %s (hard failure)", sym)
+                        elif verdict == "PARK":
+                            df_positions.at[idx, "Park_Attempts"] = attempts + 1
+                            df_positions.at[idx, "Park_Reason"]   = "; ".join(reasons) if reasons else str(row.get("Park_Reason", ""))
+                            df_positions.at[idx, "Park_Gate_Id"]  = _pgid or str(row.get("Park_Gate_Id", ""))
+                            csv_updated = True
+                            logger.info("[cadence] PARKED %s still soft-failing (attempt %d)", sym, attempts + 1)
+                        else:
+                            was_armed = _truthy(row.get("Was_Armed"))
+                            df_positions.at[idx, "Status"]      = "ARMED" if was_armed else "OPEN"
+                            df_positions.at[idx, "Unpark_Date"] = _now_date()
+                            csv_updated = True
+                            logger.info("[cadence] UNPARKED %s → %s", sym, "ARMED" if was_armed else "OPEN")
+
                     if csv_updated:
                         _save_positions_csv(df_positions, positions_path)
-                        logger.info("[cadence] Applied Analysis-tab prune rules to positions.csv")
+                        logger.info("[cadence] Applied Analysis-tab prune/park rules to positions.csv")
             except Exception as e:
                 logger.error("[cadence] Error applying prune rules: %s", e)
 
@@ -1083,7 +1146,7 @@ def api_plan(symbol: str):
             sector_pulse = fetch_sector_pulse()
         except Exception:
             sector_pulse = {}
-        passed, reasons, verdict, regime_mult = apply_risk_filters(symbol, tech, sector_pulse=sector_pulse)
+        passed, reasons, verdict, regime_mult, _pgid, _fc = apply_risk_filters(symbol, tech, sector_pulse=sector_pulse)
 
         earn_days_until, earn_date_str, earn_source = fetch_earnings_date(symbol)
 
@@ -1272,7 +1335,9 @@ def _append_rows_to_csv(path: str, rows: list) -> tuple:
         is_pruned = False
         pruned_idx = None
         if not existing.empty and "Status" in existing.columns and "Symbol" in existing.columns:
-            _ensure_cols(existing, ["Prune_Reason", "Prune_Date", "Status"])
+            _ensure_cols(existing, ["Prune_Reason", "Prune_Date", "Status",
+                                    "Park_Reason", "Park_Gate_Id", "Park_Date",
+                                    "Unpark_Date", "Park_Attempts", "Was_Armed"])
             symbol_mask = (existing["Symbol"].astype(str).str.strip().str.upper() == sym.upper()) & \
                           (existing["Status"].astype(str).str.upper() == "PRUNED")
             if symbol_mask.any():
@@ -1483,7 +1548,7 @@ def _build_entry_snapshot(symbol: str, entry_price, tech: dict,
 
     try:
         detail = []
-        passed_all, reasons, verdict, regime_mult = apply_risk_filters(
+        passed_all, reasons, verdict, regime_mult, _pgid, _fc = apply_risk_filters(
             symbol, tech, sector_pulse=sector_pulse, detail=detail
         )
         snapshot["risk_filters"] = {
@@ -1560,22 +1625,45 @@ def api_positions_pruned():
     return jsonify({"pruned": records, "count": len(records)})
 
 
+@app.route("/api/positions/parked")
+def api_positions_parked():
+    """Return candidates that are parked (Status == PARKED) — soft-failing, awaiting re-evaluation."""
+    path = os.path.join(_ROOT, "data", "positions.csv")
+    if not os.path.exists(path):
+        return jsonify({"parked": [], "count": 0})
+    df = pd.read_csv(path)
+    if df.empty or "Status" not in df.columns:
+        return jsonify({"parked": [], "count": 0})
+
+    _ensure_cols(df, ["Park_Reason", "Park_Gate_Id", "Park_Date", "Unpark_Date", "Park_Attempts", "Was_Armed"])
+    parked = df[df["Status"].astype(str).str.upper() == "PARKED"].copy()
+    parked = parked.where(pd.notna(parked), "")
+    records = parked.to_dict(orient="records")
+    records.sort(key=lambda r: str(r.get("Park_Date", "")), reverse=True)
+    return jsonify({"parked": records, "count": len(records)})
+
+
 def _compute_cf_analytics() -> dict:
-    """Aggregate PRUNED-row counterfactuals per Prune_Reason (issue #6)."""
+    """Aggregate PRUNED+PARKED row counterfactuals per Prune_Reason and per gate."""
     try:
-        from core.core_cf_analytics import aggregate_cf_by_reason
+        from core.core_cf_analytics import aggregate_cf_by_reason, compute_gate_verdicts
     except ImportError:
-        from core_cf_analytics import aggregate_cf_by_reason
+        from core_cf_analytics import aggregate_cf_by_reason, compute_gate_verdicts
     path = os.path.join(_ROOT, "data", "positions.csv")
     if not os.path.exists(path):
         return {}
     df = pd.read_csv(path)
     if df.empty or "Status" not in df.columns:
         return {}
-    pruned = df[df["Status"].astype(str).str.upper() == "PRUNED"]
-    if pruned.empty:
+    _ensure_cols(df, ["Park_Reason", "Park_Gate_Id", "Park_Date", "Unpark_Date", "Park_Attempts", "Was_Armed"])
+    pruned_parked = df[df["Status"].astype(str).str.upper().isin(["PRUNED", "PARKED"])]
+    if pruned_parked.empty:
         return {}
-    return aggregate_cf_by_reason(pruned.where(pd.notna(pruned), "").to_dict(orient="records"))
+    rows = pruned_parked.where(pd.notna(pruned_parked), "").to_dict(orient="records")
+    pruned_rows = [r for r in rows if str(r.get("Status", "")).upper() == "PRUNED"]
+    result = aggregate_cf_by_reason(pruned_rows) if pruned_rows else {"buckets": [], "total": 0, "resolved": 0}
+    result["gate_verdicts"] = compute_gate_verdicts(rows)
+    return result
 
 
 @app.route("/api/cf-analytics")
@@ -1602,17 +1690,51 @@ def api_positions_restore():
 
     df = pd.read_csv(path)
     df["Symbol"] = df["Symbol"].astype(str).str.strip().str.upper()
-    mask = (df["Symbol"] == symbol) & (df["Status"].astype(str).str.upper() == "PRUNED")
+    mask = (df["Symbol"] == symbol) & (df["Status"].astype(str).str.upper().isin(["PRUNED", "PARKED"]))
     if not mask.any():
-        return jsonify({"status": "error", "message": f"{symbol} not in pruned list"}), 404
+        return jsonify({"status": "error", "message": f"{symbol} not in pruned/parked list"}), 404
 
     idx = df[mask].index[-1]
     df.at[idx, "Status"]       = "OPEN"
     df.at[idx, "Prune_Reason"] = ""
     df.at[idx, "Prune_Date"]   = ""
+    _ensure_cols(df, ["Park_Reason", "Park_Gate_Id", "Park_Date", "Unpark_Date", "Park_Attempts", "Was_Armed"])
+    df.at[idx, "Park_Reason"]  = ""
+    df.at[idx, "Park_Gate_Id"] = ""
+    df.at[idx, "Park_Date"]    = ""
+    df.at[idx, "Unpark_Date"]  = _now_date()
     _save_positions_csv(df, path)
     logger.info("[positions/restore] %s restored to OPEN", symbol)
     return jsonify({"status": "ok", "message": f"{symbol} restored to analysis"})
+
+
+@app.route("/api/positions/prune", methods=["POST"])
+def api_positions_prune():
+    """Force-prune a PARKED candidate (manual override)."""
+    data = request.get_json(force=True, silent=True) or {}
+    symbol = str(data.get("symbol", "")).strip().upper()
+    reason = str(data.get("reason", "Manual force-prune"))
+    if not symbol:
+        return jsonify({"status": "error", "message": "symbol required"}), 400
+
+    path = os.path.join(_ROOT, "data", "positions.csv")
+    if not os.path.exists(path):
+        return jsonify({"status": "error", "message": "no positions file"}), 404
+
+    df = pd.read_csv(path)
+    df["Symbol"] = df["Symbol"].astype(str).str.strip().str.upper()
+    mask = (df["Symbol"] == symbol) & (df["Status"].astype(str).str.upper() == "PARKED")
+    if not mask.any():
+        return jsonify({"status": "error", "message": f"{symbol} not in parked list"}), 404
+
+    idx = df[mask].index[-1]
+    _ensure_cols(df, ["Prune_Reason", "Prune_Date"])
+    df.at[idx, "Status"]       = "PRUNED"
+    df.at[idx, "Prune_Reason"] = reason
+    df.at[idx, "Prune_Date"]   = _now_date()
+    _save_positions_csv(df, path)
+    logger.info("[positions/prune] %s force-pruned from PARKED", symbol)
+    return jsonify({"status": "ok", "message": f"{symbol} pruned"})
 
 
 @app.route("/api/positions/add", methods=["POST"])
@@ -1626,19 +1748,21 @@ def api_positions_add():
         path = os.path.join(_ROOT, "data", "positions.csv")
         os.makedirs(os.path.join(_ROOT, "data"), exist_ok=True)
 
-        # Block / Prune SKIP-verdict stocks — the risk filters already rejected them.
-        if str(data.get("verdict", "")).upper() == "SKIP":
+        # Block / Park / Prune stocks that failed the risk-filter stack.
+        v_upper = str(data.get("verdict", "")).upper()
+        if v_upper in ("SKIP", "PARK"):
             skip_reasons = data.get("reasons", [])
             reason_str = "; ".join(skip_reasons) if skip_reasons else "safety-gate rejection"
-            logger.info("[positions/add] Pruning %s — verdict SKIP (%s)", data["symbol"], reason_str)
-            
+            fc = data.get("failure_class", "HARD")
+            is_park = v_upper == "PARK" or (fc == "SOFT" and v_upper == "SKIP")
+
             reasons_val = data.get("reasons", [])
             if isinstance(reasons_val, list):
                 reasons_json = json.dumps(reasons_val)
             else:
                 reasons_json = reasons_val
 
-            row = {
+            base_row = {
                 "Symbol":       data["symbol"],
                 "Name":         data.get("name", data["symbol"]),
                 "Entry_Price":  data.get("entry_price", 0),
@@ -1648,9 +1772,6 @@ def api_positions_add():
                 "Current_SL":   data.get("sl", 0),
                 "Setup":        data.get("setup", ""),
                 "Entry_Date":   _now_date(),
-                "Status":       "PRUNED",
-                "Prune_Reason": f"Safety gates failed: {reason_str}",
-                "Prune_Date":   _now_date(),
                 "Setup_Grade":  data.get("setup_grade", ""),
                 "Setup_Score":  data.get("setup_score", ""),
                 "Expiry_Multiplier": data.get("expiry_info", {}).get("multiplier", "") if data.get("expiry_info") else data.get("expiry_multiplier", ""),
@@ -1666,10 +1787,30 @@ def api_positions_add():
                 "Cur_Vol_Ratio": data.get("vol_ratio", ""),
                 "Cur_False_Breakout_Risk": data.get("false_breakout_risk", ""),
                 "Cur_Scan_Date": _now_date(),
-                "Cur_Verdict": "SKIP",
                 "Cur_Reasons": reasons_json,
                 "Cur_Regime_Mult": data.get("regime_multiplier", ""),
             }
+
+            if is_park:
+                logger.info("[positions/add] Parking %s — soft failure (%s)", data["symbol"], reason_str)
+                base_row.update({
+                    "Status": "PARKED",
+                    "Park_Reason": f"Soft gate: {reason_str}",
+                    "Park_Gate_Id": data.get("primary_gate_id", ""),
+                    "Park_Date": _now_date(),
+                    "Park_Attempts": "1",
+                    "Cur_Verdict": "PARK",
+                })
+            else:
+                logger.info("[positions/add] Pruning %s — verdict SKIP (%s)", data["symbol"], reason_str)
+                base_row.update({
+                    "Status": "PRUNED",
+                    "Prune_Reason": f"Safety gates failed: {reason_str}",
+                    "Prune_Date": _now_date(),
+                    "Cur_Verdict": "SKIP",
+                })
+
+            row = base_row
             added, skipped = _append_rows_to_csv(path, [row])
             if not added:
                 logger.info("[positions] %s already on watchlist — skipped", row["Symbol"])
@@ -1679,10 +1820,11 @@ def api_positions_add():
                     "skipped":  skipped,
                 }), 200
 
-            logger.info("[positions] Added pruned stock %s @ %s", row["Symbol"], row["Entry_Price"])
+            status_label = "parked" if is_park else "pruned"
+            logger.info("[positions] Added %s stock %s @ %s", status_label, row["Symbol"], row["Entry_Price"])
             return jsonify({
-                "status": "pruned",
-                "message": f"{data['symbol']} failed safety gates and was added to the pruned list.",
+                "status": status_label,
+                "message": f"{data['symbol']} was {status_label} ({'soft gate — will be re-evaluated' if is_park else 'safety gates failed'}).",
                 "reasons": skip_reasons,
                 "position": row
             }), 200
@@ -1796,48 +1938,86 @@ def _add_stocks_to_positions(stocks):
         else:
             reasons_json = reasons_val
 
-        # Guard: prune stocks that failed the risk-filter stack.
-        if str(s.get("verdict", "")).upper() == "SKIP":
+        # Guard: park or prune stocks that failed the risk-filter stack.
+        v_upper = str(s.get("verdict", "")).upper()
+        if v_upper in ("SKIP", "PARK"):
             skip_reasons = s.get("reasons", [])
             reason_str = "; ".join(skip_reasons) if skip_reasons else "safety-gate rejection"
-            logger.info(
-                "[get-stocks] Adding %s as PRUNED — verdict SKIP (%s)",
-                s["symbol"],
-                reason_str,
-            )
-            rows.append({
-                "Symbol": s["symbol"],
-                "Name": s.get("name", s["symbol"]),
-                "Entry_Price": s.get("entry_min", s.get("price", 0)),
-                "Quantity": 1,
-                "Target_1": s.get("target_1", 0),
-                "Target_2": s.get("target_2", 0),
-                "Current_SL": s.get("sl", 0),
-                "Setup": s.get("setup", ""),
-                "Entry_Date": _now_date(),
-                "Status": "PRUNED",
-                "Prune_Reason": f"Safety gates failed: {reason_str}",
-                "Prune_Date":   _now_date(),
-                "Setup_Grade": s.get("setup_grade", ""),
-                "Setup_Score": s.get("setup_score", ""),
-                "Expiry_Multiplier": s.get("expiry_info", {}).get("multiplier", "") if s.get("expiry_info") else s.get("expiry_multiplier", ""),
-                "Expiry_Reason": s.get("expiry_info", {}).get("reason", "") if s.get("expiry_info") else s.get("expiry_reason", ""),
-                # Populate Cur_* tracking fields so they are immediately available to the UI
-                "Cur_Weekly_Trend": s.get("weekly_trend", ""),
-                "Cur_Return_20d": s.get("return_20d", ""),
-                "Cur_ADX": s.get("adx", ""),
-                "Cur_EMA20": s.get("ema20", ""),
-                "Cur_EMA50": s.get("ema50", ""),
-                "Cur_ATR_Pct": s.get("atr_pct", ""),
-                "Cur_Base_Status": s.get("base_status", ""),
-                "Cur_Base_Days": s.get("base_days", ""),
-                "Cur_Vol_Ratio": s.get("vol_ratio", ""),
-                "Cur_False_Breakout_Risk": s.get("false_breakout_risk", ""),
-                "Cur_Scan_Date": _now_date(),
-                "Cur_Verdict": "SKIP",
-                "Cur_Reasons": reasons_json,
-                "Cur_Regime_Mult": s.get("regime_multiplier", ""),
-            })
+            fc = s.get("failure_class", "HARD")
+            is_park = v_upper == "PARK" or (fc == "SOFT" and v_upper == "SKIP")
+
+            if is_park:
+                logger.info("[get-stocks] Adding %s as PARKED — soft failure (%s)", s["symbol"], reason_str)
+                rows.append({
+                    "Symbol": s["symbol"],
+                    "Name": s.get("name", s["symbol"]),
+                    "Entry_Price": s.get("entry_min", s.get("price", 0)),
+                    "Quantity": 1,
+                    "Target_1": s.get("target_1", 0),
+                    "Target_2": s.get("target_2", 0),
+                    "Current_SL": s.get("sl", 0),
+                    "Setup": s.get("setup", ""),
+                    "Entry_Date": _now_date(),
+                    "Status": "PARKED",
+                    "Park_Reason": f"Soft gate: {reason_str}",
+                    "Park_Gate_Id": s.get("primary_gate_id", ""),
+                    "Park_Date": _now_date(),
+                    "Park_Attempts": "1",
+                    "Unpark_Date": "",
+                    "Was_Armed": "",
+                    "Setup_Grade": s.get("setup_grade", ""),
+                    "Setup_Score": s.get("setup_score", ""),
+                    "Expiry_Multiplier": s.get("expiry_info", {}).get("multiplier", "") if s.get("expiry_info") else s.get("expiry_multiplier", ""),
+                    "Expiry_Reason": s.get("expiry_info", {}).get("reason", "") if s.get("expiry_info") else s.get("expiry_reason", ""),
+                    "Cur_Weekly_Trend": s.get("weekly_trend", ""),
+                    "Cur_Return_20d": s.get("return_20d", ""),
+                    "Cur_ADX": s.get("adx", ""),
+                    "Cur_EMA20": s.get("ema20", ""),
+                    "Cur_EMA50": s.get("ema50", ""),
+                    "Cur_ATR_Pct": s.get("atr_pct", ""),
+                    "Cur_Base_Status": s.get("base_status", ""),
+                    "Cur_Base_Days": s.get("base_days", ""),
+                    "Cur_Vol_Ratio": s.get("vol_ratio", ""),
+                    "Cur_False_Breakout_Risk": s.get("false_breakout_risk", ""),
+                    "Cur_Scan_Date": _now_date(),
+                    "Cur_Verdict": "PARK",
+                    "Cur_Reasons": reasons_json,
+                    "Cur_Regime_Mult": s.get("regime_multiplier", ""),
+                })
+            else:
+                logger.info("[get-stocks] Adding %s as PRUNED — verdict SKIP (%s)", s["symbol"], reason_str)
+                rows.append({
+                    "Symbol": s["symbol"],
+                    "Name": s.get("name", s["symbol"]),
+                    "Entry_Price": s.get("entry_min", s.get("price", 0)),
+                    "Quantity": 1,
+                    "Target_1": s.get("target_1", 0),
+                    "Target_2": s.get("target_2", 0),
+                    "Current_SL": s.get("sl", 0),
+                    "Setup": s.get("setup", ""),
+                    "Entry_Date": _now_date(),
+                    "Status": "PRUNED",
+                    "Prune_Reason": f"Safety gates failed: {reason_str}",
+                    "Prune_Date":   _now_date(),
+                    "Setup_Grade": s.get("setup_grade", ""),
+                    "Setup_Score": s.get("setup_score", ""),
+                    "Expiry_Multiplier": s.get("expiry_info", {}).get("multiplier", "") if s.get("expiry_info") else s.get("expiry_multiplier", ""),
+                    "Expiry_Reason": s.get("expiry_info", {}).get("reason", "") if s.get("expiry_info") else s.get("expiry_reason", ""),
+                    "Cur_Weekly_Trend": s.get("weekly_trend", ""),
+                    "Cur_Return_20d": s.get("return_20d", ""),
+                    "Cur_ADX": s.get("adx", ""),
+                    "Cur_EMA20": s.get("ema20", ""),
+                    "Cur_EMA50": s.get("ema50", ""),
+                    "Cur_ATR_Pct": s.get("atr_pct", ""),
+                    "Cur_Base_Status": s.get("base_status", ""),
+                    "Cur_Base_Days": s.get("base_days", ""),
+                    "Cur_Vol_Ratio": s.get("vol_ratio", ""),
+                    "Cur_False_Breakout_Risk": s.get("false_breakout_risk", ""),
+                    "Cur_Scan_Date": _now_date(),
+                    "Cur_Verdict": "SKIP",
+                    "Cur_Reasons": reasons_json,
+                    "Cur_Regime_Mult": s.get("regime_multiplier", ""),
+                })
             continue
 
         rows.append({
@@ -3241,10 +3421,14 @@ def api_results():
             "Risk_Per_Share",
         ])
 
+        _ensure_cols(df, ["Park_Reason", "Park_Gate_Id", "Park_Date",
+                          "Unpark_Date", "Park_Attempts", "Was_Armed"])
+
         total = len(df)
         closed_df = df[df["Status"].astype(str).str.upper() == "CLOSED"]
         open_df   = df[df["Status"].astype(str).str.upper().isin(["OPEN", "ARMED"])]
         bought_df = df[df["Status"].astype(str).str.upper() == "BOUGHT"]
+        parked_df = df[df["Status"].astype(str).str.upper() == "PARKED"]
 
         # Money-based scoring: a win is an exit above entry, regardless of the
         # Outcome label (labels only describe the exit mechanism).
@@ -3642,6 +3826,26 @@ def api_results():
         except Exception as h_exc:
             logger.warning("[results] symbol-history join failed: %s", h_exc)
 
+        parked_list = []
+        for _, r in parked_df.iterrows():
+            parked_list.append({
+                "symbol":        str(r.get("Symbol", "")),
+                "name":          str(r.get("Name", str(r.get("Symbol", "")))),
+                "setup":         str(r.get("Setup", "")),
+                "entry":         _num(r.get("Entry_Price")),
+                "target_1":      _num(r.get("Target_1")),
+                "target_2":      _num(r.get("Target_2")),
+                "sl":            _num(r.get("Current_SL")),
+                "park_reason":   str(r.get("Park_Reason", "")),
+                "park_gate_id":  str(r.get("Park_Gate_Id", "")),
+                "park_date":     str(r.get("Park_Date", "")),
+                "park_attempts": int(r.get("Park_Attempts", 0) or 0),
+                "was_armed":     _truthy(r.get("Was_Armed")),
+                "entry_date":    str(r.get("Entry_Date", "")),
+                "index_membership": get_index_membership(str(r.get("Symbol", ""))),
+            })
+        parked_list.sort(key=lambda x: x.get("park_date", ""), reverse=True)
+
         return jsonify({
             "post_mortems":     post_mortems,
             "r_analytics":      r_analytics,
@@ -3666,6 +3870,8 @@ def api_results():
             "active_entry_hit":   entry_hit_active,
             "active_t1_hit":      t1_hit_active,
             "avg_unrealized_pct": avg_unrealized,
+            "parked_positions":   parked_list,
+            "parked_count":       len(parked_df),
         })
     except Exception as exc:
         logger.error("[results] %s", exc)
@@ -3681,6 +3887,7 @@ def _empty_results():
         "active_entry_hit": 0, "active_t1_hit": 0,
         "avg_unrealized_pct": 0, "active_positions": [],
         "post_mortems": {}, "r_analytics": {}, "cf_analytics": {},
+        "parked_positions": [], "parked_count": 0,
     }
 
 

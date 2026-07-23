@@ -397,8 +397,8 @@ def run_morning_maintenance(manual_trigger=False) -> dict:
                         verdict = "PASS"
                         regime_mult = 1.0
                         try:
-                            passed, reasons, verdict, regime_mult = apply_risk_filters(sym, tech, sector_pulse)
-                            gate = {"verdict": verdict, "reasons": reasons, "regime_mult": regime_mult}
+                            passed, reasons, verdict, regime_mult, primary_gate_id, failure_class = apply_risk_filters(sym, tech, sector_pulse)
+                            gate = {"verdict": verdict, "reasons": reasons, "regime_mult": regime_mult, "primary_gate_id": primary_gate_id, "failure_class": failure_class}
                         except Exception as gate_err:
                             logger.warning("apply_risk_filters failed for %s: %s", sym, gate_err)
                         

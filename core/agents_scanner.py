@@ -96,9 +96,9 @@ def run_morning_scanner():
 
             # Canonical safety gates (single source of truth) — replaces the per-check
             # fundamental/liquidity/overextension duplication in generate_priority_actions.
-            passed, reasons, verdict, regime_mult = apply_risk_filters(
+            passed, reasons, verdict, regime_mult, _pgid, _fc = apply_risk_filters(
                 symbol, tech_data, sector_pulse=sector_pulse)
-            if verdict == "SKIP":
+            if verdict in ("SKIP", "PARK"):
                 print(f"skip ({'; '.join(reasons)[:50]})")
                 continue
 
